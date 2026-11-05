@@ -2279,16 +2279,13 @@ function updateBagScroll(){
   if(!v||!track||!thumb) return;
   const vh=v.clientHeight||0, sh=v.scrollHeight||0;
   const max=sh-vh;
-  const dbg0=document.getElementById('bagDbg');
-  if(dbg0) dbg0.textContent=Math.round(v.scrollHeight)+'/'+Math.round(v.clientHeight);
   if(max<=2){ track.style.display='none'; return; }
   track.style.display='block';
-  const thH=Math.max(18, Math.round(vh*vh/sh));
-  const travel=Math.max(1, vh-thH);
+  const th=track.clientHeight||vh;
+  const thH=Math.max(16, Math.min(th-4, Math.round(th*vh/sh)));
+  const travel=Math.max(1, th-thH);
   thumb.style.height=thH+'px';
-  thumb.style.top=Math.round(travel*(v.scrollTop/max))+'px';
-  const dbg=document.getElementById('bagDbg');
-  if(dbg) dbg.textContent=Math.round(v.scrollHeight)+'/'+Math.round(vh);
+  thumb.style.top=Math.max(0, Math.min(travel, Math.round(travel*(v.scrollTop/max))))+'px';
 }
 function bagSet(y){
   const v=bagViewEl(); if(!v) return;
@@ -2316,8 +2313,8 @@ function bindScrollbar(){
   thumb.addEventListener('touchstart', (e)=>{
     e.stopPropagation();
     bagDragV=null;
-    const vh=v.clientHeight||1, max=bagMaxScroll(), thH=thumb.offsetHeight||24;
-    bagDragT={ y:e.touches[0].clientY, start:v.scrollTop, k:max/Math.max(1, vh-thH) };
+    const th=track.clientHeight||v.clientHeight||1, max=bagMaxScroll(), thH=thumb.offsetHeight||24;
+    bagDragT={ y:e.touches[0].clientY, start:v.scrollTop, k:max/Math.max(1, th-thH) };
     if(e.cancelable) e.preventDefault();
   }, {passive:false});
   thumb.addEventListener('touchmove', (e)=>{
@@ -2331,8 +2328,8 @@ function bindScrollbar(){
   thumb.addEventListener('mousedown', (e)=>{
     e.stopPropagation();
     bagDragV=null;
-    const vh=v.clientHeight||1, max=bagMaxScroll(), thH=thumb.offsetHeight||24;
-    bagDragT={ y:e.clientY, start:v.scrollTop, k:max/Math.max(1, vh-thH) };
+    const th=track.clientHeight||v.clientHeight||1, max=bagMaxScroll(), thH=thumb.offsetHeight||24;
+    bagDragT={ y:e.clientY, start:v.scrollTop, k:max/Math.max(1, th-thH) };
     e.preventDefault();
   });
   addEventListener('mousemove', (e)=>{ if(bagDragT) bagSet(bagDragT.start + (e.clientY-bagDragT.y)*bagDragT.k); });
@@ -2340,8 +2337,8 @@ function bindScrollbar(){
   track.addEventListener('touchstart', (e)=>{
     e.stopPropagation(); bagDragV=null;
     const r=track.getBoundingClientRect();
-    const vh=v.clientHeight||1, max=bagMaxScroll(), thH=thumb.offsetHeight||24;
-    const travel=Math.max(1, vh-thH);
+    const th=track.clientHeight||v.clientHeight||1, max=bagMaxScroll(), thH=thumb.offsetHeight||24;
+    const travel=Math.max(1, th-thH);
     const rel=Math.max(0, Math.min(travel, e.touches[0].clientY-r.top-thH/2));
     bagSet(rel/travel*max);
     if(e.cancelable) e.preventDefault();
