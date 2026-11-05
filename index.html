@@ -98,8 +98,8 @@
   @keyframes popIn { from { transform:scale(.94); opacity:0; } to { transform:scale(1); opacity:1; } }
   .modal-box { animation:popIn .16s ease-out; }
   .item-menu { animation:popIn .12s ease-out; }
-  #colBtn { position:fixed; z-index:6; left:calc(64px + env(safe-area-inset-left, 0px));
-            bottom:calc(10px + env(safe-area-inset-bottom, 0px)); width:46px; height:46px; padding:0;
+  #colBtn { position:fixed; z-index:6; left:calc(10px + env(safe-area-inset-left, 0px));
+            bottom:calc(64px + env(safe-area-inset-bottom, 0px)); width:46px; height:46px; padding:0;
             background:#4b5462; border:2px solid #0b0f1a; border-radius:0;
             box-shadow:inset 0 1px 0 #5b6472; display:flex; align-items:center; justify-content:center; }
   .col-tabs { display:flex; gap:6px; width:100%; }
@@ -163,9 +163,11 @@
   .item-menu button { width:100%; background:#5a412c; color:#f3e3cc; border:2px solid #241810;
                       box-shadow:0 2px 0 #241810; font-size:14px; padding:9px 12px; }
   .item-menu button:active { transform:translateY(2px); box-shadow:0 0 0 #241810; }
-  .detail-box { position:relative; background:#3b2a1c; border:2px solid #241810; padding:14px;
-                width:min(360px, 88vw); max-height:80vh; overflow-y:auto; color:#f3e3cc;
-                display:flex; flex-direction:column; gap:10px; }
+  #itemDetail { position:fixed; inset:0; z-index:14; }
+  .detail-box { position:absolute; left:0; top:0; background:#3b2a1c; border:2px solid #241810; padding:12px;
+                width:min(290px, 78vw); max-height:72vh; overflow-y:auto; color:#f3e3cc;
+                display:flex; flex-direction:column; gap:8px; box-shadow:0 4px 0 rgba(0,0,0,.4);
+                animation:popIn .12s ease-out; }
   .detail-head { display:flex; align-items:center; gap:10px; }
   .detail-name { font-size:15px; font-weight:bold; color:#f8e9d2; flex:1; }
   .detail-desc { background:#2b1d12; border:1px solid #1c130c; padding:9px; color:#ffffff;
@@ -369,9 +371,8 @@
 <div id="itemMenu" class="hidden">
   <div class="item-menu" id="itemMenuBox"></div>
 </div>
-<div id="itemDetail" class="modal hidden" style="z-index:13">
-  <div class="modal-bg" id="itemDetailBg"></div>
-  <div class="detail-box">
+<div id="itemDetail" class="hidden">
+  <div class="detail-box" id="detailBox">
     <div class="detail-head">
       <span id="detailIcon"></span>
       <span class="detail-name" id="detailName"></span>
@@ -1970,12 +1971,13 @@ function updateBagCap(){
   el.innerHTML='';
   el.appendChild(makePixLabel(bagItems.length+'|100 容量', 14, '#94a3b8'));
 }
-let bagFilter='all', bagSel=null;
+let bagFilter='all', bagSel=-1;
 function bagDisplay(){
-  if(bagFilter==='all') return {list:bagItems.slice(), hl:new Set()};
-  const match=bagItems.filter(id=>ITEMS[id] && ITEMS[id].t===bagFilter);
-  const rest=bagItems.filter(id=>!ITEMS[id] || ITEMS[id].t!==bagFilter);
-  return {list:match.concat(rest), hl:new Set(match)};
+  const idxs=bagItems.map((_,i)=>i);
+  if(bagFilter==='all') return {idxs, hl:new Set()};
+  const match=[], rest=[];
+  for(const i of idxs){ const it=ITEMS[bagItems[i]]; (it && it.t===bagFilter ? match : rest).push(i); }
+  return {idxs:match.concat(rest), hl:new Set(match)};
 }
 function renderBag(){
   const g=document.getElementById('bagGrid'); if(!g) return;
@@ -1983,10 +1985,11 @@ function renderBag(){
   const dis=bagDisplay();
   for(let i=0;i<100;i++){
     const d=document.createElement('div'); d.className='eq-slot';
-    const id=dis.list[i];
-    if(id){
-      if(dis.hl.has(id)) d.classList.add('hl');
-      if(bagSel===id) d.classList.add('sel');
+    const idx=dis.idxs[i];
+    const id=idx!==undefined ? bagItems[idx] : undefined;
+    if(id!==undefined){
+      if(dis.hl.has(idx)) d.classList.add('hl');
+      if(bagSel===idx) d.classList.add('sel');
       {
         const del=document.createElement('button');
         del.className='del-btn';
@@ -1995,8 +1998,8 @@ function renderBag(){
           if(ev){ ev.stopPropagation(); if(ev.cancelable) ev.preventDefault(); }
           sfxBeep();
           askConfirm('删除「'+ITEMS[id].n+'」？', ()=>{
-            bagItems=bagItems.filter(x=>x!==id);
-            if(bagSel===id) bagSel=null;
+            const k=bagItems.indexOf(id);
+            if(k>=0) bagItems.splice(k,1);
             renderBag(); saveGame();
           });
         };
@@ -2012,15 +2015,15 @@ function renderBag(){
       d.title=ITEMS[id].n;
       bindItemSlot(d,
         ()=>{
-          bagSel=id;
+          bagSel=idx;
           document.querySelectorAll('#bagGrid .eq-slot.sel').forEach(x=>x.classList.remove('sel'));
           d.classList.add('sel');
           showItemMenu(id, [
-          {label:'查看', fn:()=>openItemDetail(id)},
-          {label:'装配', fn:()=>{ vibrate(3); if(equipItem(id)){ sfxEquip(); renderBag(); renderEquipPanel(); saveGame(); } }}
-        ], d);
+            {label:'查看', fn:()=>openItemDetail(id, d)},
+            {label:'装配', fn:()=>{ vibrate(3); if(equipItem(id)){ sfxEquip(); renderBag(); renderEquipPanel(); saveGame(); } }}
+          ], d);
         },
-        ()=>openItemDetail(id)
+        ()=>openItemDetail(id, d)
       );
     }
     g.appendChild(d);
@@ -2121,7 +2124,8 @@ function detailRows(id){
   if(it.fx) rows.push(['特殊效果', it.fx]);
   return rows;
 }
-function openItemDetail(id){
+let detailOpenAt=0;
+function openItemDetail(id, anchor){
   document.getElementById('detailName').textContent=ITEMS[id].n;
   const ic=document.getElementById('detailIcon');
   ic.innerHTML=''; const cv=itemCanvas(id,34); cv.style.imageRendering='pixelated'; ic.appendChild(cv);
@@ -2133,10 +2137,27 @@ function openItemDetail(id){
     d.innerHTML='<span>'+r[0]+'</span><b>'+r[1]+'</b>';
     rows.appendChild(d);
   }
-  document.getElementById('itemDetail').classList.remove('hidden');
+  const wrap=document.getElementById('itemDetail'), box=document.getElementById('detailBox');
+  wrap.classList.remove('hidden');
+  const ar = anchor ? anchor.getBoundingClientRect()
+                    : {left:innerWidth/2, top:innerHeight/2, right:innerWidth/2, bottom:innerHeight/2};
+  const br = box.getBoundingClientRect();
+  let x=ar.right+10, y=ar.top;
+  if(x+br.width>innerWidth-8) x=ar.left-br.width-10;
+  if(x<8) x=8;
+  if(y+br.height>innerHeight-8) y=innerHeight-8-br.height;
+  if(y<8) y=8;
+  box.style.left=x+'px';
+  box.style.top=y+'px';
+  detailOpenAt=performance.now();
 }
-document.getElementById('detailClose').onclick=()=>document.getElementById('itemDetail').classList.add('hidden');
-document.getElementById('itemDetailBg').onclick=()=>document.getElementById('itemDetail').classList.add('hidden');
+function closeDetail(){ document.getElementById('itemDetail').classList.add('hidden'); }
+document.getElementById('detailClose').onclick=closeDetail;
+document.getElementById('itemDetail').onclick=(e)=>{
+  if(e.target.id!=='itemDetail') return;
+  if(performance.now()-detailOpenAt<300) return;
+  closeDetail();
+};
 
 function makePixLabel(text, px, color){
   const sp=document.createElement('span');
@@ -2197,22 +2218,20 @@ function renderCollection(){
     const d=document.createElement('div'); d.className='col-slot';
     const unlocked = e.id ? itemUnlocked(e.id) : false;
     if(unlocked){
-      const im=itemImg(ITEMS[e.id].ic);
-      if(im && im.complete && im.naturalWidth>0){
-        const cv=document.createElement('canvas'); cv.width=40; cv.height=40;
-        const cg=cv.getContext('2d'); cg.imageSmoothingEnabled=false; cg.drawImage(im,0,0,40,40);
-        cv.style.cssText='width:40px;height:40px;image-rendering:pixelated;';
-        d.appendChild(cv);
-      } else {
-        const q=document.createElement('span'); q.className='qmark'; q.textContent='?'; d.appendChild(q);
-      }
+      const cv=itemCanvas(e.id, 40);
+      cv.style.cssText='width:40px;height:40px;image-rendering:pixelated;';
+      d.appendChild(cv);
+      const nm=document.createElement('span'); nm.className='cname';
+      nm.textContent=ITEMS[e.id].n;
+      d.appendChild(nm);
+      bindItemSlot(d,
+        ()=>openItemDetail(e.id, d),
+        ()=>openItemDetail(e.id, d)
+      );
     } else {
       d.classList.add('lock');
       const q=document.createElement('span'); q.className='qmark'; q.textContent='?'; d.appendChild(q);
     }
-    const nm=document.createElement('span'); nm.className='cname';
-    nm.textContent = unlocked ? ITEMS[e.id].n : (e.id ? '???' : e.n);
-    d.appendChild(nm);
     g.appendChild(d);
   }
 }
