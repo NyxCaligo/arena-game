@@ -102,7 +102,14 @@ const WORLD_W=WCOLS*TILE, WORLD_H=WROWS*TILE;
 let JBX=70, JBY=140; const JR=26;   // 常驻摇杆位置（左下，随屏幕）
 const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
 const off = document.createElement('canvas'); off.width=VW*RES; off.height=VH*RES;
-const octx = off.getContext('2d'); octx.imageSmoothingEnabled=false; octx.setTransform(RES,0,0,RES,0,0);
+let octx = off.getContext('2d'); octx.imageSmoothingEnabled=false; octx.setTransform(RES,0,0,RES,0,0);
+// 静态地面预渲染
+const groundCanvas = document.createElement('canvas');
+groundCanvas.width = WORLD_W*RES; groundCanvas.height = WORLD_H*RES;
+const gctx = groundCanvas.getContext('2d');
+gctx.imageSmoothingEnabled = false;
+gctx.setTransform(RES,0,0,RES,0,0);
+let baking = false;
 
 let cssScale=1, oxCss=0, oyCss=0, dpr=1;
 function resize(){
@@ -202,14 +209,16 @@ const borderDeco = [];
 
 // ---------- 状态 ----------
 let state='menu', last=0;
-let camX=0, camY=0, walkPhase=0;
+let camX=0, camY=0, camXs=0, camYs=0, walkPhase=0;
 let player = { x:360, y:248, hp:100, maxHp:100, r:6, speed:80, face:1 };
 let level=0, xp=0, xpNeed=10;
 
 function resetGame(){
   player = { x:360, y:248, hp:100, maxHp:100, r:6, speed:80, face:1 };
   level=0; xp=0; xpNeed=10; walkPhase=0; lastStep=-1;
-  camX=player.x-VW/2; camY=player.y-VH/2;
+  camX=Math.max(0,Math.min(WORLD_W-VW, player.x-VW/2));
+  camY=Math.max(0,Math.min(WORLD_H-VH, player.y-VH/2));
+  camXs=camX; camYs=camY;
 }
 
 // ---------- 输入（常驻摇杆，仅右下角 1/4 可操作） ----------
@@ -266,8 +275,13 @@ function update(dt){
     }
   }
   if(!(joy.active && Math.hypot(joy.dx,joy.dy)>2)) walkPhase = 0;
-  camX = Math.round(Math.max(0, Math.min(WORLD_W-VW, player.x-VW/2))*RES)/RES;
-  camY = Math.round(Math.max(0, Math.min(WORLD_H-VH, player.y-VH/2))*RES)/RES;
+  const tcx=Math.max(0, Math.min(WORLD_W-VW, player.x-VW/2));
+  const tcy=Math.max(0, Math.min(WORLD_H-VH, player.y-VH/2));
+  const k=1-Math.exp(-dt*12);
+  camXs += (tcx-camXs)*k;
+  camYs += (tcy-camYs)*k;
+  camX = Math.round(camXs*RES)/RES;
+  camY = Math.round(camYs*RES)/RES;
 }
 
 // ---------- 像素字体 ----------
@@ -625,17 +639,28 @@ function drawJoystick(){
   octx.beginPath(); octx.arc(kx,ky,9,0,7); octx.stroke();
 }
 
+function buildGround(){
+  baking = true;
+  const saved = octx;
+  octx = gctx;
+  octx.clearRect(0,0,WORLD_W,WORLD_H);
+  for(let ty=0; ty<WROWS; ty++) for(let tx=0; tx<WCOLS; tx++){
+    const sx=tx*TILE, sy=ty*TILE, t=world[ty][tx];
+    if(t===0) drawGroundTile(sx,sy,tx,ty);
+    else drawBoundaryBase(sx,sy,tx,ty);
+  }
+  octx = saved;
+  baking = false;
+}
+
 function render(){
   octx.clearRect(0,0,VW,VH);
   octx.fillStyle='#7db25a'; octx.fillRect(0,0,VW,VH);
 
-  const x0=Math.max(0,Math.floor(camX/TILE)), x1=Math.min(WCOLS,Math.ceil((camX+VW)/TILE));
-  const y0=Math.max(0,Math.floor(camY/TILE)), y1=Math.min(WROWS,Math.ceil((camY+VH)/TILE));
-  for(let ty=y0; ty<y1; ty++) for(let tx=x0; tx<x1; tx++){
-    const sx=tx*TILE-camX, sy=ty*TILE-camY, t=world[ty][tx];
-    if(t===0) drawGroundTile(sx,sy,tx,ty);
-    else drawBoundaryBase(sx,sy,tx,ty);
-  }
+  octx.save();
+  octx.setTransform(1,0,0,1,0,0);
+  octx.drawImage(groundCanvas, camX*RES, camY*RES, VW*RES, VH*RES, 0, 0, VW*RES, VH*RES);
+  octx.restore();
   const hs=BUILDINGS.slice().sort((a,b)=>(a.y+a.h)-(b.y+b.h));
   for(const b of hs){ if(b.y+b.h <= player.y) drawHouse(b); }
   drawHero();
@@ -800,7 +825,7 @@ document.getElementById('startBtn').onclick=()=>{
   setTimeout(()=>{ sub.classList.add('hidden'); state='city'; }, 1600);
 };
 
-resetGame(); last=performance.now(); requestAnimationFrame(frame);
+buildGround(); resetGame(); last=performance.now(); requestAnimationFrame(frame);
 </script>
 </body>
 </html>
