@@ -1251,7 +1251,15 @@ function goTitle(){
   updateHudButtons(); sfxBeep(); vibrate(2);
 }
 document.getElementById('menuBtn').onclick=()=>{
-  openSettings(true);
+  const inGame = (state==='city' || state==='arrive');
+  if(inGame){
+    document.getElementById('menuWrap').classList.remove('hidden');
+    sfxBeep(); vibrate(2);
+    if(autoPause){ pausedAutoMenu=true; paused=true; }
+    updateHudButtons();
+  } else {
+    openSettings(true);
+  }
 };
 document.getElementById('menuWrapBg').onclick=()=>{
   document.getElementById('menuWrap').classList.add('hidden');
@@ -1900,7 +1908,7 @@ document.getElementById('interactBtn').onclick=()=>{
   toastMsg('……（她好像在等你说点什么）');
 };
 function drawMini(){
-  const S=46, mx=VW-54, my=60;
+  const S=46, mx=VW-54, my=50;
   px(mx-2,my-2,S+4,S+4,'#0b0f1a');
   px(mx-1,my-1,S+2,S+2,'#3a4250');
   const sc=Math.min(S/WCOLS, S/WROWS);
@@ -1926,7 +1934,12 @@ document.getElementById('tlImport').onclick=()=>{
 
 // ---------- 横屏提示 ----------
 let nearNpc=false, autoPause=true, pausedAuto=false;
+function syncMenuIcon(){
+  const b=document.getElementById('menuBtn'); if(!b) return;
+  b.textContent = (state==='city' || state==='arrive') ? '☰' : '⚙';
+}
 function updateHudButtons(){
+  syncMenuIcon();
   const settingsOpen=!document.getElementById('settingsPanel').classList.contains('hidden');
   const pauseOpen=!document.getElementById('pauseWrap').classList.contains('hidden');
   const menuOpen=!document.getElementById('menuWrap').classList.contains('hidden');
