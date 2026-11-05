@@ -1310,8 +1310,8 @@ document.getElementById('menuBtn').onclick=()=>{
 };
 document.getElementById('menuWrapBg').onclick=()=>{
   document.getElementById('menuWrap').classList.add('hidden');
-  if(pausedAutoMenu){ paused=false; pausedAutoMenu=false; }
-  updateHudButtons();
+  paused=false; pausedAutoMenu=false;
+  syncPauseIcon(); updateHudButtons();
 };
 document.getElementById('mTitle').onclick=goTitle;
 settingsBtn.onclick=()=>{ document.getElementById('menuWrap').classList.add('hidden'); if(pausedAutoMenu){ paused=false; pausedAutoMenu=false; } openSettings(true); };
