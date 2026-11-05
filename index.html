@@ -22,6 +22,13 @@
            background:#4ade80; color:#052e16; border:2px solid #052e16; border-radius:0;
            box-shadow:0 4px 0 #052e16; padding:13px 34px; cursor:pointer; }
   button:active { transform:translateY(3px); box-shadow:0 1px 0 #052e16; }
+  #rotate { position:fixed; inset:0; z-index:20; display:flex; flex-direction:column; align-items:center;
+            justify-content:center; gap:18px; background:#05070d; color:#e2e8f0; text-align:center; padding:24px; }
+  #rotate.hidden { display:none; }
+  #rotate .icon { font-size:56px; animation:rot 2.4s ease-in-out infinite; }
+  #rotate .t { font-size:20px; font-weight:bold; letter-spacing:2px; }
+  #rotate .d { color:#64748b; font-size:13px; }
+  @keyframes rot { 0%,100%{transform:rotate(0)} 50%{transform:rotate(90deg)} }
 </style>
 </head>
 <body>
@@ -35,10 +42,16 @@
 <div id="subtitle" class="ov hidden">
   <div class="text">到达主城</div>
 </div>
+<div id="rotate" class="hidden">
+  <div class="icon">📱</div>
+  <div class="t">请把手机横过来</div>
+  <div class="d">横屏游玩体验更好</div>
+</div>
 
 <script>
 "use strict";
-const VW=176, VH=320, TILE=16, COLS=11, ROWS=20;
+const VW=352, VH=176, TILE=16, WCOLS=44, WROWS=30;
+const WORLD_W=WCOLS*TILE, WORLD_H=WROWS*TILE;
 const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
 const off = document.createElement('canvas'); off.width=VW; off.height=VH;
 const octx = off.getContext('2d'); octx.imageSmoothingEnabled=false;
@@ -54,43 +67,44 @@ function resize(){
 resize();
 window.addEventListener('resize', resize);
 
-// ---------- 地图：主城（# = 墙，. = 可通行） ----------
-const MAP = [
-  "###########",
-  "#.........#",
-  "#.##...##.#",
-  "#.##...##.#",
-  "#.........#",
-  "#..#####..#",
-  "#..#####..#",
-  "#.........#",
-  "#....##...#",
-  "#....##...#",
-  "#.........#",
-  "#.##...##.#",
-  "#.##...##.#",
-  "#.........#",
-  "#..#####..#",
-  "#..#####..#",
-  "#.........#",
-  "#....##...#",
-  "#....##...#",
-  "###########",
-];
+// ---------- 确定性随机 ----------
+function hash(x,y){
+  let h = (x|0)*374761393 + (y|0)*668265263;
+  h = (h ^ (h>>>13)) * 1274126177;
+  return ((h ^ (h>>>16)) >>> 0) / 4294967295;
+}
+
+// ---------- 世界生成 ----------
+// 0 草地  1 石墙  2 山  3 树
+const world = [];
+for(let y=0;y<WROWS;y++){
+  const row=[];
+  for(let x=0;x<WCOLS;x++){
+    const edge=Math.min(x,y,WCOLS-1-x,WROWS-1-y);
+    if(edge<2) row.push(hash(x,y)<0.5?2:3);
+    else row.push(0);
+  }
+  world.push(row);
+}
+function stampWall(x,y,w,h){ for(let j=y;j<y+h;j++) for(let i=x;i<x+w;i++){ if(world[j]&&world[j][i]!==undefined) world[j][i]=1; } }
+stampWall(6,5,6,4); stampWall(32,5,6,4);
+stampWall(7,22,7,4); stampWall(31,22,6,4);
 
 // ---------- 状态 ----------
 let state='menu', last=0;
-let player = { x:88, y:168, hp:100, maxHp:100, r:7, speed:60 };
+let camX=0, camY=0, walkPhase=0;
+let player = { x:360, y:248, hp:100, maxHp:100, r:7, speed:64, face:1 };
 let level=0, xp=0, xpNeed=10;
 
 function resetGame(){
-  player = { x:88, y:168, hp:100, maxHp:100, r:7, speed:60 };
-  level=0; xp=0; xpNeed=10;
+  player = { x:360, y:248, hp:100, maxHp:100, r:7, speed:64, face:1 };
+  level=0; xp=0; xpNeed=10; walkPhase=0;
+  camX=player.x-VW/2; camY=player.y-VH/2;
 }
 
-// ---------- 输入（浮动摇杆） ----------
+// ---------- 输入 ----------
 let joy={active:false, ox:0, oy:0, dx:0, dy:0};
-const R=24;
+const R=30;
 function toV(x,y){ return [(x-oxCss)/cssScale, (y-oyCss)/cssScale]; }
 function joyMove(x,y){
   const dx=x-joy.ox, dy=y-joy.oy, d=Math.hypot(dx,dy), m=d>R?R/d:1;
@@ -114,8 +128,8 @@ cv.addEventListener('mouseup', ()=>{ joy.active=false; joy.dx=joy.dy=0; });
 // ---------- 碰撞 ----------
 function solidAt(px,py){
   const tx=Math.floor(px/TILE), ty=Math.floor(py/TILE);
-  if(tx<0||ty<0||tx>=COLS||ty>=ROWS) return true;
-  return MAP[ty][tx]==='#';
+  if(tx<0||ty<0||tx>=WCOLS||ty>=WROWS) return true;
+  return world[ty][tx]!==0;
 }
 function tryMove(dx,dy){
   const half=6, nx=player.x+dx, ny=player.y+dy;
@@ -128,11 +142,17 @@ function tryMove(dx,dy){
 function update(dt){
   if(joy.active){
     const d=Math.hypot(joy.dx,joy.dy);
-    if(d>0) tryMove(joy.dx/d*player.speed*dt, joy.dy/d*player.speed*dt);
+    if(d>2){
+      tryMove(joy.dx/d*player.speed*dt, joy.dy/d*player.speed*dt);
+      walkPhase += dt*13;
+      if(joy.dx>2) player.face=1; else if(joy.dx<-2) player.face=-1;
+    }
   }
+  camX = Math.max(0, Math.min(WORLD_W-VW, player.x-VW/2));
+  camY = Math.max(0, Math.min(WORLD_H-VH, player.y-VH/2));
 }
 
-// ---------- 像素字体 / 图标 ----------
+// ---------- 像素字体 ----------
 const FONT = {
   '0':["111","101","101","101","111"], '1':["010","110","010","010","111"],
   '2':["111","001","111","100","111"], '3':["111","001","111","001","111"],
@@ -143,8 +163,7 @@ const FONT = {
 };
 const IC = { heart:[".1.1.","11111","11111",".111.","..1.."] };
 function drawText(str, x, y, color, s=1){
-  octx.fillStyle=color;
-  let cx=x;
+  octx.fillStyle=color; let cx=x;
   for(let i=0;i<str.length;i++){
     const g=FONT[str[i]]||FONT['0'];
     for(let ry=0;ry<5;ry++) for(let rx=0;rx<3;rx++)
@@ -168,55 +187,93 @@ function drawBar(x,y,w,h,frac,color){
   }
 }
 
-// ---------- 渲染 ----------
-const specks = (()=>{ const a=[]; for(let i=0;i<130;i++) a.push({x:Math.random()*VW,y:Math.random()*VH,c:Math.random()<0.5}); return a; })();
+// ---------- 绘制 ----------
 function px(x,y,w,h,c){ octx.fillStyle=c; octx.fillRect(Math.round(x),Math.round(y),Math.round(w),Math.round(h)); }
 function oc(x,y,r){ octx.beginPath(); octx.arc(x,y,r,0,7); octx.fill(); }
 
-function drawGround(){
-  octx.fillStyle='#3a552a'; octx.fillRect(0,0,VW,VH);
-  for(const s of specks){ octx.fillStyle = s.c?'#334c26':'#425f30'; px(s.x,s.y,1,1); }
-}
-function drawWalls(){
-  for(let ty=0;ty<ROWS;ty++) for(let tx=0;tx<COLS;tx++){
-    if(MAP[ty][tx]!=='#') continue;
-    const x=tx*TILE, y=ty*TILE;
-    px(x, y, TILE, TILE, '#4b5462');                 // 石基
-    px(x, y, TILE, 3, '#68727f');                    // 顶面高光
-    px(x, y+TILE-3, TILE, 3, '#39404b');             // 底部阴影
-    octx.fillStyle='#39404b';                        // 砖缝
-    octx.fillRect(x, y+8, TILE, 1);
-    octx.fillRect(x+7, y+3, 1, 5);
-    octx.fillRect(x+3, y+9, 1, 4);
-    octx.fillRect(x+11, y+9, 1, 4);
+function drawGrass(sx,sy,tx,ty){
+  const h=hash(tx,ty);
+  if(h<0.18){ octx.fillStyle='#38512a'; octx.fillRect(sx,sy,TILE,TILE); }
+  for(let i=0;i<3;i++){
+    const bx=sx+Math.floor(hash(tx*7+i,ty*13+i)*(TILE-2));
+    const by=sy+Math.floor(hash(tx*3+i,ty*5+i)*(TILE-3));
+    px(bx,by,1,2,'#2f4620');
+  }
+  if(h>0.9){
+    const fx=sx+4+Math.floor(hash(tx,ty)*6), fy=sy+4+Math.floor(hash(ty,tx)*6);
+    px(fx,fy,2,2,'#fde047'); px(fx+1,fy+1,1,1,'#f59e0b');
+  }
+  else if(h<0.07){
+    px(sx+5,sy+9,4,3,'#6b7280'); px(sx+6,sy+8,2,1,'#8b93a0');
+  }
+  else if(h>0.8 && h<0.85){
+    px(sx+9,sy+11,4,3,'#2f4a26'); px(sx+10,sy+10,2,2,'#3a5c2e');
   }
 }
+function drawWall(sx,sy){
+  px(sx, sy, TILE, TILE, '#4b5462');
+  px(sx, sy, TILE, 3, '#68727f');
+  px(sx, sy+TILE-3, TILE, 3, '#39404b');
+  octx.fillStyle='#39404b';
+  octx.fillRect(sx, sy+8, TILE, 1);
+  octx.fillRect(sx+7, sy+3, 1, 5);
+  octx.fillRect(sx+3, sy+9, 1, 4);
+  octx.fillRect(sx+11, sy+9, 1, 4);
+}
+function drawMountain(sx,sy,tx,ty){
+  px(sx, sy+11, TILE, 5, '#565f6c');
+  octx.fillStyle='#6b7482';
+  octx.beginPath(); octx.moveTo(sx+8, sy+2); octx.lineTo(sx+15, sy+15); octx.lineTo(sx+1, sy+15); octx.closePath(); octx.fill();
+  octx.fillStyle='#8a93a0';
+  octx.beginPath(); octx.moveTo(sx+8, sy+2); octx.lineTo(sx+12, sy+15); octx.lineTo(sx+4, sy+15); octx.closePath(); octx.fill();
+  px(sx+6, sy+4, 2, 2, '#dbe3ec');
+  if(hash(tx,ty)>0.6){ px(sx+1,sy+9,2,2,'#4a7c3a'); }
+}
+function drawTree(sx,sy,tx,ty){
+  px(sx+6, sy+9, 4, 6, '#5b3a1e');
+  px(sx+2, sy+2, 12, 8, '#2f4a26');
+  px(sx+4, sy+0, 8, 5, '#3a5c2e');
+  px(sx+6, sy+1, 4, 2, '#446e34');
+  if(hash(tx,ty)>0.7){ px(sx+12,sy+10,2,3,'#4a7c3a'); }
+}
 
-// 通体白色 + 脚 + 背后小包
 function drawHero(){
-  const cx=player.x, cy=player.y + Math.sin(performance.now()/180)*0.5;
-  // 影子
-  octx.fillStyle='rgba(0,0,0,.3)'; octx.beginPath(); octx.ellipse(cx, player.y+9, 6, 2, 0, 0, 7); octx.fill();
-  // 背包（在身后，从头顶冒出）
-  px(cx-5, cy-10, 10, 6, '#5b3a1e');
-  px(cx-4, cy-9, 8, 5, '#8a5a2b');
-  px(cx-1, cy-8, 2, 1, '#a9713d');
-  // 身体（白色）
-  oc(cx, cy, 7.5); octx.fillStyle='#94a3b8'; octx.fill();
-  oc(cx, cy, 6.5); octx.fillStyle='#ffffff'; octx.fill();
-  // 背带
-  px(cx-3, cy-6, 1, 6, '#92400e');
-  px(cx+2, cy-6, 1, 6, '#92400e');
+  const cx=player.x-camX, cy=player.y-camY;
+  octx.fillStyle='rgba(0,0,0,.3)';
+  octx.beginPath(); octx.ellipse(cx, cy+9, 6, 2, 0, 0, 7); octx.fill();
+
+  const moving = joy.active && (Math.abs(joy.dx)+Math.abs(joy.dy))>2;
+  const sw = moving ? Math.sin(walkPhase)*2 : 0;
+
+  octx.save();
+  octx.translate(cx, cy);
+  if(player.face<0) octx.scale(-1,1);
+  // 腿
+  px(-3+sw, 2, 2, 6, '#ffffff');
+  px(1-sw, 2, 2, 6, '#ffffff');
   // 脚
-  px(cx-4, cy+7, 3, 3, '#64748b');
-  px(cx+1, cy+7, 3, 3, '#64748b');
+  px(-3+sw, 7, 3, 2, '#475569');
+  px(1-sw, 7, 3, 2, '#475569');
+  // 身体
+  px(-3, -5, 6, 7, '#ffffff');
+  // 手臂
+  px(-5, -4-(moving?sw:0), 2, 5, '#ffffff');
+  px(3, -4+(moving?sw:0), 2, 5, '#ffffff');
+  // 头
+  px(-3, -11, 6, 6, '#ffffff');
+  // 眼睛
+  px(-1, -9, 1, 1, '#1e293b');
+  px(1, -9, 1, 1, '#1e293b');
+  // 帽子
+  px(-4, -12, 8, 1, '#b91c1c');
+  px(-3, -15, 6, 3, '#ef4444');
+  octx.restore();
 }
 
 function drawHUD(){
   drawIcon(IC.heart, 4, 4, '#f43f5e');
   drawBar(11, 5, 64, 7, player.hp/player.maxHp, '#f43f5e');
   drawText(String(Math.max(0,Math.ceil(player.hp))), 11, 14, '#f8fafc');
-
   drawBar(4, 23, 71, 5, xp/xpNeed, '#38bdf8');
   drawText('LV', 4, 30, '#a5b4fc');
   drawText(String(level), 13, 30, '#f8fafc');
@@ -224,15 +281,25 @@ function drawHUD(){
 
 function render(){
   octx.clearRect(0,0,VW,VH);
-  drawGround();
-  drawWalls();
+  octx.fillStyle='#3d5a2b'; octx.fillRect(0,0,VW,VH);
+
+  const x0=Math.max(0,Math.floor(camX/TILE)), x1=Math.min(WCOLS,Math.ceil((camX+VW)/TILE));
+  const y0=Math.max(0,Math.floor(camY/TILE)), y1=Math.min(WROWS,Math.ceil((camY+VH)/TILE));
+  for(let ty=y0; ty<y1; ty++) for(let tx=x0; tx<x1; tx++){
+    const sx=tx*TILE-camX, sy=ty*TILE-camY, t=world[ty][tx];
+    if(t===0) drawGrass(sx,sy,tx,ty);
+    else if(t===1) drawWall(sx,sy);
+    else if(t===2) drawMountain(sx,sy,tx,ty);
+    else drawTree(sx,sy,tx,ty);
+  }
+
   drawHero();
   drawHUD();
 
   if(joy.active){
     octx.strokeStyle='rgba(148,163,184,.4)'; octx.lineWidth=2;
     octx.beginPath(); octx.arc(joy.ox,joy.oy,R,0,7); octx.stroke();
-    octx.fillStyle='rgba(148,163,184,.55)'; oc(joy.ox+joy.dx, joy.oy+joy.dy, 6);
+    octx.fillStyle='rgba(148,163,184,.55)'; oc(joy.ox+joy.dx, joy.oy+joy.dy, 7);
   }
 
   ctx.fillStyle='#05070d'; ctx.fillRect(0,0,cv.width,cv.height);
@@ -246,9 +313,20 @@ function frame(now){
   requestAnimationFrame(frame);
 }
 
+// ---------- 横屏提示 ----------
+function checkOrientation(){
+  const portrait = window.innerHeight > window.innerWidth;
+  document.getElementById('rotate').classList.toggle('hidden', !portrait);
+}
+window.addEventListener('resize', checkOrientation);
+checkOrientation();
+
 document.getElementById('startBtn').onclick=()=>{
   document.getElementById('menu').classList.add('hidden');
   resetGame();
+  if(screen.orientation && screen.orientation.lock){
+    try { const p = screen.orientation.lock('landscape'); if(p && p.catch) p.catch(()=>{}); } catch(e){}
+  }
   state='arrive';
   const sub=document.getElementById('subtitle');
   sub.classList.remove('hidden');
