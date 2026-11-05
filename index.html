@@ -116,7 +116,8 @@
   #dlg.hidden { display:none; }
   .dlg-box { display:flex; gap:10px; background:rgba(11,17,28,.96); border:2px solid #3a4452;
              padding:10px; box-shadow:0 4px 0 rgba(0,0,0,.45); animation:popIn .14s ease-out; }
-  #dlgPortrait { width:96px; height:96px; image-rendering:pixelated; border:2px solid #0b0f1a; flex:none; }
+  #dlgPortrait { width:min(192px, 34vh); height:auto; aspect-ratio:1/1; image-rendering:pixelated;
+                 border:2px solid #0b0f1a; flex:none; }
   .dlg-main { flex:1; display:flex; flex-direction:column; gap:4px; }
   .dlg-name { font-size:14px; color:#f5c542; }
   .dlg-text { font-size:14px; line-height:1.65; color:#f8fafc; min-height:62px; }
@@ -381,7 +382,7 @@
 </div>
 <div id="dlg" class="hidden">
   <div class="dlg-box" id="dlgBox">
-    <canvas id="dlgPortrait" width="48" height="48"></canvas>
+    <img id="dlgPortrait" src="./portrait_npc.png" alt="">
     <div class="dlg-main">
       <div class="dlg-name" id="dlgName"></div>
       <div class="dlg-text" id="dlgText"></div>
@@ -1157,7 +1158,7 @@ function render(){
     octx.fillStyle='#f5e6cf';
     octx.fillText('暂停中', VW/2-12, 17);
   }
-  if(state==='city'){ if(equipHudOn) drawEquipHUD(); drawJoystick(); }
+  if(state==='city'){ if(equipHudOn && !talking) drawEquipHUD(); drawJoystick(); }
 
   ctx.fillStyle='#05070d'; ctx.fillRect(0,0,cv.width,cv.height);
   ctx.drawImage(off, oxCss, oyCss, VW*cssScale, VH*cssScale);
@@ -2075,39 +2076,90 @@ let talking=false, dlgNode=null, dlgFull='', dlgPos=0, dlgDone=false, dlgTimer=n
 function drawPortraitTo(cv, who){
   const g=cv.getContext('2d');
   const saved=octx; octx=g;
-  octx.clearRect(0,0,48,48);
-  const R=(x,y,w,h,c)=>{ octx.fillStyle=c; octx.fillRect(x,y,w,h); };
-  R(0,0,48,48,'#1a2230');
+  const W=cv.width, H=cv.height;
+  octx.clearRect(0,0,W,H);
+  const R=(x,y,w,h,c)=>{ octx.fillStyle=c; octx.fillRect(Math.round(x),Math.round(y),Math.round(w),Math.round(h)); };
+  const E=(cx,cy,rx,ry,c)=>{ octx.fillStyle=c;
+    for(let y=Math.floor(cy-ry); y<=Math.ceil(cy+ry); y++){
+      const t=(y-cy)/ry; if(Math.abs(t)>1) continue;
+      const w=Math.round(rx*Math.sqrt(1-t*t));
+      if(w>0) octx.fillRect(Math.round(cx-w), y, w*2, 1);
+    }
+  };
+  // 背景（柔和光晕）
+  R(0,0,W,H,'#141b27');
+  E(W/2,H*0.40,W*0.55,H*0.50,'#1b2536');
+  E(W/2,H*0.38,W*0.44,H*0.40,'#223048');
   if(who==='hero'){
-    R(9,4,30,24,'#15171d'); R(7,10,5,20,'#15171d'); R(36,10,5,20,'#15171d');
-    R(14,15,20,18,'#f0cfae'); R(16,32,16,3,'#e6c2a0');
-    R(10,6,28,9,'#1b1e26'); R(12,15,7,3,'#1b1e26'); R(29,15,6,3,'#1b1e26');
-    R(11,7,3,13,'#c0392b'); R(13,9,1,8,'#e05a4a');
-    R(17,20,5,1,'#2b2b33'); R(26,20,5,1,'#2b2b33');
-    R(17,22,5,4,'#f5c542'); R(26,22,5,4,'#f5c542');
-    R(18,23,2,2,'#1b1e26'); R(27,23,2,2,'#1b1e26');
-    R(18,22,1,1,'#fff8dc'); R(27,22,1,1,'#fff8dc');
-    R(23,27,1,2,'#d9a888'); R(21,30,5,1,'#b9705f');
-    R(20,34,8,3,'#e6c2a0');
-    R(11,36,26,12,'#1b1e26'); R(15,36,18,5,'#22242c');
-    R(19,36,4,4,'#e8e8e8'); R(25,36,4,4,'#e8e8e8');
-    R(23,36,3,11,'#b91c1c'); R(22,38,5,2,'#8e1414');
-    R(13,38,3,2,'#d4b24a'); R(33,38,3,2,'#d4b24a');
+    // 头发后层
+    E(48,40,32,33,'#0f1116');
+    R(14,34,10,44,'#0f1116'); R(72,34,10,44,'#0f1116');
+    // 脖子
+    R(41,60,14,16,'#dfb593'); R(41,60,14,4,'#c79e7f');
+    // 肩与外套
+    R(10,76,76,20,'#14151b');
+    R(30,72,36,12,'#1a1d24');
+    R(40,70,16,6,'#e8e8ea');
+    R(46,72,4,16,'#b91c1c'); R(44,74,8,4,'#8e1414');
+    R(20,80,6,8,'#1e2129'); R(70,80,6,8,'#1e2129');
+    R(24,82,4,3,'#d4b24a'); R(68,82,4,3,'#d4b24a');
+    // 脸
+    E(48,44,18,21,'#f4d7ba');
+    E(48,53,16,11,'#eccbaa');
+    E(30,46,3,5,'#f0cfae'); E(66,46,3,5,'#f0cfae');
+    // 刘海
+    E(44,26,19,11,'#1b1e26');
+    E(59,27,14,9,'#1b1e26');
+    R(28,32,7,12,'#1b1e26'); R(62,32,6,10,'#1b1e26');
+    R(33,20,5,7,'#1b1e26'); R(55,19,4,8,'#1b1e26');
+    // 红色挑染
+    R(27,18,4,20,'#c0392b'); R(31,22,2,14,'#e05a4a');
+    // 眉
+    R(34,40,10,2,'#2b2b33'); R(52,40,10,2,'#2b2b33');
+    // 眼
+    E(39,49,7,6,'#1b1e26'); E(39,50,5,5,'#f5c542'); E(39,50,2,3,'#3a2a10'); R(36,46,2,2,'#ffffff');
+    E(57,49,7,6,'#1b1e26'); E(57,50,5,5,'#f5c542'); E(57,50,2,3,'#3a2a10'); R(54,46,2,2,'#ffffff');
+    R(39,45,6,1,'#2b2b33'); R(52,45,6,1,'#2b2b33');
+    // 鼻嘴
+    R(47,57,2,1,'#dcab8b');
+    R(43,61,9,1,'#b9705f'); R(45,62,5,1,'#a85f50');
+    // 腮红
+    E(31,56,4,2,'rgba(226,150,150,.35)'); E(65,56,4,2,'rgba(226,150,150,.35)');
   } else {
-    R(8,5,32,26,'#8a4a2b'); R(6,12,6,24,'#8a4a2b'); R(36,12,6,24,'#8a4a2b');
-    R(14,16,20,17,'#f6d9bc');
-    R(11,7,26,8,'#9a5632'); R(12,15,6,4,'#9a5632'); R(30,15,6,4,'#9a5632');
-    R(17,21,5,1,'#6b3a20'); R(26,21,5,1,'#6b3a20');
-    R(17,23,5,4,'#a8552b'); R(26,23,5,4,'#a8552b');
-    R(18,24,2,2,'#2b1a12'); R(27,24,2,2,'#2b1a12');
-    R(18,23,1,1,'#ffffff'); R(27,23,1,1,'#ffffff');
-    R(15,28,3,2,'#e8a0a0'); R(31,28,3,2,'#e8a0a0');
-    R(22,30,4,1,'#c0705f');
-    R(20,33,8,3,'#f0cdb0');
-    R(11,35,26,13,'#22222a');
-    R(17,35,14,6,'#f4f4f6');
-    R(16,35,3,4,'#e8e8ea'); R(29,35,3,4,'#e8e8ea');
-    R(22,35,4,2,'#8e1414'); R(20,37,8,3,'#b91c1c');
+    // 头发后层（长发）
+    E(48,44,34,40,'#6f3a22');
+    R(11,40,11,46,'#7a4227'); R(74,40,11,46,'#7a4227');
+    E(48,26,30,18,'#7a4227');
+    // 脖子
+    R(42,62,12,12,'#f2cfb2'); R(42,62,12,3,'#dfb896');
+    // 服装
+    R(10,78,76,18,'#23232b');
+    R(34,72,28,10,'#ffffff');
+    R(33,74,3,8,'#f0f0f2'); R(60,74,3,8,'#f0f0f2');
+    R(41,78,7,5,'#b91c1c'); R(49,78,7,5,'#b91c1c'); R(45,79,4,4,'#8e1414');
+    R(38,84,20,2,'#2a2a33');
+    // 脸
+    E(48,46,18,20,'#f8dcc2');
+    E(48,55,16,10,'#f0cdb0');
+    E(30,48,3,5,'#f5d3b6'); E(66,48,3,5,'#f5d3b6');
+    // 刘海
+    E(45,28,19,11,'#8a4a2b');
+    E(60,29,13,9,'#8a4a2b');
+    R(29,34,7,14,'#8a4a2b'); R(62,34,6,12,'#8a4a2b');
+    R(34,22,5,7,'#8a4a2b'); R(54,21,4,8,'#8a4a2b');
+    // 发丝高光
+    R(36,24,3,5,'#a85c33'); R(58,25,2,4,'#a85c33');
+    // 眉
+    R(34,42,10,2,'#6b3a20'); R(52,42,10,2,'#6b3a20');
+    // 眼
+    E(39,51,7,6,'#fdf6f0'); E(39,51,5,5,'#a8552b'); E(39,51,2,3,'#2b1a12'); R(36,48,2,2,'#ffffff');
+    E(57,51,7,6,'#fdf6f0'); E(57,51,5,5,'#a8552b'); E(57,51,2,3,'#2b1a12'); R(54,48,2,2,'#ffffff');
+    R(34,48,9,1,'#6b3a20'); R(53,48,9,1,'#6b3a20');
+    // 鼻嘴
+    R(47,58,2,1,'#e0b294');
+    R(45,62,7,1,'#c0705f'); R(46,63,5,1,'#b06252');
+    // 腮红
+    E(31,57,5,2,'rgba(232,150,150,.45)'); E(65,57,5,2,'rgba(232,150,150,.45)');
   }
   octx=saved;
 }
@@ -2139,7 +2191,7 @@ function showNode(key){
   if(!n){ closeDialogue(); return; }
   dlgNode=n;
   document.getElementById('dlgName').textContent=n.name;
-  drawPortraitTo(document.getElementById('dlgPortrait'), n.who);
+  document.getElementById('dlgPortrait').src = n.who==='hero' ? './portrait_hero.png' : './portrait_npc.png';
   const txt=document.getElementById('dlgText');
   const ch=document.getElementById('dlgChoices');
   ch.innerHTML=''; txt.textContent='';
