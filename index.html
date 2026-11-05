@@ -217,6 +217,7 @@ function update(dt){
       if(joy.dx>2) player.face=1; else if(joy.dx<-2) player.face=-1;
     }
   }
+  if(!(joy.active && Math.hypot(joy.dx,joy.dy)>2)) walkPhase = 0;
   camX = Math.max(0, Math.min(WORLD_W-VW, player.x-VW/2));
   camY = Math.max(0, Math.min(WORLD_H-VH, player.y-VH/2));
 }
@@ -374,7 +375,7 @@ function drawHUD(){
   drawText(String(Math.max(0,Math.ceil(player.hp))), 11, 14, '#f8fafc');
   drawText('LV', 4, 23, '#a5b4fc');
   drawText(String(level), 13, 23, '#f8fafc');
-  drawBar(26, 24, 52, 4, xp/xpNeed, '#38bdf8');
+  drawBar(26, 24, 49, 4, xp/xpNeed, '#38bdf8');
 }
 
 function drawJoystick(){
@@ -483,14 +484,14 @@ function playStep(){
   if(!actx || !sfxOn || !noiseBuf) return;
   const t=actx.currentTime;
   const src=actx.createBufferSource(); src.buffer=noiseBuf;
-  const bp=actx.createBiquadFilter(); bp.type='bandpass';
-  bp.frequency.value=900+Math.random()*700; bp.Q.value=0.7;
+  const lp=actx.createBiquadFilter(); lp.type='lowpass';
+  lp.frequency.value=1100+Math.random()*300; lp.Q.value=0.5;
   const g=actx.createGain();
   g.gain.setValueAtTime(0.0001,t);
-  g.gain.linearRampToValueAtTime(0.22, t+0.006);
-  g.gain.exponentialRampToValueAtTime(0.0001, t+0.09);
-  src.connect(bp); bp.connect(g); g.connect(sfxGain);
-  src.start(t); src.stop(t+0.12);
+  g.gain.linearRampToValueAtTime(0.07, t+0.02);
+  g.gain.exponentialRampToValueAtTime(0.0001, t+0.14);
+  src.connect(lp); lp.connect(g); g.connect(sfxGain);
+  src.start(t); src.stop(t+0.16);
 }
 function applyMusic(){ if(actx&&master) master.gain.setTargetAtTime(musicOn?musicVol*0.8:0, actx.currentTime, 0.05); }
 function applySfx(){ if(actx&&sfxGain) sfxGain.gain.setTargetAtTime(sfxOn?sfxVol*0.9:0, actx.currentTime, 0.05); }
