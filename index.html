@@ -1395,8 +1395,13 @@ function renderBag(){
     const id=bagItems[i];
     if(id){
       d.appendChild(itemCanvas(id,30)); d.title=ITEMS[id].n;
-      d.onclick=()=>{ if(equipItem(id)){ renderBag(); renderEquipPanel(); saveGame(); } };
-      addLongPress(d, ()=>showItemMenu(id, [{label:'查看', fn:()=>openItemDetail(id)}], d));
+      bindItemSlot(d,
+        ()=>showItemMenu(id, [
+          {label:'查看', fn:()=>openItemDetail(id)},
+          {label:'穿', fn:()=>{ if(equipItem(id)){ renderBag(); renderEquipPanel(); saveGame(); } }}
+        ], d),
+        ()=>openItemDetail(id)
+      );
     }
     g.appendChild(d);
   }
@@ -1408,11 +1413,13 @@ function renderEquipPanel(){
     const cur=equipArr(t)[i];
     if(cur){ d.appendChild(itemCanvas(cur,30)); d.title=ITEMS[cur].n; }
     else if(empty){ d.innerHTML=empty; }
-    d.onclick=()=>{ if(cur){ unequip(t,i); renderEquipPanel(); renderBag(); saveGame(); } };
-    if(cur) addLongPress(d, ()=>showItemMenu(cur, [
-      {label:'查看', fn:()=>openItemDetail(cur)},
-      {label:'卸下', fn:()=>{ unequip(t,i); renderEquipPanel(); renderBag(); saveGame(); }}
-    ], d));
+    if(cur) bindItemSlot(d,
+      ()=>showItemMenu(cur, [
+        {label:'查看', fn:()=>openItemDetail(cur)},
+        {label:'卸', fn:()=>{ unequip(t,i); renderEquipPanel(); renderBag(); saveGame(); }}
+      ], d),
+      ()=>openItemDetail(cur)
+    );
     return d;
   };
   const w=document.getElementById('eqWrow'); if(w){ w.innerHTML=''; for(let i=0;i<3;i++) w.appendChild(mk('weapon',i)); }
@@ -1421,20 +1428,25 @@ function renderEquipPanel(){
   if(x1&&x2){ x1.innerHTML=''; x2.innerHTML=''; for(let i=0;i<6;i++) (i<3?x1:x2).appendChild(mk('acc',i)); }
 }
 
-function addLongPress(el, fn){
-  let timer=null;
-  const start=(e)=>{ if(e.cancelable) e.preventDefault(); if(timer) return;
-    timer=setTimeout(()=>{ timer=null; fn(); }, 450); };
+function bindItemSlot(el, onTap, onLong){
+  let timer=null, longFired=false;
+  const start=(e)=>{
+    if(e.cancelable) e.preventDefault();
+    longFired=false;
+    if(timer) clearTimeout(timer);
+    timer=setTimeout(()=>{ timer=null; longFired=true; onLong(); }, 450);
+  };
+  const finish=()=>{ if(timer){ clearTimeout(timer); timer=null; if(!longFired) onTap(); } };
   const cancel=()=>{ if(timer){ clearTimeout(timer); timer=null; } };
   el.addEventListener('touchstart', start, {passive:false});
-  el.addEventListener('touchend', cancel);
+  el.addEventListener('touchend', finish);
   el.addEventListener('touchmove', cancel);
   el.addEventListener('touchcancel', cancel);
   el.addEventListener('mousedown', start);
-  el.addEventListener('mouseup', cancel);
+  el.addEventListener('mouseup', finish);
   el.addEventListener('mouseleave', cancel);
 }
-let menuTimer=null;
+let menuTimer=null, menuOpenAt=0;
 function showItemMenu(id, opts, anchor){
   const box=document.getElementById('itemMenuBox');
   const wrap=document.getElementById('itemMenu');
@@ -1449,6 +1461,7 @@ function showItemMenu(id, opts, anchor){
     b.onclick=(e)=>{ e.stopPropagation(); closeItemMenu(); o.fn(); };
     box.appendChild(b);
   }
+  menuOpenAt=performance.now();
   wrap.classList.remove('hidden');
   const ar = anchor ? anchor.getBoundingClientRect()
                     : {left:innerWidth/2, top:innerHeight/2, right:innerWidth/2, bottom:innerHeight/2};
@@ -1467,7 +1480,7 @@ function closeItemMenu(){
   clearTimeout(menuTimer);
   document.getElementById('itemMenu').classList.add('hidden');
 }
-document.getElementById('itemMenu').onclick=closeItemMenu;
+document.getElementById('itemMenu').onclick=()=>{ if(performance.now()-menuOpenAt<400) return; closeItemMenu(); };
 
 function detailRows(id){
   const t=ITEMS[id].t;
