@@ -55,9 +55,9 @@
              border-radius:4px; padding:8px; font-family:inherit; font-size:12px; resize:vertical; }
   #menuNotice { color:#fbbf24; font-size:12px; line-height:1.7; max-width:300px; margin-top:4px; }
   #bagBtn { position:fixed; z-index:6; left:calc(10px + env(safe-area-inset-left, 0px));
-            bottom:calc(10px + env(safe-area-inset-bottom, 0px)); width:44px; height:44px; padding:0;
-            background:#9aa3ae; color:#1e293b; border:2px solid #4b5462; border-radius:6px;
-            box-shadow:none; display:flex; align-items:center; justify-content:center; }
+            bottom:calc(10px + env(safe-area-inset-bottom, 0px)); width:46px; height:46px; padding:0;
+            background:#4b5462; border:2px solid #0b0f1a; border-radius:0;
+            box-shadow:inset 0 1px 0 #5b6472; display:flex; align-items:center; justify-content:center; }
   #bagBtn:active { transform:translateY(2px); }
   .eq-title { font-size:20px; font-weight:bold; letter-spacing:2px; color:#f8fafc; }
   .eq-section { color:#94a3b8; font-size:13px; margin-top:10px; letter-spacing:1px; }
@@ -125,18 +125,14 @@
     <div class="eq-cols">
       <div class="eq-col">
         <div class="eq-cap pixlabel" id="capW"></div>
-        <div class="eq-row"><div class="eq-slot"></div><div class="eq-slot"></div><div class="eq-slot"></div></div>
+        <div class="eq-row" id="eqWrow"></div>
         <div class="eq-cap pixlabel" id="capA"></div>
-        <div class="eq-row">
-          <div class="eq-slot" data-armor="0"></div>
-          <div class="eq-slot" data-armor="1"></div>
-          <div class="eq-slot" data-armor="2"></div>
-        </div>
+        <div class="eq-row" id="eqArow"></div>
       </div>
       <div class="eq-col">
         <div class="eq-cap pixlabel" id="capAcc"></div>
-        <div class="eq-row"><div class="eq-slot"></div><div class="eq-slot"></div><div class="eq-slot"></div></div>
-        <div class="eq-row"><div class="eq-slot"></div><div class="eq-slot"></div><div class="eq-slot"></div></div>
+        <div class="eq-row" id="eqXrow1"></div>
+        <div class="eq-row" id="eqXrow2"></div>
       </div>
     </div>
   </div>
@@ -171,6 +167,7 @@
       </div>
     </div>
     <button id="fullscreenBtn" class="sp-full">全屏</button>
+    <button id="muteAll" class="sp-full sp-alt">一键静音：关</button>
     <button id="openSave" class="sp-full sp-alt">存档</button>
   </div>
   <div id="spSave" class="sp-page hidden">
@@ -1053,8 +1050,9 @@ function playStep(){
   src.connect(lp); lp.connect(g); g.connect(sfxGain);
   src.start(t); src.stop(t+0.16);
 }
-function applyMusic(){ if(actx&&master) master.gain.setTargetAtTime(musicOn?musicVol*0.8:0, actx.currentTime, 0.05); }
-function applySfx(){ if(actx&&sfxGain) sfxGain.gain.setTargetAtTime(sfxOn?sfxVol*0.9:0, actx.currentTime, 0.05); }
+let mutedAll=false;
+function applyMusic(){ if(actx&&master) master.gain.setTargetAtTime((musicOn&&!mutedAll)?musicVol*0.8:0, actx.currentTime, 0.05); }
+function applySfx(){ if(actx&&sfxGain) sfxGain.gain.setTargetAtTime((sfxOn&&!mutedAll)?sfxVol*0.9:0, actx.currentTime, 0.05); }
 document.addEventListener('visibilitychange', ()=>{
   if(!actx) return;
   if(document.hidden){ actx.suspend(); } else { actx.resume(); }
@@ -1112,7 +1110,9 @@ let hasSave=false;
 function collectSave(){
   return { sig:SAVE_SIG, ver:SAVE_VER, at:Date.now(),
     p:{ x:player.x, y:player.y, hp:player.hp, maxHp:player.maxHp, speed:player.speed },
-    lv:level, xp:xp, need:xpNeed };
+    lv:level, xp:xp, need:xpNeed,
+    bag:bagItems.slice(),
+    eq:{ weapons:EQUIP.weapons.slice(), armors:EQUIP.armors.slice(), accessories:EQUIP.accessories.slice() } };
 }
 function applySave(s){
   if(!s || s.sig!==SAVE_SIG) return false;
@@ -1120,6 +1120,12 @@ function applySave(s){
   if(s.p){ p.x=s.p.x; p.y=s.p.y; p.hp=s.p.hp; p.maxHp=s.p.maxHp; p.speed=s.p.speed||80; }
   if(!isFinite(p.x)||!isFinite(p.y)||solidAt(p.x,p.y)){ p.x=680; p.y=448; }
   level=s.lv||0; xp=s.xp||0; xpNeed=s.need||10;
+  if(Array.isArray(s.bag)) bagItems=s.bag.filter(id=>ITEMS[id]);
+  if(s.eq){
+    if(Array.isArray(s.eq.weapons)) EQUIP.weapons=s.eq.weapons.slice(0,3);
+    if(Array.isArray(s.eq.armors)) EQUIP.armors=s.eq.armors.slice(0,3);
+    if(Array.isArray(s.eq.accessories)) EQUIP.accessories=s.eq.accessories.slice(0,6);
+  }
   camXs=Math.max(0,Math.min(WORLD_W-VW, p.x-VW/2));
   camYs=Math.max(0,Math.min(WORLD_H-VH, p.y-VH/2));
   camX=Math.round(camXs*RES)/RES; camY=Math.round(camYs*RES)/RES;
@@ -1257,16 +1263,22 @@ function drawEquipHUD(){
   // 防具
   eqGroup(L.ax,L.ay,L.GA,L.GAH,'防具');
   for(let i=0;i<3;i++){ const x=L.ax+L.pad+i*(L.AS+3), y=L.ay+L.labelH+L.pad;
-    eqSlot(x,y,L.AS); armorIcon(x,y,L.AS,i); }
+    eqSlot(x,y,L.AS);
+    if(EQUIP.armors[i]) drawItemIcon(ITEMS[EQUIP.armors[i]].ic, x, y, L.AS/16);
+    else armorIcon(x,y,L.AS,i); }
   // 主武器
   eqGroup(L.wx,L.wy,L.GW,L.GH,'武器');
   for(let i=0;i<3;i++){ const x=L.wx+L.pad+i*(L.WS+4), y=L.wy+L.labelH+L.pad;
     eqSlot(x,y,L.WS);
-    drawText('?', x+(L.WS-6)/2, y+(L.WS-10)/2, '#7b8492', 2); }
+    if(EQUIP.weapons[i]) drawItemIcon(ITEMS[EQUIP.weapons[i]].ic, x, y, L.WS/16);
+    else drawText('?', x+(L.WS-6)/2, y+(L.WS-10)/2, '#7b8492', 2); }
   // 饰品
   eqGroup(L.sx,L.sy,L.GS,L.GSH,'饰品');
+  let xi=0;
   for(let j=0;j<2;j++) for(let i=0;i<3;i++){ const x=L.sx+L.pad+i*(L.SS+2), y=L.sy+L.labelH+L.pad+j*(L.SS+2);
-    eqSlot(x,y,L.SS); }
+    eqSlot(x,y,L.SS);
+    if(EQUIP.accessories[xi]) drawItemIcon(ITEMS[EQUIP.accessories[xi]].ic, x, y, L.SS/16);
+    xi++; }
   // 剑
   const bx=L.swx, by=L.swy, bs=L.swordS;
   octx.fillStyle='#0b0f1a'; octx.fillRect(bx-1,by-1,bs+2,bs+2);
@@ -1285,6 +1297,88 @@ const ARMOR_SVG=[
   '<svg width="34" height="34" viewBox="0 0 12 12" shape-rendering="crispEdges"><rect x="4" y="1" width="4" height="1" fill="#74808e"/><rect x="1" y="2" width="2" height="3" fill="#74808e"/><rect x="9" y="2" width="2" height="3" fill="#74808e"/><rect x="3" y="2" width="6" height="2" fill="#9aa5b1"/><rect x="5" y="2" width="2" height="2" fill="#232c38"/><rect x="3" y="4" width="6" height="4" fill="#9aa5b1"/><rect x="4" y="5" width="4" height="1" fill="#74808e"/><rect x="4" y="8" width="4" height="1" fill="#74808e"/></svg>',
   '<svg width="34" height="34" viewBox="0 0 12 12" shape-rendering="crispEdges"><rect x="2" y="2" width="3" height="3" fill="#9aa5b1"/><rect x="7" y="2" width="3" height="3" fill="#9aa5b1"/><rect x="2" y="5" width="3" height="1" fill="#74808e"/><rect x="7" y="5" width="3" height="1" fill="#74808e"/><rect x="2" y="6" width="3" height="2" fill="#9aa5b1"/><rect x="7" y="6" width="3" height="2" fill="#9aa5b1"/><rect x="1" y="8" width="4" height="1" fill="#74808e"/><rect x="7" y="8" width="4" height="1" fill="#74808e"/></svg>'
 ];
+const ITEMS={
+  sword:{n:'铁剑',t:'weapon',ic:'sword'},
+  axe:{n:'战斧',t:'weapon',ic:'axe'},
+  staff:{n:'法杖',t:'weapon',ic:'staff'},
+  helm:{n:'头盔',t:'armor',ic:'helm'},
+  chest:{n:'胸甲',t:'armor',ic:'chest'},
+  greave:{n:'护腿',t:'armor',ic:'greave'},
+  ring:{n:'戒指',t:'acc',ic:'ring'},
+  amulet:{n:'护符',t:'acc',ic:'amulet'},
+  gem:{n:'宝石',t:'acc',ic:'gem'},
+};
+let bagItems=['sword','axe','staff','helm','chest','greave','ring','amulet','gem'];
+
+function drawItemIcon(ic, ox, oy, sc){
+  const R=(x,y,w,h,c)=>{ octx.fillStyle=c; octx.fillRect(ox+Math.round(x*sc), oy+Math.round(y*sc), Math.max(1,Math.round(w*sc)), Math.max(1,Math.round(h*sc))); };
+  if(ic==='sword'){ R(7,1,2,1,'#eef2f6'); R(7,2,2,9,'#cfd8e0'); R(4,11,8,2,'#d4b24a'); R(7,13,2,2,'#6b4a2e'); }
+  else if(ic==='axe'){ R(7,2,2,13,'#8a6440'); R(9,3,4,6,'#cfd8e0'); R(13,4,2,4,'#aab4c0'); }
+  else if(ic==='staff'){ R(7,4,2,11,'#8a6440'); R(5,1,6,4,'#7fd4ff'); R(6,2,4,2,'#bfefff'); }
+  else if(ic==='helm'){ R(5,2,6,1,'#9aa5b1'); R(4,3,8,1,'#9aa5b1'); R(3,4,10,5,'#9aa5b1'); R(6,6,4,2,'#232c38'); R(3,9,10,2,'#74808e'); }
+  else if(ic==='chest'){ R(5,2,6,2,'#9aa5b1'); R(2,3,3,4,'#74808e'); R(11,3,3,4,'#74808e'); R(4,4,8,7,'#9aa5b1'); R(7,4,2,2,'#232c38'); R(5,9,6,2,'#74808e'); }
+  else if(ic==='greave'){ R(4,3,4,5,'#9aa5b1'); R(9,3,4,5,'#9aa5b1'); R(4,8,4,1,'#74808e'); R(9,8,4,1,'#74808e'); R(4,9,4,4,'#9aa5b1'); R(9,9,4,4,'#9aa5b1'); R(2,12,5,2,'#74808e'); R(9,12,5,2,'#74808e'); }
+  else if(ic==='ring'){ R(5,6,6,1,'#d4b24a'); R(4,7,1,4,'#d4b24a'); R(11,7,1,4,'#d4b24a'); R(5,11,6,1,'#d4b24a'); R(7,4,2,2,'#7fd4ff'); }
+  else if(ic==='amulet'){ R(5,2,1,3,'#d4b24a'); R(10,2,1,3,'#d4b24a'); R(6,5,4,5,'#d4b24a'); R(7,7,2,2,'#7fd4ff'); }
+  else { R(7,2,2,2,'#7fd4ff'); R(5,4,6,2,'#8fe3ff'); R(4,6,8,3,'#7fd4ff'); R(6,9,4,2,'#5fb8e6'); R(7,11,2,2,'#4a9ccc'); }
+}
+function itemCanvas(id, css){
+  const c=document.createElement('canvas'); c.width=16; c.height=16;
+  const g=c.getContext('2d');
+  const saved=octx; octx=g;
+  drawItemIcon(ITEMS[id].ic, 0, 0, 1);
+  octx=saved;
+  c.style.width=css+'px'; c.style.height=css+'px'; c.style.imageRendering='pixelated';
+  return c;
+}
+function equipArr(t){ return t==='weapon'?EQUIP.weapons : t==='armor'?EQUIP.armors : EQUIP.accessories; }
+function equipItem(id){
+  const t=ITEMS[id].t, arr=equipArr(t);
+  const i=arr.indexOf(null);
+  if(i<0) return false;
+  arr[i]=id;
+  const bi=bagItems.indexOf(id); if(bi>=0) bagItems.splice(bi,1);
+  return true;
+}
+function unequip(t,i){
+  const arr=equipArr(t); const id=arr[i]; if(!id) return;
+  arr[i]=null; bagItems.push(id);
+}
+function updateBagCap(){
+  const el=document.getElementById('bagCap');
+  if(!el) return;
+  el.innerHTML='';
+  el.appendChild(makePixLabel(bagItems.length+'|100 容量', 14, '#94a3b8'));
+}
+function renderBag(){
+  const g=document.getElementById('bagGrid'); if(!g) return;
+  g.innerHTML='';
+  for(let i=0;i<100;i++){
+    const d=document.createElement('div'); d.className='eq-slot';
+    const id=bagItems[i];
+    if(id){
+      d.appendChild(itemCanvas(id,30)); d.title=ITEMS[id].n;
+      d.onclick=()=>{ if(equipItem(id)){ renderBag(); renderEquipPanel(); saveGame(); } };
+    }
+    g.appendChild(d);
+  }
+  updateBagCap();
+}
+function renderEquipPanel(){
+  const mk=(t,i,empty)=>{
+    const d=document.createElement('div'); d.className='eq-slot';
+    const cur=equipArr(t)[i];
+    if(cur){ d.appendChild(itemCanvas(cur,30)); d.title=ITEMS[cur].n; }
+    else if(empty){ d.innerHTML=empty; }
+    d.onclick=()=>{ if(cur){ unequip(t,i); renderEquipPanel(); renderBag(); saveGame(); } };
+    return d;
+  };
+  const w=document.getElementById('eqWrow'); if(w){ w.innerHTML=''; for(let i=0;i<3;i++) w.appendChild(mk('weapon',i)); }
+  const a=document.getElementById('eqArow'); if(a){ a.innerHTML=''; for(let i=0;i<3;i++) a.appendChild(mk('armor',i,ARMOR_SVG[i])); }
+  const x1=document.getElementById('eqXrow1'), x2=document.getElementById('eqXrow2');
+  if(x1&&x2){ x1.innerHTML=''; x2.innerHTML=''; for(let i=0;i<6;i++) (i<3?x1:x2).appendChild(mk('acc',i)); }
+}
+
 function makePixLabel(text, px, color){
   const c=document.createElement('canvas');
   const g=c.getContext('2d');
@@ -1321,14 +1415,12 @@ setPixLabel('capAcc','饰品',14,'#94a3b8');
 let equipOpenAt=0, bagOpenAt=0;
 function openEquip(){
   equipOpenAt=performance.now();
+  renderEquipPanel();
   document.getElementById('equipWrap').classList.remove('hidden');
-  document.querySelectorAll('#equipWrap [data-armor]').forEach(el=>{
-    if(!el.innerHTML) el.innerHTML = ARMOR_SVG[+el.dataset.armor] || '';
-  });
 }
 function openBag(){
   bagOpenAt=performance.now();
-  fillSlots(document.getElementById('bagGrid'),100,null);
+  renderBag();
   document.getElementById('bagWrap').classList.remove('hidden');
 }
 document.getElementById('eqClose').onclick=()=>document.getElementById('equipWrap').classList.add('hidden');
@@ -1336,6 +1428,14 @@ document.getElementById('equipBg').onclick=()=>{ if(performance.now()-equipOpenA
 document.getElementById('bagClose').onclick=()=>document.getElementById('bagWrap').classList.add('hidden');
 document.getElementById('bagBg').onclick=()=>{ if(performance.now()-bagOpenAt<450) return; document.getElementById('bagWrap').classList.add('hidden'); };
 document.getElementById('bagBtn').onclick=openBag;
+document.getElementById('muteAll').onclick=()=>{
+  mutedAll=!mutedAll;
+  const b=document.getElementById('muteAll');
+  b.textContent='一键静音：'+(mutedAll?'开':'关');
+  b.classList.toggle('on', mutedAll);
+  if(!actx){ initAudio(); startMusic(); }
+  applyMusic(); applySfx();
+};
 
 // ---------- 横屏提示 ----------
 function checkOrientation(){
