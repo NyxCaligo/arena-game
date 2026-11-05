@@ -1327,17 +1327,54 @@ musicToggle.onclick=()=>{
   else musicOn=!musicOn;
   musicToggle.classList.toggle('on', musicOn);
   musicToggle.textContent=musicOn?'开':'关';
-  applyMusic();
+  applyMusic(); saveCfg();
 };
 sfxToggle.onclick=()=>{
   if(!actx){ initAudio(); startMusic(); sfxOn=true; }
   else sfxOn=!sfxOn;
   sfxToggle.classList.toggle('on', sfxOn);
   sfxToggle.textContent=sfxOn?'开':'关';
-  applySfx();
+  applySfx(); saveCfg();
 };
-musicVolEl.oninput=()=>{ musicVol=musicVolEl.value/100; applyMusic(); };
-sfxVolEl.oninput=()=>{ sfxVol=sfxVolEl.value/100; applySfx(); };
+musicVolEl.oninput=()=>{ musicVol=musicVolEl.value/100; applyMusic(); saveCfg(); };
+sfxVolEl.oninput=()=>{ sfxVol=sfxVolEl.value/100; applySfx(); saveCfg(); };
+
+const CFG_KEY='xingchen_cfg_v1';
+function collectCfg(){ return { musicOn, sfxOn, musicVol, sfxVol, vibOn, vibPower, autoPause, showFps, showMini, mutedAll }; }
+function saveCfg(){ try{ localStorage.setItem(CFG_KEY, JSON.stringify(collectCfg())); }catch(e){} }
+function syncSettingsUI(){
+  if(musicToggle){ musicToggle.classList.toggle('on', musicOn); musicToggle.textContent=musicOn?'开':'关'; }
+  if(sfxToggle){ sfxToggle.classList.toggle('on', sfxOn); sfxToggle.textContent=sfxOn?'开':'关'; }
+  if(musicVolEl) musicVolEl.value=Math.round(musicVol*100);
+  if(sfxVolEl) sfxVolEl.value=Math.round(sfxVol*100);
+  const vt=document.getElementById('vibToggle');
+  if(vt){ vt.textContent='振动：'+(vibOn?'开':'关'); vt.classList.toggle('on', vibOn); }
+  const vp=document.getElementById('vibPower'); if(vp) vp.value=vibPower;
+  const ap=document.getElementById('autoPauseToggle');
+  if(ap){ ap.textContent='打开菜单自动暂停：'+(autoPause?'开':'关'); ap.classList.toggle('on', autoPause); }
+  const mu=document.getElementById('muteAll');
+  if(mu){ mu.textContent='一键静音：'+(mutedAll?'开':'关'); mu.classList.toggle('on', mutedAll); }
+  const f=document.getElementById('chkFps'); if(f) f.classList.toggle('on', showFps);
+  const m=document.getElementById('chkMini'); if(m) m.classList.toggle('on', showMini);
+  applyMusic(); applySfx();
+}
+function loadCfg(){
+  try{
+    const c=JSON.parse(localStorage.getItem(CFG_KEY)||'null');
+    if(!c) return;
+    if(typeof c.musicOn==='boolean') musicOn=c.musicOn;
+    if(typeof c.sfxOn==='boolean') sfxOn=c.sfxOn;
+    if(typeof c.musicVol==='number') musicVol=Math.min(1,Math.max(0,c.musicVol));
+    if(typeof c.sfxVol==='number') sfxVol=Math.min(1,Math.max(0,c.sfxVol));
+    if(typeof c.vibOn==='boolean') vibOn=c.vibOn;
+    if(typeof c.vibPower==='number') vibPower=Math.min(100,Math.max(0,c.vibPower));
+    if(typeof c.autoPause==='boolean') autoPause=c.autoPause;
+    if(typeof c.showFps==='boolean') showFps=c.showFps;
+    if(typeof c.showMini==='boolean') showMini=c.showMini;
+    if(typeof c.mutedAll==='boolean') mutedAll=c.mutedAll;
+    syncSettingsUI();
+  }catch(e){}
+}
 
 function updateFsLabel(){
   const b=document.getElementById('fullscreenBtn');
@@ -1710,7 +1747,7 @@ function showItemMenu(id, opts, anchor){
   box.style.left = x+'px';
   box.style.top = y+'px';
   clearTimeout(menuTimer);
-  menuTimer = setTimeout(closeItemMenu, 3000);
+  menuTimer = setTimeout(closeItemMenu, 1800);
 }
 function closeItemMenu(){
   clearTimeout(menuTimer);
@@ -1809,12 +1846,12 @@ document.getElementById('bagBtn').onclick=()=>{
 document.getElementById('chkFps').onclick=()=>{
   showFps=!showFps;
   document.getElementById('chkFps').classList.toggle('on', showFps);
-  sfxBeep(); vibrate(2);
+  sfxBeep(); vibrate(2); saveCfg();
 };
 document.getElementById('chkMini').onclick=()=>{
   showMini=!showMini;
   document.getElementById('chkMini').classList.toggle('on', showMini);
-  sfxBeep(); vibrate(2);
+  sfxBeep(); vibrate(2); saveCfg();
 };
 ['startBtn','settingsBtn','bagBtn','fullscreenBtn','openSave','saveExport','saveImportBtn','saveCodeGen','saveCodeLoad','saveClear','muteAll','musicToggle','sfxToggle','vibToggle','saveImportBtn'].forEach(id=>{
   const el=document.getElementById(id); if(el) el.addEventListener('click', sfxDrop);
@@ -1827,7 +1864,7 @@ document.getElementById('vibToggle').onclick=()=>{
   const b=document.getElementById('vibToggle');
   b.textContent='振动：'+(vibOn?'开':'关');
   b.classList.toggle('on', vibOn);
-  vibrate(3);
+  vibrate(3); saveCfg();
 };
 document.getElementById('pauseGameBtn').onclick=()=>{
   pausedAuto=false; paused=true;
@@ -1840,11 +1877,11 @@ document.getElementById('autoPauseToggle').onclick=()=>{
   const b=document.getElementById('autoPauseToggle');
   b.textContent='打开菜单自动暂停：'+(autoPause?'开':'关');
   b.classList.toggle('on', autoPause);
-  sfxBeep();
+  sfxBeep(); saveCfg();
 };
 document.getElementById('vibPower').oninput=(e)=>{
   vibPower=+e.target.value;
-  vibrate(2);
+  vibrate(2); saveCfg();
 };
 document.getElementById('muteAll').onclick=()=>{
   mutedAll=!mutedAll;
@@ -1852,7 +1889,7 @@ document.getElementById('muteAll').onclick=()=>{
   b.textContent='一键静音：'+(mutedAll?'开':'关');
   b.classList.toggle('on', mutedAll);
   if(!actx){ initAudio(); startMusic(); }
-  applyMusic(); applySfx();
+  applyMusic(); applySfx(); saveCfg();
 };
 
 // ---------- 暂停 / 折叠 / 存档提示 / 小地图 / 环境 ----------
@@ -2038,7 +2075,7 @@ document.getElementById('startBtn').onclick=()=>{
   setTimeout(()=>{ sub.classList.add('hidden'); state='city'; syncBagBtn(); }, 1600);
 };
 
-buildMini(); resetGame(); hasSave=loadGame(); syncBagBtn(); last=performance.now(); fpsLast=performance.now(); requestAnimationFrame(frame);
+buildMini(); resetGame(); loadCfg(); hasSave=loadGame(); syncBagBtn(); last=performance.now(); fpsLast=performance.now(); requestAnimationFrame(frame);
 </script>
 </body>
 </html>
