@@ -436,7 +436,13 @@ function resize(){
   JBX = VW*0.15; JBY = VH*0.82;
 }
 resize();
-window.addEventListener('resize', resize);
+window.addEventListener('resize', ()=>{ resize(); checkOrientation(); });
+window.addEventListener('orientationchange', ()=>{ setTimeout(resize, 200); setTimeout(resize, 600); });
+if(window.visualViewport){
+  window.visualViewport.addEventListener('resize', ()=>{ setTimeout(resize, 80); });
+  window.visualViewport.addEventListener('scroll', ()=>{ setTimeout(resize, 120); });
+}
+window.addEventListener('load', ()=>{ resize(); setTimeout(resize, 250); setTimeout(resize, 900); setTimeout(resize, 1800); });
 
 // ---------- 确定性随机 ----------
 function hash(x,y){
@@ -2369,10 +2375,10 @@ document.getElementById('startBtn').onclick=()=>{
   if(screen.orientation && screen.orientation.lock){
     try { const p=screen.orientation.lock('landscape'); if(p&&p.catch) p.catch(()=>{}); } catch(e){}
   }
-  state='arrive'; syncBagBtn();
+  state='arrive'; resize(); syncBagBtn();
   const sub=document.getElementById('subtitle');
   sub.classList.remove('hidden');
-  setTimeout(()=>{ sub.classList.add('hidden'); state='city'; syncBagBtn(); }, 1600);
+  setTimeout(()=>{ sub.classList.add('hidden'); state='city'; resize(); syncBagBtn(); }, 1600);
 };
 
 buildMini(); resetGame(); loadCfg(); hasSave=loadGame(); syncBagBtn(); last=performance.now(); fpsLast=performance.now(); requestAnimationFrame(frame);
