@@ -1633,7 +1633,30 @@ const ITEMS={
 };
 let bagItems=['sword','axe','staff','helm','chest','greave','ring','amulet','gem'];
 
+const ITEM_ICONS={ woodsword:'./icon_woodsword.png' };
+const itemImgs={};
+function itemImg(k){
+  if(!ITEM_ICONS[k]) return null;
+  if(!itemImgs[k]){
+    const im=new Image();
+    im.onload=()=>{ try{
+      if(!document.getElementById('bagWrap').classList.contains('hidden')) renderBag();
+      if(!document.getElementById('equipWrap').classList.contains('hidden')) renderEquipPanel();
+    }catch(e){} };
+    im.src=ITEM_ICONS[k];
+    itemImgs[k]=im;
+  }
+  return itemImgs[k];
+}
 function drawItemIcon(ic, ox, oy, sc){
+  const im=itemImg(ic);
+  if(im && im.complete && im.naturalWidth>0){
+    const S=Math.round(16*sc);
+    octx.imageSmoothingEnabled=false;
+    octx.drawImage(im, ox, oy, S, S);
+    octx.imageSmoothingEnabled=true;
+    return;
+  }
   const R=(x,y,w,h,c)=>{ octx.fillStyle=c; octx.fillRect(ox+Math.round(x*sc), oy+Math.round(y*sc), Math.max(1,Math.round(w*sc)), Math.max(1,Math.round(h*sc))); };
   if(ic==='sword'){ R(7,1,2,1,'#eef2f6'); R(7,2,2,9,'#cfd8e0'); R(4,11,8,2,'#d4b24a'); R(7,13,2,2,'#6b4a2e'); }
   else if(ic==='axe'){ R(7,2,2,13,'#8a6440'); R(9,3,4,6,'#cfd8e0'); R(13,4,2,4,'#aab4c0'); }
@@ -1647,10 +1670,17 @@ function drawItemIcon(ic, ox, oy, sc){
   else { R(7,2,2,2,'#7fd4ff'); R(5,4,6,2,'#8fe3ff'); R(4,6,8,3,'#7fd4ff'); R(6,9,4,2,'#5fb8e6'); R(7,11,2,2,'#4a9ccc'); }
 }
 function itemCanvas(id, css){
-  const c=document.createElement('canvas'); c.width=16; c.height=16;
+  const c=document.createElement('canvas'); c.width=32; c.height=32;
   const g=c.getContext('2d');
   const saved=octx; octx=g;
-  drawItemIcon(ITEMS[id].ic, 0, 0, 1);
+  const im=itemImg(ITEMS[id].ic);
+  if(im && im.complete && im.naturalWidth>0){
+    octx.imageSmoothingEnabled=false;
+    octx.drawImage(im, 0, 0, 32, 32);
+    octx.imageSmoothingEnabled=true;
+  } else {
+    drawItemIcon(ITEMS[id].ic, 0, 0, 2);
+  }
   octx=saved;
   c.style.width=css+'px'; c.style.height=css+'px'; c.style.imageRendering='pixelated';
   return c;
@@ -2255,7 +2285,7 @@ function drawDrops(){
     px(sx-5, sy+7, 11, 2, 'rgba(0,0,0,.22)');
     octx.save();
     octx.translate(Math.round(sx)-7, Math.round(sy)-9);
-    drawItemIcon(ITEMS[d.id].ic, 0, 0, 0.9);
+    drawItemIcon(ITEMS[d.id].ic, 0, 0, 1.2);
     octx.restore();
   }
 }
