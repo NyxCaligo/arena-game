@@ -54,6 +54,17 @@
   textarea { width:100%; min-height:64px; background:#0b1220; color:#cbd5e1; border:2px solid #1e293b;
              border-radius:4px; padding:8px; font-family:inherit; font-size:12px; resize:vertical; }
   #menuNotice { color:#fbbf24; font-size:12px; line-height:1.7; max-width:300px; margin-top:4px; }
+  #bagBtn { position:fixed; z-index:6; left:calc(10px + env(safe-area-inset-left, 0px));
+            bottom:calc(10px + env(safe-area-inset-bottom, 0px)); width:44px; height:44px; padding:0;
+            background:#9aa3ae; color:#1e293b; border:2px solid #4b5462; border-radius:6px;
+            font-size:18px; box-shadow:none; display:flex; align-items:center; justify-content:center; }
+  #bagBtn:active { transform:translateY(2px); }
+  .eq-title { font-size:20px; font-weight:bold; letter-spacing:2px; color:#f8fafc; }
+  .eq-section { color:#94a3b8; font-size:13px; margin-top:12px; letter-spacing:1px; }
+  .eq-grid { display:flex; gap:8px; flex-wrap:wrap; justify-content:center; max-width:340px; }
+  .eq-slot { width:46px; height:46px; background:#4b5462; border:2px solid #0b0f1a;
+             display:flex; align-items:center; justify-content:center; color:#2b3444;
+             font-size:12px; font-weight:bold; }
   #rotate { position:fixed; inset:0; z-index:20; display:flex; flex-direction:column; align-items:center;
             justify-content:center; gap:18px; background:#05070d; color:#e2e8f0; text-align:center; padding:24px; }
   #rotate.hidden { display:none; }
@@ -66,6 +77,23 @@
 <body>
 <canvas id="cv"></canvas>
 <button id="settingsBtn">⚙</button>
+<button id="bagBtn">🎒</button>
+<div id="equipPanel" class="ov hidden">
+  <div class="eq-title">装备</div>
+  <div class="eq-section">主武器</div>
+  <div class="eq-grid" id="eqWeapons"></div>
+  <div class="eq-section">防具</div>
+  <div class="eq-grid" id="eqArmors"></div>
+  <div class="eq-section">饰品</div>
+  <div class="eq-grid" id="eqAccs"></div>
+  <button id="eqClose" style="margin-top:16px">关闭</button>
+</div>
+<div id="bagPanel" class="ov hidden">
+  <div class="eq-title">背包</div>
+  <p style="color:#94a3b8;font-size:13px">背包还是空的，之后打怪掉的战利品会放这里。</p>
+  <div class="eq-grid" id="bagGrid"></div>
+  <button id="bagClose" style="margin-top:16px">关闭</button>
+</div>
 <div id="settingsBackdrop" class="hidden"></div>
 <div id="settingsPanel" class="hidden">
   <div class="sp-title">设置<button id="settingsClose" class="sp-close">×</button></div>
@@ -284,6 +312,8 @@ function joyMove(vx,vy){
 cv.addEventListener('touchstart', e=>{
   if(state!=='city') return;
   const t=e.touches[0]; const [vx,vy]=toV(t.clientX,t.clientY);
+  const L=equipLayout();
+  if(vx>=L.swx&&vx<=L.swx+L.swordS&&vy>=L.swy&&vy<=L.swy+L.swordS){ openEquip(); return; }
   if(vx < VW*0.5 && vy > VH*0.5){ joy.active=true; joyMove(vx,vy); }
 }, {passive:true});
 cv.addEventListener('touchmove', e=>{
@@ -295,6 +325,8 @@ cv.addEventListener('touchend', ()=>{ joy.active=false; joy.dx=joy.dy=0; }, {pas
 cv.addEventListener('touchcancel', ()=>{ joy.active=false; joy.dx=joy.dy=0; }, {passive:true});
 cv.addEventListener('mousedown', e=>{
   if(state!=='city')return; const [vx,vy]=toV(e.clientX,e.clientY);
+  const L=equipLayout();
+  if(vx>=L.swx&&vx<=L.swx+L.swordS&&vy>=L.swy&&vy<=L.swy+L.swordS){ openEquip(); return; }
   if(vx<VW*0.5 && vy>VH*0.5){ joy.active=true; joyMove(vx,vy); }
 });
 cv.addEventListener('mousemove', e=>{ if(!joy.active)return; const [vx,vy]=toV(e.clientX,e.clientY); joyMove(vx,vy); });
@@ -306,6 +338,16 @@ function solidAt(px,py){
   if(tx<0||ty<0||tx>=WCOLS||ty>=WROWS) return true;
   if(world[ty][tx]!==0) return true;
   for(const b of BUILDINGS){ if(px>=b.x&&px<=b.x+b.w&&py>=b.y&&py<=b.y+b.h) return true; }
+  for(const p of PROPS){
+    let x0,y0,x1,y1;
+    if(p.type==='well'){ x0=p.x-14; y0=p.y-8; x1=p.x+14; y1=p.y+2; }
+    else if(p.type==='flower'){ x0=p.x-13; y0=p.y-7; x1=p.x+13; y1=p.y+1; }
+    else if(p.type==='crate'){ x0=p.x-6; y0=p.y-10; x1=p.x+6; y1=p.y; }
+    else if(p.type==='lamp'){ x0=p.x-2; y0=p.y; x1=p.x+2; y1=p.y; }
+    else if(p.type==='fence'){ x0=p.x; y0=p.y-12; x1=p.x+(p.n||5)*6; y1=p.y; }
+    else continue;
+    if(px>=x0&&px<=x1&&py>=y0&&py<=y1) return true;
+  }
   if(waterAt(px,py)) return true;
   return false;
 }
@@ -786,7 +828,7 @@ function render(){
   drawHUD();
   const ft=fpsVal+' FPS';
   drawText(ft, VW-6-(ft.length*4), 32, '#4ade80');
-  if(state==='city') drawJoystick();
+  if(state==='city'){ drawEquipHUD(); drawJoystick(); }
 
   ctx.fillStyle='#05070d'; ctx.fillRect(0,0,cv.width,cv.height);
   ctx.drawImage(off, oxCss, oyCss, VW*cssScale, VH*cssScale);
@@ -1017,6 +1059,65 @@ document.getElementById('saveClear').onclick=()=>{
     alert('本地存档已清除，刷新页面将以新游戏开始');
   }
 };
+
+// ---------- 装备 / 背包 ----------
+const EQUIP={weapons:[null,null,null], armors:[null,null,null], accessories:[null,null,null,null,null,null]};
+
+function equipLayout(){
+  const WS=22, gap=4;
+  const totalW=3*WS+2*gap;
+  const wx=Math.round(VW/2-totalW/2), wy=VH-8-WS;
+  const AS=12, agap=3, atot=3*AS+2*agap;
+  const ax=wx-8-atot, ay=wy+Math.round((WS-AS)/2);
+  const SS=10, sgap=2, stotW=3*SS+2*sgap, stotH=2*SS+sgap;
+  const sx=wx+totalW+8, sy=wy+Math.round((WS-stotH)/2);
+  const swordS=18, swx=sx+stotW+8, swy=wy+Math.round((WS-swordS)/2);
+  return {WS,wx,wy,AS,ax,ay,SS,sx,sy,swordS,swx,swy};
+}
+function eqSlot(x,y,sz){
+  octx.fillStyle='#0b0f1a'; octx.fillRect(x-1,y-1,sz+2,sz+2);
+  octx.fillStyle='#4b5462'; octx.fillRect(x,y,sz,sz);
+  octx.fillStyle='#3a4250'; octx.fillRect(x+1,y+1,sz-2,sz-2);
+  octx.fillStyle='#5b6472'; octx.fillRect(x+1,y+1,sz-2,1);
+}
+function armorIcon(x,y,sz,i){
+  const c='#7b8492';
+  if(i===0){ px(x+3,y+3,sz-6,2,c); px(x+4,y+5,sz-8,4,c); px(x+2,y+5,2,3,c); px(x+sz-4,y+5,2,3,c); }
+  else if(i===1){ px(x+3,y+3,2,6,c); px(x+sz-5,y+3,2,6,c); px(x+3,y+6,sz-6,3,c); }
+  else { px(x+3,y+4,sz-6,4,c); px(x+4,y+3,sz-8,1,c); px(x+3,y+8,sz-6,1,c); }
+}
+function drawEquipHUD(){
+  const L=equipLayout();
+  for(let i=0;i<3;i++){ const x=L.ax+i*(L.AS+3); eqSlot(x,L.ay,L.AS); armorIcon(x,L.ay,L.AS,i); }
+  for(let i=0;i<3;i++){ const x=L.wx+i*(L.WS+4); eqSlot(x,L.wy,L.WS);
+    px(x+L.WS/2-1,L.wy+4,2,L.WS-10,'#78828f'); px(x+L.WS/2-3,L.wy+L.WS-6,6,2,'#5b6472'); }
+  for(let j=0;j<2;j++) for(let i=0;i<3;i++){ eqSlot(L.sx+i*(L.SS+2), L.sy+j*(L.SS+2), L.SS); }
+  // 剑按钮
+  const bx=L.swx, by=L.swy, bs=L.swordS;
+  octx.fillStyle='#0b0f1a'; octx.fillRect(bx-1,by-1,bs+2,bs+2);
+  octx.fillStyle='#4b5462'; octx.fillRect(bx,by,bs,bs);
+  octx.fillStyle='#9aa3ae'; octx.fillRect(bx+bs/2-1,by+2,2,bs-8);
+  octx.fillStyle='#6b7280'; octx.fillRect(bx+bs/2-4,by+bs-6,8,2);
+  octx.fillStyle='#8a6440'; octx.fillRect(bx+bs/2-1,by+bs-4,2,3);
+}
+function fillSlots(el,n,labels){
+  if(el.childElementCount) return;
+  for(let i=0;i<n;i++){ const d=document.createElement('div'); d.className='eq-slot';
+    d.textContent = labels ? (labels[i]||'') : ''; el.appendChild(d); }
+}
+function openEquip(){
+  fillSlots(document.getElementById('eqWeapons'),3,null);
+  fillSlots(document.getElementById('eqArmors'),3,['盔','甲','膝']);
+  fillSlots(document.getElementById('eqAccs'),6,null);
+  document.getElementById('equipPanel').classList.remove('hidden');
+}
+function openBag(){
+  fillSlots(document.getElementById('bagGrid'),12,null);
+  document.getElementById('bagPanel').classList.remove('hidden');
+}
+document.getElementById('eqClose').onclick=()=>document.getElementById('equipPanel').classList.add('hidden');
+document.getElementById('bagClose').onclick=()=>document.getElementById('bagPanel').classList.add('hidden');
+document.getElementById('bagBtn').onclick=openBag;
 
 // ---------- 横屏提示 ----------
 function checkOrientation(){
