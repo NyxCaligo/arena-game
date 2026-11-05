@@ -11,7 +11,7 @@
          touch-action:none; user-select:none; -webkit-user-select:none; }
   #cv { position:fixed; inset:0; display:block; touch-action:none; image-rendering:pixelated; }
   .ov { position:fixed; inset:0; display:flex; flex-direction:column; align-items:center;
-        justify-content:center; gap:18px; background:rgba(5,7,13,.94); text-align:center; padding:24px; z-index:5; }
+        justify-content:center; gap:18px; background:#05070d; text-align:center; padding:24px; z-index:5; }
   .ov.hidden { display:none; }
   #menu .title { font-size:34px; font-weight:bold; color:#f8fafc; letter-spacing:5px;
                  text-shadow:3px 3px 0 #0284c7, 6px 6px 0 #000; }
@@ -30,14 +30,6 @@
            font-size:20px; box-shadow:none;
            display:flex; align-items:center; justify-content:center; }
   #settingsBtn:active { transform:translateY(2px); }
-  #fps { position:fixed; z-index:6;
-         top:calc(10px + env(safe-area-inset-top, 0px));
-         right:calc(64px + env(safe-area-inset-right, 0px));
-         height:44px; padding:0 9px;
-         display:flex; align-items:center; justify-content:center;
-         background:rgba(15,23,42,.72); color:#4ade80; border:2px solid #0b0f1a;
-         border-radius:6px; font-size:12px; font-weight:bold; letter-spacing:.5px;
-         font-variant-numeric:tabular-nums; }
   #settingsBackdrop { position:fixed; inset:0; z-index:7; background:rgba(0,0,0,.45); }
   #settingsBackdrop.hidden, #settingsPanel.hidden { display:none; }
   #settingsPanel { position:fixed; z-index:8; top:0; right:0; bottom:0;
@@ -74,7 +66,6 @@
 <body>
 <canvas id="cv"></canvas>
 <button id="settingsBtn">⚙</button>
-<div id="fps">-- FPS</div>
 <div id="settingsBackdrop" class="hidden"></div>
 <div id="settingsPanel" class="hidden">
   <div class="sp-title">设置<button id="settingsClose" class="sp-close">×</button></div>
@@ -129,7 +120,7 @@
 <script>
 "use strict";
 let VW=352, VH=176;
-const TILE=16, WCOLS=44, WROWS=30;
+const TILE=16, WCOLS=64, WROWS=44;
 const RES=2;   // 内部渲染精度：2 倍，像素视觉大小不变，但镜头可半格移动
 const WORLD_W=WCOLS*TILE, WORLD_H=WROWS*TILE;
 let JBX=70, JBY=140; const JR=26;   // 常驻摇杆位置（左下，随屏幕）
@@ -189,16 +180,16 @@ for(let y=0;y<WROWS;y++){
 
 // ---------- 房屋 ----------
 const BUILDINGS = [
-  {x:170, y:118, w:88, h:76, v:0},   // 大房子
-  {x:292, y:138, w:64, h:60, v:1},   // 小房子
+  {x:440, y:280, w:88, h:76, v:0},   // 大房子
+  {x:556, y:300, w:64, h:60, v:1},   // 小房子
 ];
 
 // ---------- 道路（土黄路，宽窄不一） ----------
 const ROADS = [
-  {x1:390, y1:-20, x2:390, y2:500, w:46},  // 主路（竖）
-  {x1:60,  y1:300, x2:660, y2:300, w:40},  // 横路
-  {x1:214, y1:194, x2:214, y2:312, w:24},  // 通往大房子
-  {x1:324, y1:198, x2:324, y2:312, w:24},  // 通往小房子
+  {x1:680, y1:-20, x2:680, y2:760, w:46},  // 主路（竖）
+  {x1:60,  y1:440, x2:980, y2:440, w:40},  // 横路
+  {x1:484, y1:356, x2:484, y2:440, w:24},  // 通往大房子
+  {x1:588, y1:360, x2:588, y2:440, w:24},  // 通往小房子
 ];
 
 // ---------- 路面遮罩（2 像素一格，边缘随机） ----------
@@ -243,11 +234,11 @@ const borderDeco = [];
 // ---------- 状态 ----------
 let state='menu', last=0;
 let camX=0, camY=0, camXs=0, camYs=0, walkPhase=0;
-let player = { x:360, y:248, hp:100, maxHp:100, r:6, speed:80, face:1 };
+let player = { x:680, y:480, hp:100, maxHp:100, r:6, speed:80, face:1 };
 let level=0, xp=0, xpNeed=10;
 
 function resetGame(){
-  player = { x:360, y:248, hp:100, maxHp:100, r:6, speed:80, face:1 };
+  player = { x:680, y:480, hp:100, maxHp:100, r:6, speed:80, face:1 };
   level=0; xp=0; xpNeed=10; walkPhase=0; lastStep=-1;
   camX=Math.max(0,Math.min(WORLD_W-VW, player.x-VW/2));
   camY=Math.max(0,Math.min(WORLD_H-VH, player.y-VH/2));
@@ -325,6 +316,8 @@ const FONT = {
   '6':["111","100","111","101","111"], '7':["111","001","010","010","010"],
   '8':["111","101","111","101","111"], '9':["111","101","111","001","111"],
   'L':["100","100","100","100","111"], 'V':["101","101","101","101","010"],
+  'F':["111","100","110","100","100"], 'P':["110","101","110","100","100"],
+  'S':["111","100","111","001","111"], ' ':["000","000","000","000","000"],
 };
 const IC = { heart:[".1.1.","11111","11111",".111.","..1.."] };
 function drawText(str, x, y, color, s=1){
@@ -699,20 +692,22 @@ function render(){
   drawHero();
   for(const b of hs){ if(b.y+b.h > player.y) drawHouse(b); }
   drawHUD();
+  const ft=fpsVal+' FPS';
+  drawText(ft, VW-6-(ft.length*4), 32, '#4ade80');
   if(state==='city') drawJoystick();
 
   ctx.fillStyle='#05070d'; ctx.fillRect(0,0,cv.width,cv.height);
   ctx.drawImage(off, oxCss, oyCss, VW*cssScale, VH*cssScale);
 }
 
-let fpsFrames=0, fpsLast=0;
+let fpsFrames=0, fpsLast=0, fpsVal=0;
 function frame(now){
   const dt=Math.min((now-last)/1000,0.05); last=now;
   if(state==='city') update(dt);
   render();
   fpsFrames++;
   if(now-fpsLast>=500){
-    document.getElementById('fps').textContent = Math.round(fpsFrames*1000/(now-fpsLast))+' FPS';
+    fpsVal = Math.round(fpsFrames*1000/(now-fpsLast));
     fpsFrames=0; fpsLast=now;
   }
   requestAnimationFrame(frame);
