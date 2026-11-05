@@ -111,7 +111,7 @@
   .eq-cap { font-size:12px; color:#94a3b8; letter-spacing:2px; text-align:left; width:100%; }
   .eq-row { display:flex; gap:8px; }
   .eq-box .eq-slot { width:52px; height:52px; }
-  .bag-grid .eq-slot { width:100%; aspect-ratio:1/1; }
+  .bag-grid .eq-slot { width:100%; height:auto; aspect-ratio:1/1; }
   #rotate { position:fixed; inset:0; z-index:20; display:flex; flex-direction:column; align-items:center;
             justify-content:center; gap:18px; background:#05070d; color:#e2e8f0; text-align:center; padding:24px; }
   #rotate.hidden { display:none; }
@@ -168,7 +168,7 @@
       <span class="detail-name" id="detailName"></span>
       <button class="xBtn" id="detailClose">✕</button>
     </div>
-    <div class="detail-sec">官方描述</div>
+    <div class="detail-sec">描述</div>
     <div class="detail-desc" id="detailDesc">（描述待补全）</div>
     <div class="detail-sec">属性</div>
     <div id="detailRows"></div>
@@ -204,6 +204,7 @@
       </div>
     </div>
     <button id="fullscreenBtn" class="sp-full">全屏</button>
+    <button id="vibToggle" class="sp-full sp-alt">振动：开</button>
     <button id="muteAll" class="sp-full sp-alt">一键静音：关</button>
     <button id="openSave" class="sp-full sp-alt">存档</button>
   </div>
@@ -413,7 +414,7 @@ cv.addEventListener('touchstart', e=>{
   const L=equipLayout(), H=L.hudBox;
   if(vx>=L.swx&&vx<=L.swx+L.swordS&&vy>=L.swy&&vy<=L.swy+L.swordS){ openEquip(); return; }
   if(vx>=H.x0&&vx<=H.x1&&vy>=H.y0&&vy<=H.y1){ openEquip(); return; }
-  if(vx < VW*0.5 && vy > VH*0.5){ joy.active=true; joyMove(vx,vy); }
+  if(vx < VW*0.5 && vy > VH*0.5){ joy.active=true; joyMove(vx,vy); vibrate(12); }
 }, {passive:true});
 cv.addEventListener('touchmove', e=>{
   if(!joy.active) return;
@@ -427,7 +428,7 @@ cv.addEventListener('mousedown', e=>{
   const L=equipLayout(), H=L.hudBox;
   if(vx>=L.swx&&vx<=L.swx+L.swordS&&vy>=L.swy&&vy<=L.swy+L.swordS){ openEquip(); return; }
   if(vx>=H.x0&&vx<=H.x1&&vy>=H.y0&&vy<=H.y1){ openEquip(); return; }
-  if(vx<VW*0.5 && vy>VH*0.5){ joy.active=true; joyMove(vx,vy); }
+  if(vx<VW*0.5 && vy>VH*0.5){ joy.active=true; joyMove(vx,vy); vibrate(12); }
 });
 cv.addEventListener('mousemove', e=>{ if(!joy.active)return; const [vx,vy]=toV(e.clientX,e.clientY); joyMove(vx,vy); });
 cv.addEventListener('mouseup', ()=>{ joy.active=false; joy.dx=joy.dy=0; });
@@ -466,7 +467,7 @@ function update(dt){
       tryMove(joy.dx/d*player.speed*dt, joy.dy/d*player.speed*dt);
       walkPhase += dt*16;
       const si=Math.floor(walkPhase/Math.PI);
-      if(si!==lastStep){ lastStep=si; playStep(); }
+      if(si!==lastStep){ lastStep=si; playStep(); if(si%2===0) vibrate(6); }
       if(joy.dx>2) player.face=1; else if(joy.dx<-2) player.face=-1;
     }
   }
@@ -1087,7 +1088,34 @@ function playStep(){
   src.connect(lp); lp.connect(g); g.connect(sfxGain);
   src.start(t); src.stop(t+0.16);
 }
-let mutedAll=false;
+let mutedAll=false, vibOn=true;
+function vibrate(ms){ try{ if(vibOn && navigator.vibrate) navigator.vibrate(ms); }catch(e){} }
+function sfxDrop(){
+  if(!actx||!sfxOn||mutedAll) return;
+  const t=actx.currentTime;
+  const o=actx.createOscillator(), g=actx.createGain();
+  o.type='sine';
+  o.frequency.setValueAtTime(1250,t);
+  o.frequency.exponentialRampToValueAtTime(380,t+0.09);
+  g.gain.setValueAtTime(0.0001,t);
+  g.gain.linearRampToValueAtTime(0.24,t+0.005);
+  g.gain.exponentialRampToValueAtTime(0.0001,t+0.13);
+  o.connect(g); g.connect(sfxGain);
+  o.start(t); o.stop(t+0.15);
+}
+function sfxBeep(){
+  if(!actx||!sfxOn||mutedAll) return;
+  const t=actx.currentTime;
+  const o=actx.createOscillator(), g=actx.createGain();
+  o.type='square';
+  o.frequency.setValueAtTime(900,t);
+  o.frequency.setValueAtTime(1340,t+0.045);
+  g.gain.setValueAtTime(0.0001,t);
+  g.gain.linearRampToValueAtTime(0.11,t+0.004);
+  g.gain.exponentialRampToValueAtTime(0.0001,t+0.1);
+  o.connect(g); g.connect(sfxGain);
+  o.start(t); o.stop(t+0.12);
+}
 function applyMusic(){ if(actx&&master) master.gain.setTargetAtTime((musicOn&&!mutedAll)?musicVol*0.8:0, actx.currentTime, 0.05); }
 function applySfx(){ if(actx&&sfxGain) sfxGain.gain.setTargetAtTime((sfxOn&&!mutedAll)?sfxVol*0.9:0, actx.currentTime, 0.05); }
 document.addEventListener('visibilitychange', ()=>{
@@ -1436,7 +1464,7 @@ function bindItemSlot(el, onTap, onLong){
     if(timer) clearTimeout(timer);
     timer=setTimeout(()=>{ timer=null; longFired=true; onLong(); }, 450);
   };
-  const finish=()=>{ if(timer){ clearTimeout(timer); timer=null; if(!longFired) onTap(); } };
+  const finish=()=>{ if(timer){ clearTimeout(timer); timer=null; if(!longFired){ sfxBeep(); onTap(); } } };
   const cancel=()=>{ if(timer){ clearTimeout(timer); timer=null; } };
   el.addEventListener('touchstart', start, {passive:false});
   el.addEventListener('touchend', finish);
@@ -1458,7 +1486,7 @@ function showItemMenu(id, opts, anchor){
   for(const o of opts){
     const b=document.createElement('button');
     b.textContent=o.label;
-    b.onclick=(e)=>{ e.stopPropagation(); closeItemMenu(); o.fn(); };
+    b.onclick=(e)=>{ e.stopPropagation(); sfxBeep(); closeItemMenu(); o.fn(); };
     box.appendChild(b);
   }
   menuOpenAt=performance.now();
@@ -1553,6 +1581,19 @@ document.getElementById('equipBg').onclick=()=>{ if(performance.now()-equipOpenA
 document.getElementById('bagClose').onclick=()=>document.getElementById('bagWrap').classList.add('hidden');
 document.getElementById('bagBg').onclick=()=>{ if(performance.now()-bagOpenAt<450) return; document.getElementById('bagWrap').classList.add('hidden'); };
 document.getElementById('bagBtn').onclick=openBag;
+['startBtn','settingsBtn','bagBtn','fullscreenBtn','openSave','saveExport','saveImportBtn','saveCodeGen','saveCodeLoad','saveClear','muteAll','musicToggle','sfxToggle','vibToggle','saveImportBtn'].forEach(id=>{
+  const el=document.getElementById(id); if(el) el.addEventListener('click', sfxDrop);
+});
+['settingsClose','saveBack','eqClose','bagClose','detailClose','equipBg','bagBg','itemDetailBg'].forEach(id=>{
+  const el=document.getElementById(id); if(el) el.addEventListener('click', sfxBeep);
+});
+document.getElementById('vibToggle').onclick=()=>{
+  vibOn=!vibOn;
+  const b=document.getElementById('vibToggle');
+  b.textContent='振动：'+(vibOn?'开':'关');
+  b.classList.toggle('on', vibOn);
+  vibrate(30);
+};
 document.getElementById('muteAll').onclick=()=>{
   mutedAll=!mutedAll;
   const b=document.getElementById('muteAll');
@@ -1578,7 +1619,7 @@ document.getElementById('startBtn').onclick=()=>{
   document.getElementById('menu').classList.add('hidden');
   if(!hasSave) resetGame();
   hasSave=true; saveGame();
-  initAudio(); startMusic();
+  initAudio(); startMusic(); sfxDrop();
   if(screen.orientation && screen.orientation.lock){
     try { const p=screen.orientation.lock('landscape'); if(p&&p.catch) p.catch(()=>{}); } catch(e){}
   }
