@@ -2304,25 +2304,30 @@ function bindScrollbar(){
   v.addEventListener('scroll', updateBagScroll, {passive:true});
   v.addEventListener('touchstart', (e)=>{ bagDragV={ y:e.touches[0].clientY, start:v.scrollTop }; }, {passive:true});
   v.addEventListener('touchmove', (e)=>{
-    if(!bagDragV) return;
+    if(bagDragT || !bagDragV) return;
     const dy=e.touches[0].clientY-bagDragV.y;
     if(Math.abs(dy)>2){ bagSet(bagDragV.start - dy); if(e.cancelable) e.preventDefault(); }
   }, {passive:false});
   v.addEventListener('touchend', ()=>{ bagDragV=null; });
   v.addEventListener('touchcancel', ()=>{ bagDragV=null; });
   thumb.addEventListener('touchstart', (e)=>{
+    e.stopPropagation();
+    bagDragV=null;
     const vh=v.clientHeight||1, max=bagMaxScroll(), thH=thumb.offsetHeight||24;
     bagDragT={ y:e.touches[0].clientY, start:v.scrollTop, k:max/Math.max(1, vh-thH) };
     if(e.cancelable) e.preventDefault();
   }, {passive:false});
   thumb.addEventListener('touchmove', (e)=>{
     if(!bagDragT) return;
+    e.stopPropagation();
     bagSet(bagDragT.start + (e.touches[0].clientY-bagDragT.y)*bagDragT.k);
     if(e.cancelable) e.preventDefault();
   }, {passive:false});
-  thumb.addEventListener('touchend', ()=>{ bagDragT=null; });
+  thumb.addEventListener('touchend', (e)=>{ e.stopPropagation(); bagDragT=null; });
   thumb.addEventListener('touchcancel', ()=>{ bagDragT=null; });
   thumb.addEventListener('mousedown', (e)=>{
+    e.stopPropagation();
+    bagDragV=null;
     const vh=v.clientHeight||1, max=bagMaxScroll(), thH=thumb.offsetHeight||24;
     bagDragT={ y:e.clientY, start:v.scrollTop, k:max/Math.max(1, vh-thH) };
     e.preventDefault();
@@ -2330,6 +2335,7 @@ function bindScrollbar(){
   addEventListener('mousemove', (e)=>{ if(bagDragT) bagSet(bagDragT.start + (e.clientY-bagDragT.y)*bagDragT.k); });
   addEventListener('mouseup', ()=>{ bagDragT=null; });
   track.addEventListener('touchstart', (e)=>{
+    e.stopPropagation(); bagDragV=null;
     const r=track.getBoundingClientRect();
     const vh=v.clientHeight||1, max=bagMaxScroll(), thH=thumb.offsetHeight||24;
     const travel=Math.max(1, vh-thH);
