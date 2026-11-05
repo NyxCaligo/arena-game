@@ -57,14 +57,23 @@
   #bagBtn { position:fixed; z-index:6; left:calc(10px + env(safe-area-inset-left, 0px));
             bottom:calc(10px + env(safe-area-inset-bottom, 0px)); width:44px; height:44px; padding:0;
             background:#9aa3ae; color:#1e293b; border:2px solid #4b5462; border-radius:6px;
-            font-size:18px; box-shadow:none; display:flex; align-items:center; justify-content:center; }
+            box-shadow:none; display:flex; align-items:center; justify-content:center; }
   #bagBtn:active { transform:translateY(2px); }
   .eq-title { font-size:20px; font-weight:bold; letter-spacing:2px; color:#f8fafc; }
-  .eq-section { color:#94a3b8; font-size:13px; margin-top:12px; letter-spacing:1px; }
+  .eq-section { color:#94a3b8; font-size:13px; margin-top:10px; letter-spacing:1px; }
   .eq-grid { display:flex; gap:8px; flex-wrap:wrap; justify-content:center; max-width:340px; }
   .eq-slot { width:46px; height:46px; background:#4b5462; border:2px solid #0b0f1a;
              display:flex; align-items:center; justify-content:center; color:#2b3444;
              font-size:12px; font-weight:bold; }
+  .modal { position:fixed; inset:0; z-index:9; display:flex; align-items:center; justify-content:center; }
+  .modal.hidden { display:none; }
+  .modal-bg { position:absolute; inset:0; background:rgba(110,116,128,.45); }
+  .modal-box { position:relative; background:#0d1524; border:2px solid #1e293b; padding:16px;
+               width:min(420px, 88vw); max-height:82vh; overflow-y:auto;
+               display:flex; flex-direction:column; gap:10px; align-items:center; }
+  .bag-grid { display:grid; grid-template-columns:repeat(10, 1fr); gap:4px;
+              width:100%; max-height:52vh; overflow-y:auto; }
+  .bag-grid .eq-slot { width:100%; aspect-ratio:1/1; }
   #rotate { position:fixed; inset:0; z-index:20; display:flex; flex-direction:column; align-items:center;
             justify-content:center; gap:18px; background:#05070d; color:#e2e8f0; text-align:center; padding:24px; }
   #rotate.hidden { display:none; }
@@ -77,22 +86,38 @@
 <body>
 <canvas id="cv"></canvas>
 <button id="settingsBtn">⚙</button>
-<button id="bagBtn">🎒</button>
-<div id="equipPanel" class="ov hidden">
-  <div class="eq-title">装备</div>
-  <div class="eq-section">主武器</div>
-  <div class="eq-grid" id="eqWeapons"></div>
-  <div class="eq-section">防具</div>
-  <div class="eq-grid" id="eqArmors"></div>
-  <div class="eq-section">饰品</div>
-  <div class="eq-grid" id="eqAccs"></div>
-  <button id="eqClose" style="margin-top:16px">关闭</button>
+<button id="bagBtn">
+  <svg width="22" height="22" viewBox="0 0 11 11" shape-rendering="crispEdges">
+    <rect x="4" y="0" width="3" height="1" fill="#1e293b"/>
+    <rect x="3" y="1" width="1" height="2" fill="#1e293b"/>
+    <rect x="7" y="1" width="1" height="2" fill="#1e293b"/>
+    <rect x="2" y="3" width="7" height="7" fill="#8a6440"/>
+    <rect x="2" y="3" width="7" height="2" fill="#a87c50"/>
+    <rect x="4" y="6" width="3" height="1" fill="#5f4127"/>
+    <rect x="4" y="7" width="3" height="2" fill="#6b4a2e"/>
+  </svg>
+</button>
+<div id="equipWrap" class="modal hidden">
+  <div class="modal-bg" id="equipBg"></div>
+  <div class="modal-box">
+    <div class="eq-title">装备</div>
+    <div class="eq-section">主武器</div>
+    <div class="eq-grid" id="eqWeapons"></div>
+    <div class="eq-section">防具</div>
+    <div class="eq-grid" id="eqArmors"></div>
+    <div class="eq-section">饰品</div>
+    <div class="eq-grid" id="eqAccs"></div>
+    <button id="eqClose" class="sp-full sp-alt" style="margin-top:14px">关闭</button>
+  </div>
 </div>
-<div id="bagPanel" class="ov hidden">
-  <div class="eq-title">背包</div>
-  <p style="color:#94a3b8;font-size:13px">背包还是空的，之后打怪掉的战利品会放这里。</p>
-  <div class="eq-grid" id="bagGrid"></div>
-  <button id="bagClose" style="margin-top:16px">关闭</button>
+<div id="bagWrap" class="modal hidden">
+  <div class="modal-bg" id="bagBg"></div>
+  <div class="modal-box">
+    <div class="eq-title">背包</div>
+    <div class="eq-section">容量 100 格</div>
+    <div class="bag-grid" id="bagGrid"></div>
+    <button id="bagClose" class="sp-full sp-alt" style="margin-top:14px">关闭</button>
+  </div>
 </div>
 <div id="settingsBackdrop" class="hidden"></div>
 <div id="settingsPanel" class="hidden">
@@ -182,7 +207,7 @@ function resize(){
   oxCss = Math.floor((cv.width - VW*P)/2);
   oyCss = Math.floor((cv.height - VH*P)/2);
   ctx.imageSmoothingEnabled = false;
-  JBX = VW*0.2; JBY = VH*0.8;
+  JBX = VW*0.15; JBY = VH*0.82;
 }
 resize();
 window.addEventListener('resize', resize);
@@ -390,6 +415,7 @@ const FONT = {
   'L':["100","100","100","100","111"], 'V':["101","101","101","101","010"],
   'F':["111","100","110","100","100"], 'P':["110","101","110","100","100"],
   'S':["111","100","111","001","111"], ' ':["000","000","000","000","000"],
+  '?':["111","001","011","000","010"],
 };
 const IC = { heart:[".1.1.","11111","11111",".111.","..1.."] };
 function drawText(str, x, y, color, s=1){
@@ -1064,15 +1090,22 @@ document.getElementById('saveClear').onclick=()=>{
 const EQUIP={weapons:[null,null,null], armors:[null,null,null], accessories:[null,null,null,null,null,null]};
 
 function equipLayout(){
-  const WS=22, gap=4;
-  const totalW=3*WS+2*gap;
-  const wx=Math.round(VW/2-totalW/2), wy=VH-8-WS;
-  const AS=12, agap=3, atot=3*AS+2*agap;
-  const ax=wx-8-atot, ay=wy+Math.round((WS-AS)/2);
-  const SS=10, sgap=2, stotW=3*SS+2*sgap, stotH=2*SS+sgap;
-  const sx=wx+totalW+8, sy=wy+Math.round((WS-stotH)/2);
-  const swordS=18, swx=sx+stotW+8, swy=wy+Math.round((WS-swordS)/2);
-  return {WS,wx,wy,AS,ax,ay,SS,sx,sy,swordS,swx,swy};
+  const pad=4, labelH=9, gap=6, swordS=18;
+  const WS=22, Wgap=4, weaponW=3*WS+2*Wgap;
+  const GW=weaponW+pad*2, GH=labelH+WS+pad*2;
+  const AS=12, Agap=3, armorW=3*AS+2*Agap;
+  const GA=armorW+pad*2, GAH=labelH+AS+pad*2;
+  const SS=10, Sgap=2, accW=3*SS+2*Sgap, accH=2*SS+Sgap;
+  const GS=accW+pad*2, GSH=labelH+accH+pad*2;
+  const totalW=GA+gap+GW+gap+GS+gap+swordS;
+  const x0=Math.round(VW/2-totalW/2), bottom=VH-5;
+  return {
+    pad,labelH,gap,swordS,WS,AS,SS,GW,GH,GA,GAH,GS,GSH,
+    ax:x0, ay:bottom-GAH,
+    wx:x0+GA+gap, wy:bottom-GH,
+    sx:x0+GA+gap+GW+gap, sy:bottom-GSH,
+    swx:x0+GA+gap+GW+gap+GS+gap, swy:bottom-swordS
+  };
 }
 function eqSlot(x,y,sz){
   octx.fillStyle='#0b0f1a'; octx.fillRect(x-1,y-1,sz+2,sz+2);
@@ -1086,13 +1119,30 @@ function armorIcon(x,y,sz,i){
   else if(i===1){ px(x+3,y+3,2,6,c); px(x+sz-5,y+3,2,6,c); px(x+3,y+6,sz-6,3,c); }
   else { px(x+3,y+4,sz-6,4,c); px(x+4,y+3,sz-8,1,c); px(x+3,y+8,sz-6,1,c); }
 }
+function eqGroup(x,y,w,h,label){
+  octx.fillStyle='#0b0f1a'; octx.fillRect(x-1,y-1,w+2,h+2);
+  octx.fillStyle='#4b5462'; octx.fillRect(x,y,w,h);
+  octx.fillStyle='#2f3743'; octx.fillRect(x+1,y+1,w-2,h-2);
+  octx.font='8px monospace'; octx.textBaseline='top';
+  octx.fillStyle='#cbd5e1';
+  octx.fillText(label, x+4, y+1);
+}
 function drawEquipHUD(){
   const L=equipLayout();
-  for(let i=0;i<3;i++){ const x=L.ax+i*(L.AS+3); eqSlot(x,L.ay,L.AS); armorIcon(x,L.ay,L.AS,i); }
-  for(let i=0;i<3;i++){ const x=L.wx+i*(L.WS+4); eqSlot(x,L.wy,L.WS);
-    px(x+L.WS/2-1,L.wy+4,2,L.WS-10,'#78828f'); px(x+L.WS/2-3,L.wy+L.WS-6,6,2,'#5b6472'); }
-  for(let j=0;j<2;j++) for(let i=0;i<3;i++){ eqSlot(L.sx+i*(L.SS+2), L.sy+j*(L.SS+2), L.SS); }
-  // 剑按钮
+  // 防具
+  eqGroup(L.ax,L.ay,L.GA,L.GAH,'防具');
+  for(let i=0;i<3;i++){ const x=L.ax+L.pad+i*(L.AS+3), y=L.ay+L.labelH+L.pad;
+    eqSlot(x,y,L.AS); armorIcon(x,y,L.AS,i); }
+  // 主武器
+  eqGroup(L.wx,L.wy,L.GW,L.GH,'武器');
+  for(let i=0;i<3;i++){ const x=L.wx+L.pad+i*(L.WS+4), y=L.wy+L.labelH+L.pad;
+    eqSlot(x,y,L.WS);
+    drawText('?', x+(L.WS-6)/2, y+(L.WS-10)/2, '#7b8492', 2); }
+  // 饰品
+  eqGroup(L.sx,L.sy,L.GS,L.GSH,'饰品');
+  for(let j=0;j<2;j++) for(let i=0;i<3;i++){ const x=L.sx+L.pad+i*(L.SS+2), y=L.sy+L.labelH+L.pad+j*(L.SS+2);
+    eqSlot(x,y,L.SS); }
+  // 剑
   const bx=L.swx, by=L.swy, bs=L.swordS;
   octx.fillStyle='#0b0f1a'; octx.fillRect(bx-1,by-1,bs+2,bs+2);
   octx.fillStyle='#4b5462'; octx.fillRect(bx,by,bs,bs);
@@ -1109,14 +1159,16 @@ function openEquip(){
   fillSlots(document.getElementById('eqWeapons'),3,null);
   fillSlots(document.getElementById('eqArmors'),3,['盔','甲','膝']);
   fillSlots(document.getElementById('eqAccs'),6,null);
-  document.getElementById('equipPanel').classList.remove('hidden');
+  document.getElementById('equipWrap').classList.remove('hidden');
 }
 function openBag(){
-  fillSlots(document.getElementById('bagGrid'),12,null);
-  document.getElementById('bagPanel').classList.remove('hidden');
+  fillSlots(document.getElementById('bagGrid'),100,null);
+  document.getElementById('bagWrap').classList.remove('hidden');
 }
-document.getElementById('eqClose').onclick=()=>document.getElementById('equipPanel').classList.add('hidden');
-document.getElementById('bagClose').onclick=()=>document.getElementById('bagPanel').classList.add('hidden');
+document.getElementById('eqClose').onclick=()=>document.getElementById('equipWrap').classList.add('hidden');
+document.getElementById('equipBg').onclick=()=>document.getElementById('equipWrap').classList.add('hidden');
+document.getElementById('bagClose').onclick=()=>document.getElementById('bagWrap').classList.add('hidden');
+document.getElementById('bagBg').onclick=()=>document.getElementById('bagWrap').classList.add('hidden');
 document.getElementById('bagBtn').onclick=openBag;
 
 // ---------- 横屏提示 ----------
