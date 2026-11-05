@@ -17,6 +17,7 @@
   #cv { position:fixed; inset:0; display:block; touch-action:none; image-rendering:pixelated; }
   .ov { position:fixed; inset:0; display:flex; flex-direction:column; align-items:center;
         justify-content:center; gap:18px; background:#05070d; text-align:center; padding:24px; z-index:5; }
+  .hidden { display:none !important; }
   .ov.hidden { display:none; }
   #menu .title { font-size:34px; font-weight:bold; color:#f8fafc; letter-spacing:5px;
                  text-shadow:3px 3px 0 #0284c7, 6px 6px 0 #000; }
@@ -115,9 +116,9 @@
                      color:#cbd5e1; background:rgba(11,15,26,.6); overflow:hidden; white-space:nowrap; }
   .miniBtn { font-size:11px; padding:3px 9px; background:#4b5462; color:#cbd5e1;
              border:2px solid #0b0f1a; border-radius:0; box-shadow:none; flex:none; }
-  .del-btn { position:absolute; top:-1px; right:-1px; width:18px; height:18px; padding:0;
-             background:#b91c1c; color:#fff; border:1px solid #0b0f1a; font-size:12px; line-height:1;
-             display:flex; align-items:center; justify-content:center; border-radius:0; }
+  .del-btn { position:absolute; top:-1px; right:-1px; width:20px; height:20px; padding:0;
+             background:#b91c1c; color:#fff; border:1px solid #0b0f1a; border-radius:0;
+             display:flex; align-items:center; justify-content:center; line-height:0; }
   #saveToast { position:fixed; z-index:7; left:50%; transform:translateX(-50%);
                bottom:calc(64px + env(safe-area-inset-bottom, 0px)); color:#4ade80;
                font-size:12px; opacity:0; transition:opacity .25s; pointer-events:none;
@@ -1985,17 +1986,22 @@ function renderBag(){
     const id=dis.list[i];
     if(id){
       if(dis.hl.has(id)) d.classList.add('hl');
-      if(bagSel===id){
-        d.classList.add('sel');
+      if(bagSel===id) d.classList.add('sel');
+      {
         const del=document.createElement('button');
-        del.className='del-btn'; del.textContent='×';
-        del.onclick=(ev)=>{ ev.stopPropagation();
+        del.className='del-btn';
+        del.innerHTML='<svg width="10" height="10" viewBox="0 0 10 10"><rect x="1" y="4" width="8" height="2" fill="#ffffff"/><rect x="4" y="1" width="2" height="8" fill="#ffffff"/></svg>';
+        const act=(ev)=>{
+          if(ev){ ev.stopPropagation(); if(ev.cancelable) ev.preventDefault(); }
+          sfxBeep();
           askConfirm('删除「'+ITEMS[id].n+'」？', ()=>{
             bagItems=bagItems.filter(x=>x!==id);
             if(bagSel===id) bagSel=null;
-            renderBag(); saveGame(); sfxBeep();
+            renderBag(); saveGame();
           });
         };
+        del.addEventListener('touchstart', act, {passive:false});
+        del.addEventListener('click', act);
         d.appendChild(del);
       }
       const icv=itemCanvas(id,38); icv.style.imageRendering='pixelated';
@@ -2048,6 +2054,7 @@ function bindItemSlot(el, onTap, onLong){
   let timer=null, longFired=false, sx0=0, sy0=0;
   const pt=(e)=> e.touches && e.touches[0] ? e.touches[0] : (e.changedTouches && e.changedTouches[0]) || e;
   const start=(e)=>{
+    if(e.target && e.target.closest && e.target.closest('.del-btn')) return;
     if(e.cancelable) e.preventDefault();
     longFired=false;
     const t=pt(e); sx0=t.clientX||0; sy0=t.clientY||0;
@@ -2766,8 +2773,10 @@ function updateHudButtons(){
   const bag=document.getElementById('bagBtn'), eq=document.getElementById('eqToggle');
   if(bag) bag.style.display = hide ? 'none' : 'flex';
   if(eq) eq.style.display = (hide || equipOpen || bagOpen) ? 'none' : 'flex';
+  const colOpen=!document.getElementById('colWrap').classList.contains('hidden');
   const cb=document.getElementById('colBtn');
-  if(cb) cb.classList.toggle('hidden', hide);
+  if(cb) cb.classList.toggle('hidden', hide || bagOpen || equipOpen || colOpen);
+  if(bag) bag.style.display = (hide || colOpen) ? 'none' : 'flex';
   const ab=document.getElementById('atkBtn');
   if(ab) ab.classList.toggle('hidden', hide || equipOpen || bagOpen || talking);
   const ib=document.getElementById('interactBtn');
