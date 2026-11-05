@@ -180,6 +180,7 @@
   .modal.hidden { display:none; }
   .modal-bg { position:absolute; inset:0; background:rgba(110,116,128,.45); }
   .modal-box { position:relative; background:#0d1524; border:2px solid #1e293b; padding:16px;
+               touch-action:pan-y;
                width:min(470px, 94vw); max-height:82vh; overflow-y:auto;
                display:flex; flex-direction:column; gap:10px; align-items:center; }
   .cat-row { display:flex; gap:6px; width:100%; }
@@ -212,7 +213,8 @@
   .bag-scroll { width:100%; height:calc(88vh - 190px); min-height:200px; max-height:460px;
                 overflow-y:scroll; overflow-x:hidden; padding-right:6px;
                 -webkit-overflow-scrolling:touch; overscroll-behavior:contain;
-                background:#0a1018; border:1px solid #1e293b; }
+                background:#0a1018; border:1px solid #1e293b;
+                touch-action:pan-y; }
   .bag-scroll::-webkit-scrollbar { width:16px; }
   .bag-scroll::-webkit-scrollbar-track { background:#0b0f1a; border-left:1px solid #1e293b; }
   .bag-scroll::-webkit-scrollbar-thumb { background:#5b6472; border:2px solid #9aa5b1; }
