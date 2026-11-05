@@ -189,12 +189,8 @@
   .catBtn.on { background:#f5c542; color:#3b2a1c; border-color:#8a6a1a; }
   .eq-slot.hl { border-color:#f5c542; }
   .eq-slot.sel { box-shadow:inset 0 0 0 1px #ffffff; }
-  .bag-grid { display:grid; grid-template-columns:repeat(4, 1fr); gap:4px;
-              width:100%; max-height:52vh; overflow-y:scroll; overflow-x:hidden;
-              scrollbar-width:thin; }
-  .bag-grid::-webkit-scrollbar { width:10px; }
-  .bag-grid::-webkit-scrollbar-track { background:#0b1220; border:1px solid #1e293b; }
-  .bag-grid::-webkit-scrollbar-thumb { background:#4b5462; border:2px solid #0b1220; }
+  .bag-grid { display:flex; flex-wrap:wrap; gap:6px; width:100%; align-content:flex-start;
+              max-height:none; overflow:visible; }
   .pixlabel { display:inline-flex; align-items:center; }
   .pixlabel canvas { image-rendering:pixelated; display:block; }
   .panel-head { display:flex; align-items:center; gap:10px; width:100%; }
@@ -218,7 +214,7 @@
                border-left:1px solid #1e293b; }
   .bag-thumb { position:absolute; left:1px; right:1px; top:0; height:30px; background:#5b6472;
                border:1px solid #9aa5b1; }
-  .bag-grid .eq-slot { width:100%; height:auto; aspect-ratio:1/1; position:relative; padding:0;
+  .bag-grid .eq-slot { width:74px; height:74px; flex:0 0 74px; position:relative; padding:0;
                        display:flex; align-items:center; justify-content:center; touch-action:manipulation; }
   .bag-grid .item-name { position:absolute; left:0; right:0; bottom:1px; font-size:9px; text-align:center;
                          color:#e2e8f0; background:rgba(11,15,26,.6); line-height:1.25;
@@ -1983,12 +1979,6 @@ function bagDisplay(){
 }
 function renderBag(){
   const g=document.getElementById('bagGrid'); if(!g) return;
-  const cols=4, gap=5;
-  const avail=(document.getElementById('bagView')?.clientWidth||400)-14;
-  const cell=Math.max(56, Math.floor((avail-gap*(cols-1))/cols));
-  g.style.gridTemplateColumns='repeat('+cols+', '+cell+'px)';
-  g.style.gridAutoRows=cell+'px';
-  g.style.gap=gap+'px';
   g.innerHTML='';
   const dis=bagDisplay();
   for(let i=0;i<100;i++){
@@ -2287,7 +2277,7 @@ function updateBagScroll(){
   const vh=v.clientHeight||0, sh=v.scrollHeight||0;
   const max=sh-vh;
   const dbg0=document.getElementById('bagDbg');
-  if(dbg0) dbg0.textContent=Math.round(v.scrollTop)+'/'+Math.round(max);
+  if(dbg0) dbg0.textContent=Math.round(v.scrollHeight)+'/'+Math.round(v.clientHeight);
   if(max<=2){ track.style.display='none'; return; }
   track.style.display='block';
   const thH=Math.max(18, Math.round(vh*vh/sh));
@@ -2295,7 +2285,7 @@ function updateBagScroll(){
   thumb.style.height=thH+'px';
   thumb.style.top=Math.round(travel*(v.scrollTop/max))+'px';
   const dbg=document.getElementById('bagDbg');
-  if(dbg) dbg.textContent=Math.round(v.scrollTop)+'/'+Math.round(max);
+  if(dbg) dbg.textContent=Math.round(v.scrollHeight)+'/'+Math.round(vh);
 }
 function bagSet(y){
   const v=bagViewEl(); if(!v) return;
