@@ -180,8 +180,14 @@ for(let y=0;y<WROWS;y++){
 
 // ---------- 房屋 ----------
 const BUILDINGS = [
-  {x:440, y:280, w:88, h:76, v:0},   // 大房子
-  {x:556, y:300, w:64, h:60, v:1},   // 小房子
+  {x:440, y:280, w:88, h:76, v:0},   // 大民居
+  {x:556, y:300, w:64, h:60, v:1},   // 小店
+  {x:330, y:270, w:64, h:58, v:2},   // 石屋
+  {x:240, y:330, w:56, h:54, v:3},   // 茅草屋
+  {x:740, y:270, w:66, h:60, v:1},   // 东边小店
+  {x:820, y:330, w:60, h:56, v:2},   // 石屋
+  {x:530, y:170, w:70, h:64, v:0},   // 北边民居
+  {x:400, y:170, w:58, h:52, v:3},   // 茅草屋
 ];
 
 // ---------- 道路（土黄路，宽窄不一） ----------
@@ -257,11 +263,11 @@ const borderDeco = [];
 // ---------- 状态 ----------
 let state='menu', last=0;
 let camX=0, camY=0, camXs=0, camYs=0, walkPhase=0;
-let player = { x:680, y:480, hp:100, maxHp:100, r:6, speed:80, face:1 };
+let player = { x:680, y:448, hp:100, maxHp:100, r:6, speed:80, face:1 };
 let level=0, xp=0, xpNeed=10;
 
 function resetGame(){
-  player = { x:680, y:480, hp:100, maxHp:100, r:6, speed:80, face:1 };
+  player = { x:680, y:448, hp:100, maxHp:100, r:6, speed:80, face:1 };
   level=0; xp=0; xpNeed=10; walkPhase=0; lastStep=-1;
   camX=Math.max(0,Math.min(WORLD_W-VW, player.x-VW/2));
   camY=Math.max(0,Math.min(WORLD_H-VH, player.y-VH/2));
@@ -457,78 +463,104 @@ function drawBridge(){
   px(x+w-3, y, 3, h, '#6b4a2e');
   for(let yy=y+6; yy<y+h; yy+=16){ px(x, yy, 3, 3, '#5a3a1f'); px(x+w-3, yy, 3, 3, '#5a3a1f'); }
 }
+const HSTYLES=[
+  {roofA:'#b8452e', roofB:'#95321f', wallA:'#f1e3c2', wallB:'#ddcb9f', beam:'#5a3a1f', type:'home'},
+  {roofA:'#6f4530', roofB:'#54301f', wallA:'#ecd9b4', wallB:'#d6c094', beam:'#4a2f19', type:'shop'},
+  {roofA:'#6b6f76', roofB:'#52565c', wallA:'#cfd2d6', wallB:'#b6b9be', beam:'#5a5e64', type:'stone'},
+  {roofA:'#c9a24a', roofB:'#a8853a', wallA:'#efe1c0', wallB:'#dccfa8', beam:'#6b4a2e', type:'thatched'},
+];
 function drawHouse(b){
   const x=Math.round((b.x-camX)*RES)/RES, y=Math.round((b.y-camY)*RES)/RES, w=b.w, h=b.h;
   if(x+w<-20||x>VW+20||y+h<-20||y>VH+20) return;
-  const v=b.v;
+  const st=HSTYLES[(b.v||0)%HSTYLES.length];
   const roofH=Math.round(h*0.46);
   const wallTop=y+roofH;
   const baseY=y+h-8;
-  const roofA = v===0 ? '#b8452e' : '#6f4530';
-  const roofB = v===0 ? '#95321f' : '#54301f';
-  const wallA = v===0 ? '#f1e3c2' : '#ecd9b4';
-  const wallB = v===0 ? '#ddcb9f' : '#d6c094';
-  const beam  = v===0 ? '#5a3a1f' : '#4a2f19';
 
-  // 影子（纯矩形，无抗锯齿）
   px(x+6, y+h+1, w-12, 3, 'rgba(0,0,0,.16)');
   px(x+2, y+h+3, w-4, 2, 'rgba(0,0,0,.12)');
 
-  // 墙体
-  px(x+4, wallTop-2, w-8, h-roofH+2, wallA);
-  px(x+4, wallTop+Math.round((h-roofH)*0.55), w-8, Math.round((h-roofH)*0.45)+2, wallB);
+  px(x+4, wallTop-2, w-8, h-roofH+2, st.wallA);
+  px(x+4, wallTop+Math.round((h-roofH)*0.55), w-8, Math.round((h-roofH)*0.45)+2, st.wallB);
 
-  // 石砌地基
   px(x+4, baseY, w-8, 8, '#8d8a80');
   for(let i=0;i<w-8;i+=7) px(x+4+i, baseY, 1, 8, '#6f6c63');
   px(x+4, baseY, w-8, 1, '#a6a298');
 
-  // 木梁
-  px(x+4, wallTop-2, 3, h-roofH+2, beam);
-  px(x+w-7, wallTop-2, 3, h-roofH+2, beam);
-  px(x+4, wallTop-2, w-8, 2, beam);
-  px(x+4, baseY-2, w-8, 2, beam);
-  if(v===1){ for(let i=0;i<3;i++) px(x+9+i, wallTop+3+i*5, 2, 5, beam); }
-
-  // 屋顶：阶梯状像素砖块三角
-  const steps=Math.ceil(roofH/4);
-  for(let s=0;s<steps;s++){
-    const t=s/steps;
-    const halfW=3 + t*(w/2+2);
-    const top=y+s*4;
-    const hgt=Math.min(4, roofH-s*4);
-    const l=x+w/2-halfW, r=x+w/2+halfW;
-    const col=(s%2===0)?roofA:roofB;
-    px(l, top, r-l, hgt, col);
-    px(l, top, r-l, 1, s%2===0?'#c96a3f':roofA);
+  if(st.type==='stone'){
+    for(let yy=wallTop+5; yy<baseY-2; yy+=6) px(x+4, yy, w-8, 1, '#939aa0');
+    px(x+4, wallTop-2, w-8, 2, '#9aa0a6');
+  } else {
+    px(x+4, wallTop-2, 3, h-roofH+2, st.beam);
+    px(x+w-7, wallTop-2, 3, h-roofH+2, st.beam);
+    px(x+4, wallTop-2, w-8, 2, st.beam);
+    px(x+4, baseY-2, w-8, 2, st.beam);
+    if(st.type==='shop'){ for(let i=0;i<3;i++) px(x+9+i, wallTop+3+i*5, 2, 5, st.beam); }
   }
-  px(x+w/2-4, y-1, 8, 2, v===0?'#d9a05a':'#8a6a4a');
+
+  const steps=Math.ceil(roofH/4);
+  for(let s2=0;s2<steps;s2++){
+    const t=s2/steps;
+    const halfW=3 + t*(w/2+2);
+    const top=y+s2*4;
+    const hgt=Math.min(4, roofH-s2*4);
+    const l=x+w/2-halfW, r=x+w/2+halfW;
+    const col=(s2%2===0)?st.roofA:st.roofB;
+    px(l, top, r-l, hgt, col);
+    px(l, top, r-l, 1, s2%2===0?'rgba(255,255,255,.14)':st.roofA);
+  }
+  px(x+w/2-4, y-1, 8, 2, st.type==='thatched'?'#e0c070':'#d9a05a');
   px(x+2, wallTop-2, w-4, 2, 'rgba(0,0,0,.16)');
 
-  // 烟囱（按屋顶坡面高度落位）
-  const chDx = w*(v===0 ? 0.24 : -0.26);
-  const chT = Math.min(0.95, Math.max(0,(Math.abs(chDx)-3)/(w/2+2)));
-  const chBaseY = y + chT*roofH;
-  const chx = x + w/2 + chDx - 4;
-  if(v===0){
-    px(chx, chBaseY-10, 9, 14, '#8d8a80');
-    for(let i=0;i<3;i++) px(chx, chBaseY-10+i*4, 9, 1, '#6f6c63');
-    px(chx, chBaseY-10, 9, 2, '#a6a298');
-  } else {
-    px(chx, chBaseY-9, 8, 12, '#7a7a72');
-    px(chx, chBaseY-9, 8, 2, '#9a9a90');
-    for(let i=0;i<3;i++) px(chx, chBaseY-7+i*4, 8, 1, '#5f5f57');
-  }
+  const chDx=w*(st.type==='shop'?-0.26:0.24);
+  const chT=Math.min(0.95, Math.max(0,(Math.abs(chDx)-3)/(w/2+2)));
+  const chBaseY=y+chT*roofH;
+  const chx=x+w/2+chDx-4;
+  px(chx, chBaseY-10, 9, 14, st.type==='stone'?'#7a7a72':'#8d8a80');
+  for(let i=0;i<3;i++) px(chx, chBaseY-10+i*4, 9, 1, '#6f6c63');
+  px(chx, chBaseY-10, 9, 2, '#a6a298');
 
-  if(v===0){
-    // 民居：两扇窗 + 花箱 + 拱门 + 门灯
+  if(st.type==='shop'){
+    const wy=wallTop+7, wh=12, wx=x+8, ww=w-16;
+    px(wx-1, wy-1, ww+2, wh+2, st.beam);
+    px(wx, wy, ww, wh, '#3a2a1a');
+    px(wx+1, wy+1, ww-2, wh-2, '#fcd34d');
+    px(wx+Math.floor(ww/2), wy+1, 1, wh-2, st.beam);
+    px(wx+Math.floor(ww/4), wy+1, 1, wh-2, st.beam);
+    px(wx+Math.floor(ww*3/4), wy+1, 1, wh-2, st.beam);
+    px(x+w/2-12, wallTop+2, 24, 3, st.beam);
+    px(x+w/2-10, wallTop+1, 20, 2, '#c9a96b');
+    const dw=16, dh=Math.min(20, h-roofH-8);
+    const dx=x+w/2-dw/2, dy=y+h-dh;
+    px(dx-1, dy-1, dw+2, dh+1, st.beam);
+    px(dx, dy, dw, dh, '#6b4423');
+    px(dx+2, dy+2, dw-4, dh-4, '#7d5230');
+    px(dx+dw-5, dy+Math.floor(dh/2), 2, 2, '#d4b24a');
+    px(x+w-10, y+h-11, 6, 10, '#6b4a2e');
+    px(x+w-10, y+h-9, 6, 1, '#8a6440');
+    px(x+w-10, y+h-6, 6, 1, '#8a6440');
+  } else if(st.type==='stone'){
+    const wy=wallTop+6, wh=9;
+    const win=(wx)=>{
+      px(wx-1, wy-1, wh+2, wh+2, '#5a5e64');
+      px(wx, wy, wh, wh, '#2b2b33');
+      px(wx+1, wy+1, wh-2, wh-2, '#fcd34d');
+    };
+    win(x+9); win(x+w-9-wh);
+    const dw=13, dh=Math.min(20, h-roofH-8);
+    const dx=x+w/2-dw/2, dy=y+h-dh;
+    px(dx-1, dy-2, dw+2, dh+2, '#5a5e64');
+    px(dx, dy+2, dw, dh-2, '#6b4423');
+    px(dx+2, dy, dw-4, 3, '#6b4423');
+    px(dx+dw-4, dy+Math.floor(dh/2), 2, 2, '#d4b24a');
+  } else {
     const wy=wallTop+6, wh=10;
     const win=(wx)=>{
-      px(wx-1, wy-1, wh+2, wh+2, beam);
+      px(wx-1, wy-1, wh+2, wh+2, st.beam);
       px(wx, wy, wh, wh, '#3a2a1a');
       px(wx+1, wy+1, wh-2, wh-2, '#fcd34d');
-      px(wx+Math.floor(wh/2), wy+1, 1, wh-2, beam);
-      px(wx+1, wy+Math.floor(wh/2), wh-2, 1, beam);
+      px(wx+Math.floor(wh/2), wy+1, 1, wh-2, st.beam);
+      px(wx+1, wy+Math.floor(wh/2), wh-2, 1, st.beam);
       px(wx-1, wy+wh+1, wh+2, 3, '#7a5a33');
       px(wx+2, wy+wh+1, 2, 2, '#f472b6');
       px(wx+6, wy+wh+1, 2, 2, '#fde047');
@@ -536,181 +568,15 @@ function drawHouse(b){
     win(x+10); win(x+w-10-wh);
     const dw=14, dh=Math.min(22, h-roofH-8);
     const dx=x+w/2-dw/2, dy=y+h-dh;
-    px(dx-1, dy-2, dw+2, dh+2, beam);
+    px(dx-1, dy-2, dw+2, dh+2, st.beam);
     px(dx, dy+2, dw, dh-2, '#6b4423');
     px(dx+2, dy, dw-4, 3, '#6b4423');
     px(dx+2, dy+3, dw-4, dh-5, '#7d5230');
     for(let i=0;i<3;i++) px(dx+3+i*4, dy+4, 1, dh-6, '#5f3c1f');
     px(dx+dw-4, dy+Math.floor(dh/2)+1, 2, 2, '#d4b24a');
     px(x+w/2+11, dy-6, 3, 4, '#fbbf24');
-  } else {
-    // 小店：宽橱窗 + 招牌 + 木桶
-    const wy=wallTop+7, wh=12, wx=x+8, ww=w-16;
-    px(wx-1, wy-1, ww+2, wh+2, beam);
-    px(wx, wy, ww, wh, '#3a2a1a');
-    px(wx+1, wy+1, ww-2, wh-2, '#fcd34d');
-    px(wx+Math.floor(ww/2), wy+1, 1, wh-2, beam);
-    px(wx+Math.floor(ww/4), wy+1, 1, wh-2, beam);
-    px(wx+Math.floor(ww*3/4), wy+1, 1, wh-2, beam);
-    // 招牌
-    px(x+w/2-12, wallTop+2, 24, 3, '#5a3a1f');
-    px(x+w/2-10, wallTop+1, 20, 2, '#c9a96b');
-    // 门
-    const dw=16, dh=Math.min(20, h-roofH-8);
-    const dx=x+w/2-dw/2, dy=y+h-dh;
-    px(dx-1, dy-1, dw+2, dh+1, beam);
-    px(dx, dy, dw, dh, '#6b4423');
-    px(dx+2, dy+2, dw-4, dh-4, '#7d5230');
-    px(dx+dw-5, dy+Math.floor(dh/2), 2, 2, '#d4b24a');
-    // 木桶
-    px(x+w-10, y+h-11, 6, 10, '#6b4a2e');
-    px(x+w-10, y+h-9, 6, 1, '#8a6440');
-    px(x+w-10, y+h-6, 6, 1, '#8a6440');
   }
 }
-function drawBoundaryBase(sx,sy,tx,ty){
-  const h=hash(tx*3+1,ty*7+5);
-  // 一大块石砖（一个格子一块）
-  octx.fillStyle = h<0.5 ? '#8a919c' : '#828994';
-  octx.fillRect(sx,sy,TILE,TILE);
-  // 左上高光 / 右下阴影，做出立体大石块
-  octx.fillStyle='#a9b0bb';
-  octx.fillRect(sx,sy,TILE,2);
-  octx.fillRect(sx,sy,2,TILE);
-  octx.fillStyle='#666d78';
-  octx.fillRect(sx,sy+TILE-2,TILE,2);
-  octx.fillRect(sx+TILE-2,sy,2,TILE);
-  // 石面纹理
-  if(h>0.6) px(sx+4,sy+5,4,2,'#949ba6');
-  if(h<0.4) px(sx+9,sy+10,4,2,'#737a85');
-}
-function drawBorderDeco(d){
-  const sx=d.x-camX, sy=d.y-camY;
-  if(sx<-60||sx>VW+60||sy<-80||sy>VH+70) return;
-  const k=d.s, v=d.v;
-  if(d.type==='tree'){
-    px(sx-2*k, sy+3*k, 4*k, 10*k, '#5b3a1e');
-    fillCircle(sx, sy-3*k, 9*k, v<0.5?'#2f4a26':'#356028');
-    fillCircle(sx-3*k, sy-5*k, 6*k, '#3a5c2e');
-    fillCircle(sx+3*k, sy-4*k, 5*k, '#446e34');
-  } else if(d.type==='pine'){
-    px(sx-1.5*k, sy+4*k, 3*k, 8*k, '#5b3a1e');
-    octx.fillStyle='#2d5230';
-    octx.beginPath(); octx.moveTo(sx, sy-14*k); octx.lineTo(sx+8*k, sy+4*k); octx.lineTo(sx-8*k, sy+4*k); octx.closePath(); octx.fill();
-    octx.fillStyle='#3a6a38';
-    octx.beginPath(); octx.moveTo(sx, sy-14*k); octx.lineTo(sx+5*k, sy-3*k); octx.lineTo(sx-5*k, sy-3*k); octx.closePath(); octx.fill();
-  } else if(d.type==='mound'){
-    fillCircle(sx-2*k, sy+2*k, 10*k, '#6b5135');
-    fillCircle(sx+3*k, sy+3*k, 8*k, '#7a5f3d');
-    fillCircle(sx, sy-2*k, 7*k, '#8a6b47');
-    fillCircle(sx-1*k, sy-4*k, 4*k, '#9c7a52');
-    px(sx-4*k, sy-7*k, 1, 5*k, '#79a957');
-    px(sx+4*k, sy-8*k, 1, 6*k, '#639a45');
-    if(v>0.6) px(sx+1*k, sy-9*k, 2, 2, '#fde047');
-  } else if(d.type==='bush'){
-    fillCircle(sx, sy, 8*k, '#3a6a2c');
-    fillCircle(sx-3*k, sy-3*k, 5*k, '#4e8538');
-    fillCircle(sx+4*k, sy-2*k, 4*k, '#5f9440');
-    if(v>0.7) px(sx+1*k, sy-6*k, 2, 2, '#f87171');
-  } else if(d.type==='grass'){
-    for(let i=0;i<4;i++) px(sx-6*k+i*4*k, sy-5*k, 1, 6*k, i%2?'#5f9440':'#6aa34a');
-  } else if(d.type==='flower'){
-    fillCircle(sx, sy+1*k, 8*k, '#4e8538');
-    px(sx-4*k, sy-3*k, 2, 2, '#f472b6');
-    px(sx+1*k, sy-5*k, 2, 2, '#fde047');
-    px(sx+5*k, sy-2*k, 2, 2, '#f87171');
-    px(sx-1*k, sy-4*k, 1, 1, '#ffffff');
-  } else { // rock
-    fillCircle(sx, sy, 6*k, '#7b8492');
-    fillCircle(sx-2*k, sy-2*k, 4*k, '#98a1ae');
-    fillCircle(sx+2*k, sy+1*k, 3*k, '#5f6773');
-  }
-}
-
-// ---------- 主角：椭圆头身连体 + 红帽子 ----------
-function drawHero(){
-  const cx=Math.round((player.x-camX)*RES)/RES, cy=Math.round((player.y-camY)*RES)/RES;
-  octx.fillStyle='rgba(0,0,0,.28)';
-  octx.beginPath(); octx.ellipse(cx, cy+8, 5, 2, 0, 0, 7); octx.fill();
-
-  const moving = joy.active && (Math.abs(joy.dx)+Math.abs(joy.dy))>2;
-  const sw = moving ? Math.sin(walkPhase)*2.0 : 0;
-  const ab = moving ? Math.sin(walkPhase)*1.3 : 0;
-  const bounce = moving ? Math.abs(Math.sin(walkPhase))*1.4 : 0;
-
-  octx.save();
-  octx.translate(cx, Math.round((cy-bounce)*RES)/RES);
-  if(player.face<0) octx.scale(-1,1);
-
-  // 红色披风内衬（身后，略窄）
-  px(-4, -5, 9, 9, '#6d1a1a');
-
-  // 腿（更细）
-  px(-2+sw, 4, 2, 4, '#17171a');
-  px(0.5-sw, 4, 2, 4, '#17171a');
-  // 鞋
-  px(-2.5+sw, 7, 3, 2, '#050507');
-  px(0.5-sw, 7, 3, 2, '#050507');
-
-  // 身体（收窄）
-  px(-3, -4, 7, 8, '#141416');
-  px(-3, -4, 7, 1, '#2a2a30');
-  // 红领带
-  px(0, -3, 1, 5, '#b91c1c');
-  px(-1, -3, 3, 1, '#b91c1c');
-  // 金扣
-  px(1, -1, 1, 1, '#d4b24a');
-  px(1, 1, 1, 1, '#d4b24a');
-
-  // 手臂（贴紧身体）
-  px(-5, -4-ab, 2, 4, '#141416');
-  px(4, -4+ab, 2, 4, '#141416');
-  px(-5, 0-ab, 2, 2, '#08080a');
-  px(4, 0+ab, 2, 2, '#08080a');
-
-  // 头（缩小）
-  px(-2, -8, 5, 4, '#f0c9a0');
-  // 金瞳
-  px(-2, -7, 2, 2, '#f2c23c');
-  px(1, -7, 2, 2, '#f2c23c');
-
-  // 头发（更多、更蓬）
-  px(-3, -10, 7, 2, '#191919');
-  px(-4, -9, 2, 4, '#191919');
-  px(3, -9, 2, 4, '#191919');
-  px(-3, -11, 2, 1, '#191919');
-  px(1, -11, 2, 1, '#191919');
-  px(-1, -12, 1, 2, '#191919');
-  px(2, -12, 1, 2, '#191919');
-  // 红色挑染
-  px(2, -10, 2, 3, '#de2b2b');
-
-  octx.restore();
-}
-
-function drawHUD(){
-  drawIcon(IC.heart, 4, 4, '#f43f5e');
-  drawBar(11, 5, 64, 7, player.hp/player.maxHp, '#fb7185');
-  drawText(String(Math.max(0,Math.ceil(player.hp))), 11, 14, '#f8fafc');
-  drawText('LV', 4, 23, '#a5b4fc');
-  drawText(String(level), 13, 23, '#f8fafc');
-  drawBar(26, 24, 49, 4, xp/xpNeed, '#38bdf8');
-}
-
-function drawJoystick(){
-  // 底盘
-  octx.strokeStyle='rgba(20,30,20,.45)'; octx.lineWidth=3;
-  octx.beginPath(); octx.arc(JBX,JBY,JR,0,7); octx.stroke();
-  octx.fillStyle='rgba(255,255,255,.14)';
-  octx.beginPath(); octx.arc(JBX,JBY,JR-3,0,7); octx.fill();
-  // 摇杆头
-  const kx=JBX+(joy.active?joy.dx:0), ky=JBY+(joy.active?joy.dy:0);
-  octx.fillStyle='rgba(255,255,255,.55)';
-  octx.beginPath(); octx.arc(kx,ky,9,0,7); octx.fill();
-  octx.fillStyle='rgba(0,0,0,.25)';
-  octx.beginPath(); octx.arc(kx,ky,9,0,7); octx.stroke();
-}
-
 const PROPS=[
   {type:'well', x:800, y:380},
   {type:'lamp', x:640, y:420},
@@ -974,7 +840,7 @@ function applySave(s){
   if(!s || s.sig!==SAVE_SIG) return false;
   const p=player;
   if(s.p){ p.x=s.p.x; p.y=s.p.y; p.hp=s.p.hp; p.maxHp=s.p.maxHp; p.speed=s.p.speed||80; }
-  if(solidAt(p.x,p.y)){ p.x=680; p.y=480; }   // 旧存档位置若已不可站立则回出生点
+  if(solidAt(p.x,p.y)){ p.x=680; p.y=448; }   // 旧存档位置若已不可站立则回出生点
   level=s.lv||0; xp=s.xp||0; xpNeed=s.need||10;
   camXs=Math.max(0,Math.min(WORLD_W-VW, p.x-VW/2));
   camYs=Math.max(0,Math.min(WORLD_H-VH, p.y-VH/2));
