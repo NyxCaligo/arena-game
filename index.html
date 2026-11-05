@@ -363,7 +363,7 @@
   <div class="sub">STELLAR ECHO</div>
   <button id="startBtn">开始游戏</button>
   <button id="titleLoadBtn" style="background:#4b5462;color:#e2e8f0;border-color:#0b0f1a;box-shadow:0 3px 0 #0b0f1a;font-size:14px;padding:9px 20px">导入存档 / 存档码</button>
-  <div id="menuNotice">⚠ 清除浏览器缓存会导致存档丢失，建议在「设置 → 存档」里导出备份或保存存档码<br>💻 电脑：WASD / 方向键移动　📱 手机：左下摇杆</div>
+  <div id="menuNotice">⚠ 清除浏览器缓存会导致存档丢失，建议在「设置 → 存档」里导出备份或保存存档码</div>
 </div>
 <div id="subtitle" class="ov hidden">
   <div class="text">主城</div>
@@ -415,9 +415,21 @@ gctx.setTransform(RES,0,0,RES,0,0);
 let baking = false;
 
 let cssScale=1, oxCss=0, oyCss=0, dpr=1;
+function viewSize(){
+  const vv=window.visualViewport;
+  const W=Math.round(vv ? vv.width : window.innerWidth);
+  const H=Math.round(vv ? vv.height : window.innerHeight);
+  return {W,H};
+}
+function resizeIfNeeded(){
+  const {W,H}=viewSize();
+  const d=window.devicePixelRatio||1;
+  if(cv.width!==Math.round(W*d) || cv.height!==Math.round(H*d)) resize();
+}
 function resize(){
   dpr = window.devicePixelRatio || 1;
-  const W = window.innerWidth, H = window.innerHeight;
+  const vs=viewSize();
+  const W = vs.W, H = vs.H;
   cv.width = Math.round(W*dpr); cv.height = Math.round(H*dpr);
   cv.style.width = W+'px'; cv.style.height = H+'px';
   // 每个美术像素占 P 个设备像素（偶数，配合 2 倍内部渲染）
@@ -1098,15 +1110,31 @@ function drawHUD(){
 }
 
 function drawJoystick(){
-  octx.strokeStyle='rgba(20,30,20,.45)'; octx.lineWidth=3;
+  // 底盘
+  octx.fillStyle='rgba(11,15,26,.35)';
+  octx.beginPath(); octx.arc(JBX,JBY,JR+3,0,7); octx.fill();
+  octx.fillStyle='rgba(226,232,240,.20)';
+  octx.beginPath(); octx.arc(JBX,JBY,JR,0,7); octx.fill();
+  octx.strokeStyle='rgba(11,15,26,.75)'; octx.lineWidth=4;
   octx.beginPath(); octx.arc(JBX,JBY,JR,0,7); octx.stroke();
-  octx.fillStyle='rgba(255,255,255,.14)';
-  octx.beginPath(); octx.arc(JBX,JBY,JR-3,0,7); octx.fill();
+  octx.strokeStyle='rgba(245,230,207,.55)'; octx.lineWidth=2;
+  octx.beginPath(); octx.arc(JBX,JBY,JR-2,0,7); octx.stroke();
+  // 十字方向点
+  octx.fillStyle='rgba(245,230,207,.5)';
+  octx.beginPath(); octx.arc(JBX,JBY-JR+7,2,0,7); octx.fill();
+  octx.beginPath(); octx.arc(JBX,JBY+JR-7,2,0,7); octx.fill();
+  octx.beginPath(); octx.arc(JBX-JR+7,JBY,2,0,7); octx.fill();
+  octx.beginPath(); octx.arc(JBX+JR-7,JBY,2,0,7); octx.fill();
+  // 摇杆头
   const kx=JBX+(joy.active?joy.dx:0), ky=JBY+(joy.active?joy.dy:0);
-  octx.fillStyle='rgba(255,255,255,.55)';
-  octx.beginPath(); octx.arc(kx,ky,9,0,7); octx.fill();
-  octx.fillStyle='rgba(0,0,0,.25)';
-  octx.beginPath(); octx.arc(kx,ky,9,0,7); octx.stroke();
+  octx.fillStyle='rgba(0,0,0,.28)';
+  octx.beginPath(); octx.arc(kx+1,ky+2,11,0,7); octx.fill();
+  octx.fillStyle=joy.active?'rgba(255,255,255,.92)':'rgba(255,255,255,.72)';
+  octx.beginPath(); octx.arc(kx,ky,10,0,7); octx.fill();
+  octx.strokeStyle='rgba(11,15,26,.85)'; octx.lineWidth=2;
+  octx.beginPath(); octx.arc(kx,ky,10,0,7); octx.stroke();
+  octx.fillStyle='rgba(245,230,207,.75)';
+  octx.beginPath(); octx.arc(kx,ky,4,0,7); octx.fill();
 }
 
 let groundOK = false;
@@ -1180,6 +1208,8 @@ function render(){
 
 let fpsFrames=0, fpsLast=0, fpsVal=0;
 const keys={};
+addEventListener('touchstart', resizeIfNeeded, {passive:true});
+addEventListener('mousedown', resizeIfNeeded);
 addEventListener('keydown', e=>{
   const k=e.key.toLowerCase(); keys[k]=true;
   if(['arrowup','arrowdown','arrowleft','arrowright',' '].includes(k)) e.preventDefault();
@@ -1194,6 +1224,7 @@ function frame(now){
     if(state==='city' && !paused) update(dt);
     render();
   }catch(e){}
+  if((fpsFrames & 31)===0) resizeIfNeeded();
   fpsFrames++;
   if(now-fpsLast>=500){
     fpsVal = Math.round(fpsFrames*1000/(now-fpsLast));
