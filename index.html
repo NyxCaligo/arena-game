@@ -110,6 +110,21 @@
              font-size:12px; font-weight:bold; }
   #itemMenu { position:fixed; inset:0; z-index:12; background:transparent; }
   #itemMenu.hidden { display:none; }
+  #dlg { position:fixed; z-index:12; left:50%; transform:translateX(-50%);
+         bottom:calc(16px + env(safe-area-inset-bottom, 0px)); width:min(560px,94vw);
+         display:flex; flex-direction:column; gap:8px; }
+  #dlg.hidden { display:none; }
+  .dlg-box { display:flex; gap:10px; background:rgba(11,17,28,.96); border:2px solid #3a4452;
+             padding:10px; box-shadow:0 4px 0 rgba(0,0,0,.45); animation:popIn .14s ease-out; }
+  #dlgPortrait { width:96px; height:96px; image-rendering:pixelated; border:2px solid #0b0f1a; flex:none; }
+  .dlg-main { flex:1; display:flex; flex-direction:column; gap:4px; }
+  .dlg-name { font-size:14px; color:#f5c542; }
+  .dlg-text { font-size:14px; line-height:1.65; color:#f8fafc; min-height:62px; }
+  .dlg-choices { display:flex; flex-direction:column; gap:6px; }
+  .dlg-choices button { background:#4b5462; color:#f5e6cf; border:2px solid #0b0f1a;
+                        box-shadow:inset 0 1px 0 #5b6472, 0 3px 0 rgba(0,0,0,.35);
+                        padding:9px 12px; font-size:14px; border-radius:0; }
+  .dlg-choices button:active { transform:translateY(2px); }
   .item-menu { position:absolute; background:#3b2a1c; border:2px solid #241810;
                padding:8px; display:flex; flex-direction:column; gap:6px; min-width:120px;
                box-shadow:0 4px 0 rgba(0,0,0,.35); }
@@ -350,7 +365,7 @@
   <div id="menuNotice">⚠ 清除浏览器缓存会导致存档丢失，建议在「设置 → 存档」里导出备份或保存存档码</div>
 </div>
 <div id="subtitle" class="ov hidden">
-  <div class="text">到达主城</div>
+  <div class="text">主城</div>
 </div>
 <div id="titleLoad" class="modal hidden" style="z-index:13">
   <div class="modal-bg" id="titleLoadBg"></div>
@@ -363,6 +378,16 @@
     <button id="tlImport" class="sp-full">导入存档码</button>
     <button id="tlClose" class="sp-full sp-alt">关闭</button>
   </div>
+</div>
+<div id="dlg" class="hidden">
+  <div class="dlg-box" id="dlgBox">
+    <canvas id="dlgPortrait" width="48" height="48"></canvas>
+    <div class="dlg-main">
+      <div class="dlg-name" id="dlgName"></div>
+      <div class="dlg-text" id="dlgText"></div>
+    </div>
+  </div>
+  <div class="dlg-choices" id="dlgChoices"></div>
 </div>
 <div id="rotate" class="hidden">
   <div class="icon">📱</div>
@@ -620,6 +645,7 @@ function update(dt){
   camYs += (tcy-camYs)*k;
   if(!isFinite(camXs)||!isFinite(camYs)){ camXs=tcx; camYs=tcy; }
   updateInteract();
+  if(talking) return;
   camX = Math.round(camXs*RES)/RES;
   camY = Math.round(camYs*RES)/RES;
 }
@@ -1107,6 +1133,7 @@ function render(){
     drawBridge();
   }
   drawAmbient();
+  drawDrops();
   const ds=[];
   for(const b of BUILDINGS) ds.push({bottom:b.y+b.h, draw:()=>drawHouse(b)});
   for(const p of PROPS) ds.push({bottom:p.y, draw:()=>drawProp(p)});
@@ -1601,6 +1628,7 @@ const ITEMS={
   ring:{n:'戒指',t:'acc',ic:'ring'},
   amulet:{n:'护符',t:'acc',ic:'amulet'},
   gem:{n:'宝石',t:'acc',ic:'gem'},
+  woodsword:{n:'木剑',t:'weapon',ic:'woodsword'},
 };
 let bagItems=['sword','axe','staff','helm','chest','greave','ring','amulet','gem'];
 
@@ -1612,6 +1640,7 @@ function drawItemIcon(ic, ox, oy, sc){
   else if(ic==='helm'){ R(5,2,6,1,'#9aa5b1'); R(4,3,8,1,'#9aa5b1'); R(3,4,10,5,'#9aa5b1'); R(6,6,4,2,'#232c38'); R(3,9,10,2,'#74808e'); }
   else if(ic==='chest'){ R(5,2,6,2,'#9aa5b1'); R(2,3,3,4,'#74808e'); R(11,3,3,4,'#74808e'); R(4,4,8,7,'#9aa5b1'); R(7,4,2,2,'#232c38'); R(5,9,6,2,'#74808e'); }
   else if(ic==='greave'){ R(4,3,4,5,'#9aa5b1'); R(9,3,4,5,'#9aa5b1'); R(4,8,4,1,'#74808e'); R(9,8,4,1,'#74808e'); R(4,9,4,4,'#9aa5b1'); R(9,9,4,4,'#9aa5b1'); R(2,12,5,2,'#74808e'); R(9,12,5,2,'#74808e'); }
+  else if(ic==='woodsword'){ R(7,1,2,9,'#c98a4b'); R(7,1,1,9,'#e0a86a'); R(5,10,6,2,'#8a5a2b'); R(7,12,2,3,'#6b4423'); R(7,14,2,1,'#a87c50'); }
   else if(ic==='ring'){ R(5,6,6,1,'#d4b24a'); R(4,7,1,4,'#d4b24a'); R(11,7,1,4,'#d4b24a'); R(5,11,6,1,'#d4b24a'); R(7,4,2,2,'#7fd4ff'); }
   else if(ic==='amulet'){ R(5,2,1,3,'#d4b24a'); R(10,2,1,3,'#d4b24a'); R(6,5,4,5,'#d4b24a'); R(7,7,2,2,'#7fd4ff'); }
   else { R(7,2,2,2,'#7fd4ff'); R(5,4,6,2,'#8fe3ff'); R(4,6,8,3,'#7fd4ff'); R(6,9,4,2,'#5fb8e6'); R(7,11,2,2,'#4a9ccc'); }
@@ -1972,10 +2001,19 @@ function drawAmbient(){
   }
 
 }
-let toastTimer=null;
+let toastTimer=null, interactTarget=null;
 function updateInteract(){
-  const dx=player.x-NPC.x, dy=player.y-NPC.y;
-  nearNpc=(dx*dx+dy*dy) < 54*54;
+  let best=null, bd=1e9;
+  for(const d of drops){
+    const dist=Math.hypot(player.x-d.x, player.y-d.y);
+    if(dist<38 && dist<bd){ bd=dist; best={k:'drop', d}; }
+  }
+  if(!best){
+    const dist=Math.hypot(player.x-NPC.x, player.y-NPC.y);
+    if(dist<54) best={k:'npc'};
+  }
+  interactTarget=best;
+  nearNpc=!!best;
   updateHudButtons();
 }
 function toastMsg(t){
@@ -1985,9 +2023,9 @@ function toastMsg(t){
   toastTimer=setTimeout(()=>{ el.style.opacity='0'; }, 1600);
 }
 document.getElementById('interactBtn').onclick=()=>{
-  if(!nearNpc) return;
-  sfxBeep(); vibrate(2);
-  toastMsg('……（她好像在等你说点什么）');
+  if(talking || !interactTarget) return;
+  if(interactTarget.k==='npc'){ sfxBeep(); openDialogue('start'); }
+  else if(interactTarget.k==='drop'){ pickupDrop(interactTarget.d); }
 };
 function drawMini(){
   const S=46, mx=VW-54, my=50;
@@ -2013,6 +2051,162 @@ document.getElementById('tlImport').onclick=()=>{
   if(useSaveCode(c)){ hasSave=true; saveGame(); alert('导入成功'); document.getElementById('titleLoad').classList.add('hidden'); }
   else alert('存档码无效');
 };
+
+
+// ---------- 对话系统 ----------
+const NPC_NAME='艾琳';
+const TOWN_NAME='星落镇';
+const DLG_DATA={
+  start:{name:NPC_NAME, who:'npc', text:'一看就是外地人。', choices:[
+    {label:'不然呢？', next:'rude'},
+    {label:'这是哪？', next:'where'}
+  ]},
+  rude:{name:NPC_NAME, who:'npc', text:'你会用上这个的。', give:'woodsword', next:'quest'},
+  where:{name:NPC_NAME, who:'npc', text:'我从小就在这里长大，'+TOWN_NAME+'。这里很久没有外地人来了。', next:'quest'},
+  quest:{name:NPC_NAME, who:'npc', text:'你需要去杀死一些怪物，提升一些等级。', next:'quest2'},
+  quest2:{name:'你', who:'hero', text:'然后呢？', next:'quest3'},
+  quest3:{name:NPC_NAME, who:'npc', text:'收集物品，制作更强的装备，不断变强。', choices:[
+    {label:'你会用上这个的', next:'give2'}
+  ]},
+  give2:{name:NPC_NAME, who:'npc', text:'……拿着吧，会用上的。', give:'woodsword'}
+};
+let talking=false, dlgNode=null, dlgFull='', dlgPos=0, dlgDone=false, dlgTimer=null, dlgGiven={};
+
+function drawPortraitTo(cv, who){
+  const g=cv.getContext('2d');
+  const saved=octx; octx=g;
+  octx.clearRect(0,0,48,48);
+  const R=(x,y,w,h,c)=>{ octx.fillStyle=c; octx.fillRect(x,y,w,h); };
+  R(0,0,48,48,'#1a2230');
+  if(who==='hero'){
+    R(9,4,30,24,'#15171d'); R(7,10,5,20,'#15171d'); R(36,10,5,20,'#15171d');
+    R(14,15,20,18,'#f0cfae'); R(16,32,16,3,'#e6c2a0');
+    R(10,6,28,9,'#1b1e26'); R(12,15,7,3,'#1b1e26'); R(29,15,6,3,'#1b1e26');
+    R(11,7,3,13,'#c0392b'); R(13,9,1,8,'#e05a4a');
+    R(17,20,5,1,'#2b2b33'); R(26,20,5,1,'#2b2b33');
+    R(17,22,5,4,'#f5c542'); R(26,22,5,4,'#f5c542');
+    R(18,23,2,2,'#1b1e26'); R(27,23,2,2,'#1b1e26');
+    R(18,22,1,1,'#fff8dc'); R(27,22,1,1,'#fff8dc');
+    R(23,27,1,2,'#d9a888'); R(21,30,5,1,'#b9705f');
+    R(20,34,8,3,'#e6c2a0');
+    R(11,36,26,12,'#1b1e26'); R(15,36,18,5,'#22242c');
+    R(19,36,4,4,'#e8e8e8'); R(25,36,4,4,'#e8e8e8');
+    R(23,36,3,11,'#b91c1c'); R(22,38,5,2,'#8e1414');
+    R(13,38,3,2,'#d4b24a'); R(33,38,3,2,'#d4b24a');
+  } else {
+    R(8,5,32,26,'#8a4a2b'); R(6,12,6,24,'#8a4a2b'); R(36,12,6,24,'#8a4a2b');
+    R(14,16,20,17,'#f6d9bc');
+    R(11,7,26,8,'#9a5632'); R(12,15,6,4,'#9a5632'); R(30,15,6,4,'#9a5632');
+    R(17,21,5,1,'#6b3a20'); R(26,21,5,1,'#6b3a20');
+    R(17,23,5,4,'#a8552b'); R(26,23,5,4,'#a8552b');
+    R(18,24,2,2,'#2b1a12'); R(27,24,2,2,'#2b1a12');
+    R(18,23,1,1,'#ffffff'); R(27,23,1,1,'#ffffff');
+    R(15,28,3,2,'#e8a0a0'); R(31,28,3,2,'#e8a0a0');
+    R(22,30,4,1,'#c0705f');
+    R(20,33,8,3,'#f0cdb0');
+    R(11,35,26,13,'#22222a');
+    R(17,35,14,6,'#f4f4f6');
+    R(16,35,3,4,'#e8e8ea'); R(29,35,3,4,'#e8e8ea');
+    R(22,35,4,2,'#8e1414'); R(20,37,8,3,'#b91c1c');
+  }
+  octx=saved;
+}
+function sfxTick(){
+  if(!actx||!sfxOn||mutedAll) return;
+  const t=actx.currentTime;
+  const o=actx.createOscillator(), g=actx.createGain();
+  o.type='square';
+  o.frequency.setValueAtTime(1100+Math.random()*260,t);
+  g.gain.setValueAtTime(0.0001,t);
+  g.gain.linearRampToValueAtTime(0.03,t+0.002);
+  g.gain.exponentialRampToValueAtTime(0.0001,t+0.03);
+  o.connect(g); g.connect(sfxGain); o.start(t); o.stop(t+0.04);
+}
+function openDialogue(key){
+  talking=true;
+  document.getElementById('dlg').classList.remove('hidden');
+  updateHudButtons();
+  showNode(key);
+}
+function closeDialogue(){
+  talking=false; dlgNode=null;
+  clearInterval(dlgTimer);
+  document.getElementById('dlg').classList.add('hidden');
+  updateHudButtons();
+}
+function showNode(key){
+  const n=DLG_DATA[key];
+  if(!n){ closeDialogue(); return; }
+  dlgNode=n;
+  document.getElementById('dlgName').textContent=n.name;
+  drawPortraitTo(document.getElementById('dlgPortrait'), n.who);
+  const txt=document.getElementById('dlgText');
+  const ch=document.getElementById('dlgChoices');
+  ch.innerHTML=''; txt.textContent='';
+  dlgFull=n.text; dlgPos=0; dlgDone=false;
+  clearInterval(dlgTimer);
+  dlgTimer=setInterval(()=>{
+    dlgPos++;
+    txt.textContent=dlgFull.slice(0,dlgPos);
+    if(dlgPos%2===0) sfxTick();
+    if(dlgPos>=dlgFull.length){
+      clearInterval(dlgTimer);
+      dlgDone=true;
+      if(n.give && !dlgGiven[n.give]){ dlgGiven[n.give]=true; spawnDrop(n.give); }
+      showChoices(n);
+    }
+  }, 40);
+}
+function showChoices(n){
+  const box=document.getElementById('dlgChoices');
+  box.innerHTML='';
+  if(n.choices){
+    for(const c of n.choices){
+      const b=document.createElement('button');
+      b.textContent=c.label;
+      b.onclick=()=>{ sfxBeep(); vibrate(2); showNode(c.next); };
+      box.appendChild(b);
+    }
+  } else {
+    const b=document.createElement('button');
+    b.textContent=n.next ? '继续 ▸' : '结束';
+    b.onclick=()=>{ sfxBeep(); vibrate(2); n.next ? showNode(n.next) : closeDialogue(); };
+    box.appendChild(b);
+  }
+}
+document.getElementById('dlgBox').onclick=()=>{
+  if(!dlgNode || dlgDone) return;
+  clearInterval(dlgTimer);
+  document.getElementById('dlgText').textContent=dlgFull;
+  dlgDone=true;
+  if(dlgNode.give && !dlgGiven[dlgNode.give]){ dlgGiven[dlgNode.give]=true; spawnDrop(dlgNode.give); }
+  showChoices(dlgNode);
+};
+
+// ---------- 掉落物 ----------
+let drops=[];
+function spawnDrop(id){
+  drops.push({ id, x:NPC.x+30, y:NPC.y+16 });
+  toastMsg('掉落了：'+ITEMS[id].n);
+}
+function pickupDrop(d){
+  drops=drops.filter(x=>x!==d);
+  bagItems.push(d.id);
+  sfxEquip(); vibrate(3);
+  toastMsg('获得 '+ITEMS[d.id].n);
+  updateInteract();
+}
+function drawDrops(){
+  for(const d of drops){
+    const bob=Math.sin(gtime*3)*2.5;
+    const sx=d.x-camX, sy=d.y-camY+bob;
+    px(sx-5, sy+7, 11, 2, 'rgba(0,0,0,.22)');
+    octx.save();
+    octx.translate(Math.round(sx)-7, Math.round(sy)-9);
+    drawItemIcon(ITEMS[d.id].ic, 0, 0, 0.9);
+    octx.restore();
+  }
+}
 
 // ---------- 横屏提示 ----------
 let nearNpc=false, autoPause=false, pausedAuto=false;
@@ -2048,7 +2242,7 @@ function updateHudButtons(){
   if(eq) eq.style.display = (hide || equipOpen || bagOpen) ? 'none' : 'flex';
   const ib=document.getElementById('interactBtn');
   if(ib){
-    ib.classList.toggle('hidden', hide || equipOpen || bagOpen);
+    ib.classList.toggle('hidden', hide || equipOpen || bagOpen || talking);
     ib.classList.toggle('near', nearNpc);
     ib.classList.toggle('dim', !nearNpc);
   }
