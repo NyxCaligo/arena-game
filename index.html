@@ -1137,22 +1137,30 @@ function drawHero(){
 
   // 手持武器
   const wid = EQUIP.weapons[heldSlot];
-  if(wid){
+  if(wid && ITEMS[wid]){
     const im = itemImg(ITEMS[wid].ic);
+    let ang;
+    if(atkP>=0) ang = -1.15 + 2.5*Math.min(1, atkP*1.35);
+    else ang = 0.55 + (moving?Math.sin(walkPhase)*0.10:0);
+    const hx = atkP>=0 ? 7 : 5;
+    const hy = atkP>=0 ? -4 : -3;
+    octx.save();
+    octx.translate(hx, hy);
+    octx.rotate(ang);
     if(im && im.complete && im.naturalWidth>0){
-      let ang;
-      if(atkP>=0) ang = -1.15 + 2.5*Math.min(1, atkP*1.35);
-      else ang = 0.55 + (moving?Math.sin(walkPhase)*0.10:0);
-      const hx = atkP>=0 ? 7 : 5;
-      const hy = atkP>=0 ? -4 : -3;
-      const sc = 21;
-      octx.save();
-      octx.translate(hx, hy);
-      octx.rotate(ang);
+      const sc=21;
       octx.imageSmoothingEnabled=false;
       octx.drawImage(im, -0.13*sc, -0.83*sc, sc, sc);
-      octx.restore();
+      octx.imageSmoothingEnabled=true;
+    } else {
+      // 兜底：像素木剑
+      octx.fillStyle='#c98a4b'; octx.fillRect(-1,-19,3,17);
+      octx.fillStyle='#e0a86a'; octx.fillRect(-1,-19,1,17);
+      octx.fillStyle='#8a5a2b'; octx.fillRect(-5,-3,11,2);
+      octx.fillStyle='#6b4423'; octx.fillRect(-1,-1,3,6);
+      octx.fillStyle='#a87c50'; octx.fillRect(-2,5,5,2);
     }
+    octx.restore();
   }
 
   // 挥砍残影
@@ -1573,9 +1581,12 @@ function applySave(s){
   if(Array.isArray(s.bag)) bagItems=s.bag.filter(id=>ITEMS[id]);
   if(s.story) storyTalked=!!s.story.talked;
   if(s.eq){
-    if(Array.isArray(s.eq.weapons)) EQUIP.weapons=s.eq.weapons.slice(0,3);
-    if(Array.isArray(s.eq.armors)) EQUIP.armors=s.eq.armors.slice(0,3);
-    if(Array.isArray(s.eq.accessories)) EQUIP.accessories=s.eq.accessories.slice(0,6);
+    const fix=(arr,n)=>{ const out=new Array(n).fill(null);
+      if(Array.isArray(arr)) for(let i=0;i<n;i++){ const v=arr[i]; if(v && ITEMS[v]) out[i]=v; }
+      return out; };
+    EQUIP.weapons=fix(s.eq.weapons,3);
+    EQUIP.armors=fix(s.eq.armors,3);
+    EQUIP.accessories=fix(s.eq.accessories,6);
   }
   camXs=Math.max(0,Math.min(WORLD_W-VW, p.x-VW/2));
   camYs=Math.max(0,Math.min(WORLD_H-VH, p.y-VH/2));
@@ -1716,13 +1727,13 @@ function drawEquipHUD(){
   eqGroup(L.ax,L.ay,L.GA,L.GAH,'防具');
   for(let i=0;i<3;i++){ const x=L.ax+L.pad+i*(L.AS+3), y=L.ay+L.labelH+L.pad;
     eqSlot(x,y,L.AS);
-    if(EQUIP.armors[i]) drawItemIcon(ITEMS[EQUIP.armors[i]].ic, x, y, L.AS/16);
+    if(EQUIP.armors[i] && ITEMS[EQUIP.armors[i]]) drawItemIcon(ITEMS[EQUIP.armors[i]].ic, x, y, L.AS/16);
     else armorIcon(x,y,L.AS,i); }
   // 主武器
   eqGroup(L.wx,L.wy,L.GW,L.GH,'武器');
   for(let i=0;i<3;i++){ const x=L.wx+L.pad+i*(L.WS+4), y=L.wy+L.labelH+L.pad;
     eqSlot(x,y,L.WS);
-    if(EQUIP.weapons[i]) drawItemIcon(ITEMS[EQUIP.weapons[i]].ic, x, y, L.WS/16);
+    if(EQUIP.weapons[i] && ITEMS[EQUIP.weapons[i]]) drawItemIcon(ITEMS[EQUIP.weapons[i]].ic, x, y, L.WS/16);
     else drawText('?', x+(L.WS-6)/2, y+(L.WS-10)/2, '#7b8492', 2);
     if(i===heldSlot && EQUIP.weapons[i]){
       px(x-1,y-1,L.WS+2,1,'#f5c542'); px(x-1,y+L.WS,L.WS+2,1,'#f5c542');
