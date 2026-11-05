@@ -54,7 +54,7 @@
   textarea { width:100%; min-height:64px; background:#0b1220; color:#cbd5e1; border:2px solid #1e293b;
              border-radius:4px; padding:8px; font-family:inherit; font-size:12px; resize:vertical; }
   #menuNotice { color:#fbbf24; font-size:12px; line-height:1.7; max-width:300px; margin-top:4px; }
-  #bagBtn { position:fixed; z-index:6; left:calc(10px + env(safe-area-inset-left, 0px));
+  #bagBtn { position:fixed; z-index:11; left:calc(10px + env(safe-area-inset-left, 0px));
             bottom:calc(10px + env(safe-area-inset-bottom, 0px)); width:46px; height:46px; padding:0;
             background:#4b5462; border:2px solid #0b0f1a; border-radius:0;
             box-shadow:inset 0 1px 0 #5b6472; display:flex; align-items:center; justify-content:center; }
@@ -1477,7 +1477,7 @@ function renderEquipPanel(){
       ], d),
       ()=>openItemDetail(cur)
     );
-    else { d.onclick=()=>{ sfxBeep(); vibrate(2); openBag(); }; }
+    else { d.onclick=()=>{ sfxBeep(); vibrate(2); bagFilter=t; openBag(); }; }
     return d;
   };
   const w=document.getElementById('eqWrow'); if(w){ w.innerHTML=''; for(let i=0;i<3;i++) w.appendChild(mk('weapon',i)); }
@@ -1602,6 +1602,7 @@ function openEquip(){
   document.getElementById('equipWrap').classList.remove('hidden');
 }
 function bindCatBtns(){
+  document.querySelectorAll('#bagWrap .catBtn').forEach(x=>x.classList.toggle('on', x.dataset.f===bagFilter));
   document.querySelectorAll('#bagWrap .catBtn').forEach(b=>{
     b.onclick=()=>{
       bagFilter=b.dataset.f;
@@ -1620,7 +1621,13 @@ function openBag(){
 document.getElementById('eqClose').onclick=()=>document.getElementById('equipWrap').classList.add('hidden');
 document.getElementById('equipBg').onclick=()=>{ if(performance.now()-equipOpenAt<450) return; document.getElementById('equipWrap').classList.add('hidden'); };
 document.getElementById('bagClose').onclick=()=>document.getElementById('bagWrap').classList.add('hidden');
-document.getElementById('bagBg').onclick=()=>{ if(performance.now()-bagOpenAt<450) return; document.getElementById('bagWrap').classList.add('hidden'); };
+function closeBag(){ document.getElementById('bagWrap').classList.add('hidden'); }
+document.getElementById('bagBg').onclick=()=>{ if(performance.now()-bagOpenAt<450) return; closeBag(); };
+document.getElementById('bagWrap').addEventListener('click', (e)=>{
+  if(e.target.id!=='bagWrap' && e.target.id!=='bagBg') return;
+  if(performance.now()-bagOpenAt<350) return;
+  closeBag();
+});
 document.getElementById('bagBtn').onclick=openBag;
 ['startBtn','settingsBtn','bagBtn','fullscreenBtn','openSave','saveExport','saveImportBtn','saveCodeGen','saveCodeLoad','saveClear','muteAll','musicToggle','sfxToggle','vibToggle','saveImportBtn'].forEach(id=>{
   const el=document.getElementById(id); if(el) el.addEventListener('click', sfxDrop);
