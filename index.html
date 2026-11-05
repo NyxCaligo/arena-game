@@ -209,9 +209,11 @@
   .eq-cap { font-size:12px; color:#94a3b8; letter-spacing:2px; text-align:left; width:100%; }
   .eq-row { display:flex; gap:8px; }
   .eq-box .eq-slot { width:52px; height:52px; }
-  .bag-view { position:relative; width:100%; height:280px; overflow:hidden;
-              background:#0a1018; border:1px solid #1e293b; touch-action:none; }
-  .bag-content { position:absolute; left:0; top:0; right:14px; will-change:transform; }
+  .bag-view { position:relative; width:100%; height:280px; overflow-y:auto; overflow-x:hidden;
+              background:#0a1018; border:1px solid #1e293b; touch-action:pan-y;
+              -webkit-overflow-scrolling:touch; padding-right:14px; }
+  .bag-view::-webkit-scrollbar { width:0; height:0; }
+  .bag-content { width:100%; }
   .bag-track { position:absolute; right:0; top:0; bottom:0; width:12px; background:#0b0f1a;
                border-left:1px solid #1e293b; }
   .bag-thumb { position:absolute; left:1px; right:1px; top:0; height:30px; background:#5b6472;
@@ -2270,98 +2272,71 @@ document.getElementById('confirmYes').onclick=()=>{
 document.getElementById('confirmNo').onclick=()=>{ confirmCb=null; document.getElementById('confirmWrap').classList.add('hidden'); };
 document.getElementById('confirmBg').onclick=()=>{ confirmCb=null; document.getElementById('confirmWrap').classList.add('hidden'); };
 
-let bagY=0, bagDragV=null, bagDragT=null;
+let bagDragV=null, bagDragT=null;
+function bagViewEl(){ return document.getElementById('bagView'); }
 function bagMaxScroll(){
-  const view=document.getElementById('bagView');
-  const content=document.getElementById('bagContent');
-  if(!view||!content) return 0;
-  return Math.max(0, content.offsetHeight - view.clientHeight);
+  const v=bagViewEl(); if(!v) return 0;
+  return Math.max(0, v.scrollHeight - v.clientHeight);
 }
 function updateBagScroll(){
-  const view=document.getElementById('bagView');
-  const content=document.getElementById('bagContent');
+  const v=bagViewEl();
   const track=document.getElementById('bagTrack');
   const thumb=document.getElementById('bagThumb');
-  if(!view||!content||!track||!thumb) return;
-  const max=bagMaxScroll();
-  const vh=view.clientHeight||0;
-  if(max<=0){ track.style.display='none'; bagY=0; content.style.transform='translateY(0px)'; return; }
+  if(!v||!track||!thumb) return;
+  const vh=v.clientHeight||0, sh=v.scrollHeight||0;
+  const max=sh-vh;
+  if(max<=2){ track.style.display='none'; return; }
   track.style.display='block';
-  bagY=Math.max(0, Math.min(max, bagY));
-  content.style.transform='translateY('+(-bagY)+'px)';
-  const thH=Math.max(18, Math.round(vh*vh/(vh+max)));
+  const thH=Math.max(18, Math.round(vh*vh/sh));
   const travel=Math.max(1, vh-thH);
   thumb.style.height=thH+'px';
-  thumb.style.top=Math.round(travel*(bagY/max))+'px';
+  thumb.style.top=Math.round(travel*(v.scrollTop/max))+'px';
 }
 function bagSet(y){
+  const v=bagViewEl(); if(!v) return;
   const max=bagMaxScroll();
-  bagY=Math.max(0, Math.min(max, y));
-  const content=document.getElementById('bagContent');
-  if(content) content.style.transform='translateY('+(-bagY)+'px)';
-  const view=document.getElementById('bagView');
-  const thumb=document.getElementById('bagThumb');
-  if(view&&thumb){
-    const vh=view.clientHeight||0;
-    const thH=Math.max(18, Math.round(vh*vh/(vh+max)));
-    const travel=Math.max(1, vh-thH);
-    thumb.style.height=thH+'px';
-    thumb.style.top=Math.round(travel*(bagY/Math.max(1,max)))+'px';
-  }
+  v.scrollTop=Math.max(0, Math.min(max, y));
+  updateBagScroll();
 }
 let sbBound=false;
 function bindScrollbar(){
   if(sbBound) return;
   sbBound=true;
-  const view=document.getElementById('bagView');
+  const v=bagViewEl();
   const thumb=document.getElementById('bagThumb');
   const track=document.getElementById('bagTrack');
-  if(!view||!thumb||!track) return;
-  // 区域手势滚动
-  view.addEventListener('touchstart', (e)=>{
-    bagDragV={ y:e.touches[0].clientY, start:bagY };
-  }, {passive:true});
-  view.addEventListener('touchmove', (e)=>{
+  if(!v||!thumb||!track) return;
+  v.addEventListener('scroll', updateBagScroll, {passive:true});
+  v.addEventListener('touchstart', (e)=>{ bagDragV={ y:e.touches[0].clientY, start:v.scrollTop }; }, {passive:true});
+  v.addEventListener('touchmove', (e)=>{
     if(!bagDragV) return;
     const dy=e.touches[0].clientY-bagDragV.y;
-    if(Math.abs(dy)>3) bagDragV.moved=true;
-    bagSet(bagDragV.start - dy*1.15);
-    if(e.cancelable) e.preventDefault();
+    if(Math.abs(dy)>2){ bagSet(bagDragV.start - dy); if(e.cancelable) e.preventDefault(); }
   }, {passive:false});
-  view.addEventListener('touchend', ()=>{ bagDragV=null; });
-  view.addEventListener('touchcancel', ()=>{ bagDragV=null; });
-  // 拖动滑块
+  v.addEventListener('touchend', ()=>{ bagDragV=null; });
+  v.addEventListener('touchcancel', ()=>{ bagDragV=null; });
   thumb.addEventListener('touchstart', (e)=>{
-    const max=bagMaxScroll();
-    const vh=view.clientHeight||1;
-    const thH=thumb.offsetHeight||40;
-    bagDragT={ y:e.touches[0].clientY, start:bagY, k:max/Math.max(1, vh-thH) };
+    const vh=v.clientHeight||1, max=bagMaxScroll(), thH=thumb.offsetHeight||24;
+    bagDragT={ y:e.touches[0].clientY, start:v.scrollTop, k:max/Math.max(1, vh-thH) };
     if(e.cancelable) e.preventDefault();
   }, {passive:false});
   thumb.addEventListener('touchmove', (e)=>{
     if(!bagDragT) return;
-    const dy=e.touches[0].clientY-bagDragT.y;
-    bagSet(bagDragT.start + dy*bagDragT.k);
+    bagSet(bagDragT.start + (e.touches[0].clientY-bagDragT.y)*bagDragT.k);
     if(e.cancelable) e.preventDefault();
   }, {passive:false});
   thumb.addEventListener('touchend', ()=>{ bagDragT=null; });
   thumb.addEventListener('touchcancel', ()=>{ bagDragT=null; });
-  // 鼠标（桌面调试）
   thumb.addEventListener('mousedown', (e)=>{
-    const max=bagMaxScroll();
-    const vh=view.clientHeight||1;
-    const thH=thumb.offsetHeight||40;
-    bagDragT={ y:e.clientY, start:bagY, k:max/Math.max(1, vh-thH) };
+    const vh=v.clientHeight||1, max=bagMaxScroll(), thH=thumb.offsetHeight||24;
+    bagDragT={ y:e.clientY, start:v.scrollTop, k:max/Math.max(1, vh-thH) };
     e.preventDefault();
   });
-  addEventListener('mousemove', (e)=>{ if(bagDragT){ bagSet(bagDragT.start + (e.clientY-bagDragT.y)*bagDragT.k); } });
+  addEventListener('mousemove', (e)=>{ if(bagDragT) bagSet(bagDragT.start + (e.clientY-bagDragT.y)*bagDragT.k); });
   addEventListener('mouseup', ()=>{ bagDragT=null; });
-  // 轨道点击
   track.addEventListener('touchstart', (e)=>{
     const r=track.getBoundingClientRect();
-    const max=bagMaxScroll();
-    const vh=view.clientHeight||1;
-    const thH=thumb.offsetHeight||40;
+    const vh=v.clientHeight||1, max=bagMaxScroll(), thH=thumb.offsetHeight||24;
     const travel=Math.max(1, vh-thH);
     const rel=Math.max(0, Math.min(travel, e.touches[0].clientY-r.top-thH/2));
     bagSet(rel/travel*max);
@@ -2380,8 +2355,9 @@ function openBag(){
   bagOpenAt=performance.now();
   document.getElementById('bagWrap').classList.remove('hidden');
   const vh=Math.max(170, Math.min(460, Math.round(window.innerHeight*0.52)));
-  document.getElementById('bagView').style.height=vh+'px';
-  bagY=0;
+  const bv=document.getElementById('bagView');
+  bv.style.height=vh+'px';
+  bv.scrollTop=0;
   bindCatBtns(); bindSort(); bindScrollbar();
   renderBag();
   requestAnimationFrame(()=>{ updateBagScroll(); requestAnimationFrame(updateBagScroll); });
