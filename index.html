@@ -65,8 +65,12 @@
   .eq-slot { width:46px; height:46px; background:#4b5462; border:2px solid #0b0f1a;
              display:flex; align-items:center; justify-content:center; color:#2b3444;
              font-size:12px; font-weight:bold; }
-  .item-menu { position:relative; background:#3b2a1c; border:2px solid #241810;
-               padding:10px; display:flex; flex-direction:column; gap:8px; min-width:150px; }
+  #itemMenu { position:fixed; inset:0; z-index:12; background:transparent; }
+  #itemMenu.hidden { display:none; }
+  .item-menu { position:absolute; background:#3b2a1c; border:2px solid #241810;
+               padding:8px; display:flex; flex-direction:column; gap:6px; min-width:120px;
+               box-shadow:0 4px 0 rgba(0,0,0,.35); }
+  .item-menu .menu-head { font-size:11px; color:#c9a97f; text-align:center; padding-bottom:2px; }
   .item-menu button { width:100%; background:#5a412c; color:#f3e3cc; border:2px solid #241810;
                       box-shadow:0 2px 0 #241810; font-size:14px; padding:9px 12px; }
   .item-menu button:active { transform:translateY(2px); box-shadow:0 0 0 #241810; }
@@ -87,7 +91,7 @@
   .modal-box { position:relative; background:#0d1524; border:2px solid #1e293b; padding:16px;
                width:min(420px, 88vw); max-height:82vh; overflow-y:auto;
                display:flex; flex-direction:column; gap:10px; align-items:center; }
-  .bag-grid { display:grid; grid-template-columns:repeat(10, 1fr); gap:4px;
+  .bag-grid { display:grid; grid-template-columns:repeat(6, 1fr); gap:4px;
               width:100%; max-height:52vh; overflow-y:scroll; overflow-x:hidden;
               scrollbar-width:thin; }
   .bag-grid::-webkit-scrollbar { width:10px; }
@@ -153,8 +157,7 @@
     </div>
   </div>
 </div>
-<div id="itemMenu" class="modal hidden" style="z-index:12">
-  <div class="modal-bg" id="itemMenuBg"></div>
+<div id="itemMenu" class="hidden">
   <div class="item-menu" id="itemMenuBox"></div>
 </div>
 <div id="itemDetail" class="modal hidden" style="z-index:13">
@@ -1393,7 +1396,7 @@ function renderBag(){
     if(id){
       d.appendChild(itemCanvas(id,30)); d.title=ITEMS[id].n;
       d.onclick=()=>{ if(equipItem(id)){ renderBag(); renderEquipPanel(); saveGame(); } };
-      addLongPress(d, ()=>showItemMenu(id, [{label:'查看', fn:()=>openItemDetail(id)}]));
+      addLongPress(d, ()=>showItemMenu(id, [{label:'查看', fn:()=>openItemDetail(id)}], d));
     }
     g.appendChild(d);
   }
@@ -1409,7 +1412,7 @@ function renderEquipPanel(){
     if(cur) addLongPress(d, ()=>showItemMenu(cur, [
       {label:'查看', fn:()=>openItemDetail(cur)},
       {label:'卸下', fn:()=>{ unequip(t,i); renderEquipPanel(); renderBag(); saveGame(); }}
-    ]));
+    ], d));
     return d;
   };
   const w=document.getElementById('eqWrow'); if(w){ w.innerHTML=''; for(let i=0;i<3;i++) w.appendChild(mk('weapon',i)); }
@@ -1431,23 +1434,40 @@ function addLongPress(el, fn){
   el.addEventListener('mouseup', cancel);
   el.addEventListener('mouseleave', cancel);
 }
-function showItemMenu(id, opts){
+let menuTimer=null;
+function showItemMenu(id, opts, anchor){
   const box=document.getElementById('itemMenuBox');
+  const wrap=document.getElementById('itemMenu');
   box.innerHTML='';
   const head=document.createElement('div');
-  head.style.cssText='font-size:12px;color:#c9a97f;text-align:center;padding-bottom:2px';
+  head.className='menu-head';
   head.textContent=ITEMS[id]?ITEMS[id].n:'';
   box.appendChild(head);
   for(const o of opts){
     const b=document.createElement('button');
     b.textContent=o.label;
-    b.onclick=()=>{ closeItemMenu(); o.fn(); };
+    b.onclick=(e)=>{ e.stopPropagation(); closeItemMenu(); o.fn(); };
     box.appendChild(b);
   }
-  document.getElementById('itemMenu').classList.remove('hidden');
+  wrap.classList.remove('hidden');
+  const ar = anchor ? anchor.getBoundingClientRect()
+                    : {left:innerWidth/2, top:innerHeight/2, right:innerWidth/2, bottom:innerHeight/2};
+  const br = box.getBoundingClientRect();
+  let x = ar.right + 8, y = ar.top;
+  if(x + br.width > innerWidth - 8) x = ar.left - br.width - 8;
+  if(x < 8) x = 8;
+  if(y + br.height > innerHeight - 8) y = innerHeight - 8 - br.height;
+  if(y < 8) y = 8;
+  box.style.left = x+'px';
+  box.style.top = y+'px';
+  clearTimeout(menuTimer);
+  menuTimer = setTimeout(closeItemMenu, 3000);
 }
-function closeItemMenu(){ document.getElementById('itemMenu').classList.add('hidden'); }
-document.getElementById('itemMenuBg').onclick=closeItemMenu;
+function closeItemMenu(){
+  clearTimeout(menuTimer);
+  document.getElementById('itemMenu').classList.add('hidden');
+}
+document.getElementById('itemMenu').onclick=closeItemMenu;
 
 function detailRows(id){
   const t=ITEMS[id].t;
@@ -1530,6 +1550,10 @@ document.getElementById('muteAll').onclick=()=>{
 };
 
 // ---------- 横屏提示 ----------
+function syncBagBtn(){
+  const b=document.getElementById('bagBtn');
+  if(b) b.style.display = (state==='city') ? 'flex' : 'none';
+}
 function checkOrientation(){
   const portrait = window.innerHeight > window.innerWidth;
   document.getElementById('rotate').classList.toggle('hidden', !portrait);
@@ -1545,13 +1569,13 @@ document.getElementById('startBtn').onclick=()=>{
   if(screen.orientation && screen.orientation.lock){
     try { const p=screen.orientation.lock('landscape'); if(p&&p.catch) p.catch(()=>{}); } catch(e){}
   }
-  state='arrive';
+  state='arrive'; syncBagBtn();
   const sub=document.getElementById('subtitle');
   sub.classList.remove('hidden');
-  setTimeout(()=>{ sub.classList.add('hidden'); state='city'; }, 1600);
+  setTimeout(()=>{ sub.classList.add('hidden'); state='city'; syncBagBtn(); }, 1600);
 };
 
-buildGround(); resetGame(); hasSave=loadGame(); last=performance.now(); fpsLast=performance.now(); requestAnimationFrame(frame);
+buildGround(); resetGame(); hasSave=loadGame(); syncBagBtn(); last=performance.now(); fpsLast=performance.now(); requestAnimationFrame(frame);
 </script>
 </body>
 </html>
