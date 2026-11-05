@@ -338,60 +338,59 @@ function drawBorderDeco(d){
 function drawHero(){
   const cx=player.x-camX, cy=player.y-camY;
   octx.fillStyle='rgba(0,0,0,.28)';
-  octx.beginPath(); octx.ellipse(cx, cy+9, 6, 2, 0, 0, 7); octx.fill();
+  octx.beginPath(); octx.ellipse(cx, cy+8, 5, 2, 0, 0, 7); octx.fill();
 
   const moving = joy.active && (Math.abs(joy.dx)+Math.abs(joy.dy))>2;
-  const sw = moving ? Math.sin(walkPhase)*2.2 : 0;
-  const ab = moving ? Math.sin(walkPhase)*1.5 : 0;
-  const bounce = moving ? Math.abs(Math.sin(walkPhase))*1.5 : 0;
+  const sw = moving ? Math.sin(walkPhase)*2.0 : 0;
+  const ab = moving ? Math.sin(walkPhase)*1.3 : 0;
+  const bounce = moving ? Math.abs(Math.sin(walkPhase))*1.4 : 0;
 
   octx.save();
   octx.translate(cx, cy - bounce);
   if(player.face<0) octx.scale(-1,1);
 
-  // 红色披风内衬（身后）
-  px(-6, -5, 12, 11, '#6d1a1a');
+  // 红色披风内衬（身后，略窄）
+  px(-4, -5, 9, 9, '#6d1a1a');
 
-  // 腿（黑裤）
-  px(-3+sw, 4, 2, 4, '#17171a');
-  px(1-sw, 4, 2, 4, '#17171a');
+  // 腿（更细）
+  px(-2+sw, 4, 2, 4, '#17171a');
+  px(0.5-sw, 4, 2, 4, '#17171a');
   // 鞋
-  px(-3.5+sw, 7, 3, 2, '#050507');
+  px(-2.5+sw, 7, 3, 2, '#050507');
   px(0.5-sw, 7, 3, 2, '#050507');
 
-  // 身体（黑军装）
-  px(-4, -4, 9, 9, '#141416');
-  px(-4, -4, 9, 1, '#2a2a30');
+  // 身体（收窄）
+  px(-3, -4, 7, 8, '#141416');
+  px(-3, -4, 7, 1, '#2a2a30');
   // 红领带
-  px(0, -3, 1, 6, '#b91c1c');
+  px(0, -3, 1, 5, '#b91c1c');
   px(-1, -3, 3, 1, '#b91c1c');
-  // 金色纽扣
-  px(2, -1, 1, 1, '#d4b24a');
-  px(2, 1, 1, 1, '#d4b24a');
-  px(2, -3, 1, 1, '#d4b24a');
+  // 金扣
+  px(1, -1, 1, 1, '#d4b24a');
+  px(1, 1, 1, 1, '#d4b24a');
 
-  // 手臂（黑袖）
-  px(-6, -4-ab, 2, 5, '#141416');
-  px(5, -4+ab, 2, 5, '#141416');
-  // 黑手套
-  px(-6, 1-ab, 2, 2, '#08080a');
-  px(5, 1+ab, 2, 2, '#08080a');
+  // 手臂（贴紧身体）
+  px(-5, -4-ab, 2, 4, '#141416');
+  px(4, -4+ab, 2, 4, '#141416');
+  px(-5, 0-ab, 2, 2, '#08080a');
+  px(4, 0+ab, 2, 2, '#08080a');
 
-  // 头（肤色）
-  px(-3, -9, 7, 5, '#f0c9a0');
+  // 头（缩小）
+  px(-2, -8, 5, 4, '#f0c9a0');
   // 金瞳
   px(-2, -7, 2, 2, '#f2c23c');
   px(1, -7, 2, 2, '#f2c23c');
-  // 黑发
-  px(-4, -11, 9, 2, '#191919');
+
+  // 头发（更多、更蓬）
+  px(-3, -10, 7, 2, '#191919');
   px(-4, -9, 2, 4, '#191919');
-  px(4, -9, 2, 4, '#191919');
-  px(-3, -12, 3, 1, '#191919');
-  px(1, -12, 3, 1, '#191919');
+  px(3, -9, 2, 4, '#191919');
+  px(-3, -11, 2, 1, '#191919');
+  px(1, -11, 2, 1, '#191919');
+  px(-1, -12, 1, 2, '#191919');
+  px(2, -12, 1, 2, '#191919');
   // 红色挑染
-  px(3, -11, 2, 3, '#de2b2b');
-  // 红色内领
-  px(-1, -4, 3, 1, '#7a1a1a');
+  px(2, -10, 2, 3, '#de2b2b');
 
   octx.restore();
 }
