@@ -554,8 +554,7 @@ let level=0, xp=0, xpNeed=10;
 function resetGame(){
   player = { x:680, y:448, hp:100, maxHp:100, r:6, speed:80, face:1 };
   level=0; xp=0; xpNeed=10; walkPhase=0; lastStep=-1;
-  EQUIP.weapons[0]='sword';
-  bagItems=bagItems.filter(id=>id!=='sword');
+
   camX=Math.max(0,Math.min(WORLD_W-VW, player.x-VW/2));
   camY=Math.max(0,Math.min(WORLD_H-VH, player.y-VH/2));
   camXs=camX; camYs=camY;
@@ -1433,6 +1432,7 @@ function collectSave(){
     p:{ x:player.x, y:player.y, hp:player.hp, maxHp:player.maxHp, speed:player.speed },
     lv:level, xp:xp, need:xpNeed,
     bag:bagItems.slice(),
+    story:{ talked: storyTalked },
     eq:{ weapons:EQUIP.weapons.slice(), armors:EQUIP.armors.slice(), accessories:EQUIP.accessories.slice() } };
 }
 function applySave(s){
@@ -1442,6 +1442,7 @@ function applySave(s){
   if(!isFinite(p.x)||!isFinite(p.y)||solidAt(p.x,p.y)){ p.x=680; p.y=448; }
   level=s.lv||0; xp=s.xp||0; xpNeed=s.need||10;
   if(Array.isArray(s.bag)) bagItems=s.bag.filter(id=>ITEMS[id]);
+  if(s.story) storyTalked=!!s.story.talked;
   if(s.eq){
     if(Array.isArray(s.eq.weapons)) EQUIP.weapons=s.eq.weapons.slice(0,3);
     if(Array.isArray(s.eq.armors)) EQUIP.armors=s.eq.armors.slice(0,3);
@@ -1619,19 +1620,12 @@ const ARMOR_SVG=[
   '<svg width="34" height="34" viewBox="0 0 12 12" shape-rendering="crispEdges"><rect x="4" y="1" width="4" height="1" fill="#74808e"/><rect x="1" y="2" width="2" height="3" fill="#74808e"/><rect x="9" y="2" width="2" height="3" fill="#74808e"/><rect x="3" y="2" width="6" height="2" fill="#9aa5b1"/><rect x="5" y="2" width="2" height="2" fill="#232c38"/><rect x="3" y="4" width="6" height="4" fill="#9aa5b1"/><rect x="4" y="5" width="4" height="1" fill="#74808e"/><rect x="4" y="8" width="4" height="1" fill="#74808e"/></svg>',
   '<svg width="34" height="34" viewBox="0 0 12 12" shape-rendering="crispEdges"><rect x="2" y="2" width="3" height="3" fill="#9aa5b1"/><rect x="7" y="2" width="3" height="3" fill="#9aa5b1"/><rect x="2" y="5" width="3" height="1" fill="#74808e"/><rect x="7" y="5" width="3" height="1" fill="#74808e"/><rect x="2" y="6" width="3" height="2" fill="#9aa5b1"/><rect x="7" y="6" width="3" height="2" fill="#9aa5b1"/><rect x="1" y="8" width="4" height="1" fill="#74808e"/><rect x="7" y="8" width="4" height="1" fill="#74808e"/></svg>'
 ];
+const CRIT_MULT=1.7;
 const ITEMS={
-  sword:{n:'铁剑',t:'weapon',ic:'sword'},
-  axe:{n:'战斧',t:'weapon',ic:'axe'},
-  staff:{n:'法杖',t:'weapon',ic:'staff'},
-  helm:{n:'头盔',t:'armor',ic:'helm'},
-  chest:{n:'胸甲',t:'armor',ic:'chest'},
-  greave:{n:'护腿',t:'armor',ic:'greave'},
-  ring:{n:'戒指',t:'acc',ic:'ring'},
-  amulet:{n:'护符',t:'acc',ic:'amulet'},
-  gem:{n:'宝石',t:'acc',ic:'gem'},
-  woodsword:{n:'木剑',t:'weapon',ic:'woodsword'},
+  woodsword:{n:'木剑', t:'weapon', ic:'woodsword', sub:'近战武器',
+             desc:'基础的武器。', dmg:5, rate:1.8, crit:4, critMult:CRIT_MULT}
 };
-let bagItems=['sword','axe','staff','helm','chest','greave','ring','amulet','gem'];
+let bagItems=[];
 
 const ITEM_ICONS={ woodsword:'./icon_woodsword.png?v=2' };
 const itemImgs={};
@@ -1687,7 +1681,8 @@ function itemCanvas(id, css){
 }
 function equipArr(t){ return t==='weapon'?EQUIP.weapons : t==='armor'?EQUIP.armors : EQUIP.accessories; }
 function equipItem(id){
-  const t=ITEMS[id].t, arr=equipArr(t);
+  const it=ITEMS[id]; if(!it) return false;
+  const t=it.t, arr=equipArr(t);
   const i=arr.indexOf(null);
   if(i<0) return false;
   arr[i]=id;
@@ -1816,15 +1811,22 @@ function closeItemMenu(){
 document.getElementById('itemMenu').onclick=()=>{ if(performance.now()-menuOpenAt<400) return; closeItemMenu(); };
 
 function detailRows(id){
-  const t=ITEMS[id].t;
-  if(t==='weapon') return [['速度','—'],['伤害','—'],['暴击率','—'],['特殊效果','—']];
-  if(t==='armor') return [['护甲值','—'],['特殊效果','—']].concat(id==='chest'?[['套装效果','—']]:[]);
-  return [['被动效果','—'],['特殊效果','—']];
+  const it=ITEMS[id]; if(!it) return [];
+  const rows=[];
+  if(it.sub) rows.push(['分类', it.sub]);
+  if(it.dmg!=null) rows.push(['伤害', String(it.dmg)]);
+  if(it.rate!=null) rows.push(['频率', it.rate+' 秒/次']);
+  if(it.crit!=null) rows.push(['暴击率', it.crit+'%']);
+  if(it.critMult!=null) rows.push(['暴击伤害', it.critMult+' 倍']);
+  if(it.armor!=null) rows.push(['护甲值', String(it.armor)]);
+  if(it.fx) rows.push(['特殊效果', it.fx]);
+  return rows;
 }
 function openItemDetail(id){
   document.getElementById('detailName').textContent=ITEMS[id].n;
   const ic=document.getElementById('detailIcon');
   ic.innerHTML=''; const cv=itemCanvas(id,34); cv.style.imageRendering='pixelated'; ic.appendChild(cv);
+  document.getElementById('detailDesc').textContent=ITEMS[id].desc || '（暂无描述）';
   const rows=document.getElementById('detailRows');
   rows.innerHTML='';
   for(const r of detailRows(id)){
@@ -2055,7 +2057,10 @@ function toastMsg(t){
 }
 document.getElementById('interactBtn').onclick=()=>{
   if(talking || !interactTarget) return;
-  if(interactTarget.k==='npc'){ sfxBeep(); openDialogue('start'); }
+  if(interactTarget.k==='npc'){
+    if(storyTalked){ toastMsg('艾琳：路上小心。'); return; }
+    sfxBeep(); openDialogue('start');
+  }
   else if(interactTarget.k==='drop'){ pickupDrop(interactTarget.d); }
 };
 function drawMini(){
@@ -2088,19 +2093,20 @@ document.getElementById('tlImport').onclick=()=>{
 const NPC_NAME='艾琳';
 const TOWN_NAME='星落镇';
 const DLG_DATA={
-  start:{name:NPC_NAME, who:'npc', text:'一看就是外地人。', choices:[
+  start:{name:NPC_NAME, who:'npc', text:'你是外地人吧。', choices:[
     {label:'不然呢？', next:'rude'},
     {label:'这是哪？', next:'where'}
   ]},
-  rude:{name:NPC_NAME, who:'npc', text:'你会用上这个的。', give:'woodsword', next:'quest'},
+  rude:{name:NPC_NAME, who:'npc', text:'你会用上这个的。', give:'woodsword'},
   where:{name:NPC_NAME, who:'npc', text:'我从小就在这里长大，'+TOWN_NAME+'。这里很久没有外地人来了。', next:'quest'},
-  quest:{name:NPC_NAME, who:'npc', text:'你需要去杀死一些怪物，提升一些等级。', next:'quest2'},
-  quest2:{name:'你', who:'hero', text:'然后呢？', next:'quest3'},
-  quest3:{name:NPC_NAME, who:'npc', text:'收集物品，制作更强的装备，不断变强。', choices:[
+  quest:{name:NPC_NAME, who:'npc', text:'你需要先去杀死一些怪物，提升一些等级，让自己更强大。', next:'quest2'},
+  quest2:{name:'你', who:'hero', text:'接下来呢？', next:'quest3'},
+  quest3:{name:NPC_NAME, who:'npc', text:'收集某些物品，可以制作更强大的装备，不断变强。', choices:[
     {label:'你会用上这个的', next:'give2'}
   ]},
   give2:{name:NPC_NAME, who:'npc', text:'……拿着吧，会用上的。', give:'woodsword'}
 };
+let storyTalked=false;
 let talking=false, dlgNode=null, dlgFull='', dlgPos=0, dlgDone=false, dlgTimer=null, dlgGiven={};
 
 function drawPortraitTo(cv, who){
@@ -2211,6 +2217,7 @@ function openDialogue(key){
   showNode(key);
 }
 function closeDialogue(){
+  if(dlgNode){ storyTalked=true; try{ saveGame(); }catch(e){} }
   talking=false; dlgNode=null;
   clearInterval(dlgTimer);
   document.getElementById('dlg').classList.add('hidden');
