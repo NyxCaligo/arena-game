@@ -61,7 +61,7 @@
 "use strict";
 const VW=352, VH=176, TILE=16, WCOLS=44, WROWS=30;
 const WORLD_W=WCOLS*TILE, WORLD_H=WROWS*TILE;
-const JBX=VW*0.8, JBY=VH*0.8, JR=26;   // 常驻摇杆位置（右下）
+const JBX=VW*0.2, JBY=VH*0.8, JR=26;   // 常驻摇杆位置（左下）
 const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
 const off = document.createElement('canvas'); off.width=VW; off.height=VH;
 const octx = off.getContext('2d'); octx.imageSmoothingEnabled=false;
@@ -140,7 +140,7 @@ function joyMove(vx,vy){
 cv.addEventListener('touchstart', e=>{
   if(state!=='city') return;
   const t=e.touches[0]; const [vx,vy]=toV(t.clientX,t.clientY);
-  if(vx > VW*0.5 && vy > VH*0.5){ joy.active=true; joyMove(vx,vy); }
+  if(vx < VW*0.5 && vy > VH*0.5){ joy.active=true; joyMove(vx,vy); }
 }, {passive:true});
 cv.addEventListener('touchmove', e=>{
   if(!joy.active) return;
@@ -151,7 +151,7 @@ cv.addEventListener('touchend', ()=>{ joy.active=false; joy.dx=joy.dy=0; }, {pas
 cv.addEventListener('touchcancel', ()=>{ joy.active=false; joy.dx=joy.dy=0; }, {passive:true});
 cv.addEventListener('mousedown', e=>{
   if(state!=='city')return; const [vx,vy]=toV(e.clientX,e.clientY);
-  if(vx>VW*0.5 && vy>VH*0.5){ joy.active=true; joyMove(vx,vy); }
+  if(vx<VW*0.5 && vy>VH*0.5){ joy.active=true; joyMove(vx,vy); }
 });
 cv.addEventListener('mousemove', e=>{ if(!joy.active)return; const [vx,vy]=toV(e.clientX,e.clientY); joyMove(vx,vy); });
 cv.addEventListener('mouseup', ()=>{ joy.active=false; joy.dx=joy.dy=0; });
@@ -242,11 +242,21 @@ function drawGrass(sx,sy,tx,ty){
 }
 function drawBoundaryBase(sx,sy,tx,ty){
   const h=hash(tx*3+1,ty*7+5);
-  octx.fillStyle = h<0.5 ? '#6b8a4e' : '#5f7d46';
+  // 砖块底色（深浅略有变化）
+  octx.fillStyle = h<0.5 ? '#8a919c' : '#828994';
   octx.fillRect(sx,sy,TILE,TILE);
-  if(h>0.55) px(sx+2,sy+5,7,5,'#7a5f3d');
-  if(h>0.8) px(sx+4,sy+7,4,3,'#8a6b47');
-  if(h<0.3) px(sx+9,sy+3,4,3,'#79a957');
+  // 顶部高光 / 底部阴影
+  octx.fillStyle='#a6adb8'; octx.fillRect(sx,sy,TILE,2);
+  octx.fillStyle='#666d78'; octx.fillRect(sx,sy+TILE-2,TILE,2);
+  // 砖缝
+  octx.fillStyle='#666d78';
+  octx.fillRect(sx,sy+7,TILE,1);
+  octx.fillRect(sx+8,sy+1,1,6);
+  octx.fillRect(sx+4,sy+8,1,7);
+  octx.fillRect(sx+12,sy+8,1,7);
+  // 纹理斑点
+  if(h>0.7) px(sx+2,sy+3,1,1,'#b4bcc6');
+  if(h<0.3) px(sx+11,sy+11,1,1,'#5c636d');
 }
 function drawBorderDeco(d){
   const sx=d.x-camX, sy=d.y-camY;
@@ -307,8 +317,8 @@ function drawHero(){
   px(-2+sw, 4, 2, 5, '#e8eef0');
   px(0.5-sw, 4, 2, 5, '#e8eef0');
   // 脚
-  px(-2.5+sw, 7, 3, 2, '#5a6673');
-  px(0.5-sw, 7, 3, 2, '#5a6673');
+  px(-2.5+sw, 7, 3, 2, '#e8eef0');
+  px(0.5-sw, 7, 3, 2, '#e8eef0');
   // 头身连体椭圆
   octx.fillStyle='#a9b6c3';
   octx.beginPath(); octx.ellipse(0, -2, 5.6, 7.2, 0, 0, 7); octx.fill();
@@ -359,8 +369,6 @@ function render(){
     if(t===0) drawGrass(sx,sy,tx,ty);
     else drawBoundaryBase(sx,sy,tx,ty);
   }
-  for(const d of borderDeco) drawBorderDeco(d);
-
   drawHero();
   drawHUD();
   if(state==='city') drawJoystick();
