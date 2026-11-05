@@ -209,16 +209,13 @@
   .eq-cap { font-size:12px; color:#94a3b8; letter-spacing:2px; text-align:left; width:100%; }
   .eq-row { display:flex; gap:8px; }
   .eq-box .eq-slot { width:52px; height:52px; }
-  #bagWrap .modal-box { max-height:88vh; overflow:visible; }
-  .bag-scroll { width:100%; height:calc(88vh - 190px); min-height:200px; max-height:460px;
-                overflow-y:scroll; overflow-x:hidden; padding-right:6px;
-                -webkit-overflow-scrolling:touch; overscroll-behavior:contain;
-                background:#0a1018; border:1px solid #1e293b;
-                touch-action:pan-y; }
-  .bag-scroll::-webkit-scrollbar { width:16px; }
-  .bag-scroll::-webkit-scrollbar-track { background:#0b0f1a; border-left:1px solid #1e293b; }
-  .bag-scroll::-webkit-scrollbar-thumb { background:#5b6472; border:2px solid #9aa5b1; }
-  .bag-scroll::-webkit-scrollbar-thumb:active { background:#7b8492; }
+  .bag-view { position:relative; width:100%; height:280px; overflow:hidden;
+              background:#0a1018; border:1px solid #1e293b; touch-action:none; }
+  .bag-content { position:absolute; left:0; top:0; right:18px; will-change:transform; }
+  .bag-track { position:absolute; right:0; top:0; bottom:0; width:16px; background:#0b0f1a;
+               border-left:1px solid #1e293b; }
+  .bag-thumb { position:absolute; left:1px; right:1px; top:0; height:40px; background:#5b6472;
+               border:1px solid #9aa5b1; box-shadow:inset 0 1px 0 #7b8492; }
   .bag-grid .eq-slot { width:100%; height:auto; aspect-ratio:1/1; position:relative; padding:0;
                        display:flex; align-items:center; justify-content:center; touch-action:manipulation; }
   .bag-grid .item-name { position:absolute; left:0; right:0; bottom:1px; font-size:9px; text-align:center;
@@ -401,7 +398,10 @@
       <button class="catBtn" data-f="armor">防具</button>
       <button class="catBtn" data-f="acc">饰品</button>
     </div>
-    <div class="bag-scroll" id="bagScroll"><div class="bag-grid" id="bagGrid"></div></div>
+    <div class="bag-view" id="bagView">
+      <div class="bag-content" id="bagContent"><div class="bag-grid" id="bagGrid"></div></div>
+      <div class="bag-track" id="bagTrack"><div class="bag-thumb" id="bagThumb"></div></div>
+    </div>
   </div>
 </div>
 <div id="settingsBackdrop" class="hidden"></div>
@@ -2264,57 +2264,103 @@ document.getElementById('confirmYes').onclick=()=>{
 document.getElementById('confirmNo').onclick=()=>{ confirmCb=null; document.getElementById('confirmWrap').classList.add('hidden'); };
 document.getElementById('confirmBg').onclick=()=>{ confirmCb=null; document.getElementById('confirmWrap').classList.add('hidden'); };
 
-function updateBagScroll(){
-  const sc=document.getElementById('bagScroll'), th=document.getElementById('bagThumb');
-  if(!sc||!th) return;
-  const ch=sc.clientHeight||0, sh=sc.scrollHeight||0;
-  if(!ch || sh<=ch+2){ th.style.display='none'; return; }
-  th.style.display='block';
-  const thH=Math.max(24, Math.round(ch*ch/sh));
-  const maxTop=Math.max(1, ch-thH);
-  const top=Math.round(maxTop*(sc.scrollTop/Math.max(1,sh-ch)));
-  th.style.height=thH+'px';
-  th.style.top=Math.max(0,Math.min(maxTop,top))+'px';
+let bagY=0, bagDragV=null, bagDragT=null;
+function bagMaxScroll(){
+  const view=document.getElementById('bagView');
+  const content=document.getElementById('bagContent');
+  if(!view||!content) return 0;
+  return Math.max(0, content.offsetHeight - view.clientHeight);
 }
-let bagDrag=null;
-function bindScrollbar(){
-  const sc=document.getElementById('bagScroll'), th=document.getElementById('bagThumb');
-  if(!sc||!th) return;
-  sc.onscroll=updateBagScroll;
-  const start=(e)=>{
-    const t=e.touches?e.touches[0]:e;
-    bagDrag={ y:t.clientY, top:sc.scrollTop };
-    if(e.cancelable) e.preventDefault();
-  };
-  const move=(e)=>{
-    if(!bagDrag) return;
-    const t=e.touches?e.touches[0]:e;
-    const ch=sc.clientHeight, sh=sc.scrollHeight, thH=th.offsetHeight||28;
-    const maxTop=Math.max(1, ch-thH);
-    const dy=t.clientY-bagDrag.y;
-    sc.scrollTop=bagDrag.top + dy*(sh-ch)/maxTop;
-    if(e.cancelable) e.preventDefault();
-  };
-  const end=()=>{ bagDrag=null; };
-  th.addEventListener('touchstart', start, {passive:false});
-  th.addEventListener('mousedown', start);
-  addEventListener('touchmove', move, {passive:false});
-  addEventListener('touchend', end);
-  addEventListener('mousemove', move);
-  addEventListener('mouseup', end);
+function updateBagScroll(){
+  const view=document.getElementById('bagView');
+  const content=document.getElementById('bagContent');
   const track=document.getElementById('bagTrack');
-  if(track){
-    track.addEventListener('touchstart', (e)=>{
-      const t=e.touches?e.touches[0]:e;
-      const r=track.getBoundingClientRect();
-      const ch=sc.clientHeight, sh=sc.scrollHeight, thH=th.offsetHeight||24;
-      const maxTop=Math.max(1, ch-thH);
-      const rel=Math.max(0, Math.min(maxTop, t.clientY-r.top-thH/2));
-      sc.scrollTop = rel*(sh-ch)/maxTop;
-      updateBagScroll();
-      if(e.cancelable) e.preventDefault();
-    }, {passive:false});
+  const thumb=document.getElementById('bagThumb');
+  if(!view||!content||!track||!thumb) return;
+  const max=bagMaxScroll();
+  const vh=view.clientHeight||0;
+  if(max<=0){ track.style.display='none'; bagY=0; content.style.transform='translateY(0px)'; return; }
+  track.style.display='block';
+  bagY=Math.max(0, Math.min(max, bagY));
+  content.style.transform='translateY('+(-bagY)+'px)';
+  const thH=Math.max(26, Math.round(vh*vh/(vh+max)));
+  const travel=Math.max(1, vh-thH);
+  thumb.style.height=thH+'px';
+  thumb.style.top=Math.round(travel*(bagY/max))+'px';
+}
+function bagSet(y){
+  const max=bagMaxScroll();
+  bagY=Math.max(0, Math.min(max, y));
+  const content=document.getElementById('bagContent');
+  if(content) content.style.transform='translateY('+(-bagY)+'px)';
+  const view=document.getElementById('bagView');
+  const thumb=document.getElementById('bagThumb');
+  if(view&&thumb){
+    const vh=view.clientHeight||0;
+    const thH=Math.max(26, Math.round(vh*vh/(vh+max)));
+    const travel=Math.max(1, vh-thH);
+    thumb.style.height=thH+'px';
+    thumb.style.top=Math.round(travel*(bagY/Math.max(1,max)))+'px';
   }
+}
+let sbBound=false;
+function bindScrollbar(){
+  if(sbBound) return;
+  sbBound=true;
+  const view=document.getElementById('bagView');
+  const thumb=document.getElementById('bagThumb');
+  const track=document.getElementById('bagTrack');
+  if(!view||!thumb||!track) return;
+  // 区域手势滚动
+  view.addEventListener('touchstart', (e)=>{
+    bagDragV={ y:e.touches[0].clientY, start:bagY };
+  }, {passive:true});
+  view.addEventListener('touchmove', (e)=>{
+    if(!bagDragV) return;
+    const dy=e.touches[0].clientY-bagDragV.y;
+    if(Math.abs(dy)>3) bagDragV.moved=true;
+    bagSet(bagDragV.start - dy*1.15);
+    if(e.cancelable) e.preventDefault();
+  }, {passive:false});
+  view.addEventListener('touchend', ()=>{ bagDragV=null; });
+  view.addEventListener('touchcancel', ()=>{ bagDragV=null; });
+  // 拖动滑块
+  thumb.addEventListener('touchstart', (e)=>{
+    const max=bagMaxScroll();
+    const vh=view.clientHeight||1;
+    const thH=thumb.offsetHeight||40;
+    bagDragT={ y:e.touches[0].clientY, start:bagY, k:max/Math.max(1, vh-thH) };
+    if(e.cancelable) e.preventDefault();
+  }, {passive:false});
+  thumb.addEventListener('touchmove', (e)=>{
+    if(!bagDragT) return;
+    const dy=e.touches[0].clientY-bagDragT.y;
+    bagSet(bagDragT.start + dy*bagDragT.k);
+    if(e.cancelable) e.preventDefault();
+  }, {passive:false});
+  thumb.addEventListener('touchend', ()=>{ bagDragT=null; });
+  thumb.addEventListener('touchcancel', ()=>{ bagDragT=null; });
+  // 鼠标（桌面调试）
+  thumb.addEventListener('mousedown', (e)=>{
+    const max=bagMaxScroll();
+    const vh=view.clientHeight||1;
+    const thH=thumb.offsetHeight||40;
+    bagDragT={ y:e.clientY, start:bagY, k:max/Math.max(1, vh-thH) };
+    e.preventDefault();
+  });
+  addEventListener('mousemove', (e)=>{ if(bagDragT){ bagSet(bagDragT.start + (e.clientY-bagDragT.y)*bagDragT.k); } });
+  addEventListener('mouseup', ()=>{ bagDragT=null; });
+  // 轨道点击
+  track.addEventListener('touchstart', (e)=>{
+    const r=track.getBoundingClientRect();
+    const max=bagMaxScroll();
+    const vh=view.clientHeight||1;
+    const thH=thumb.offsetHeight||40;
+    const travel=Math.max(1, vh-thH);
+    const rel=Math.max(0, Math.min(travel, e.touches[0].clientY-r.top-thH/2));
+    bagSet(rel/travel*max);
+    if(e.cancelable) e.preventDefault();
+  }, {passive:false});
 }
 function bindSort(){
   const b=document.getElementById('bagSort'); if(!b) return;
@@ -2327,6 +2373,9 @@ function bindSort(){
 function openBag(){
   bagOpenAt=performance.now();
   document.getElementById('bagWrap').classList.remove('hidden');
+  const vh=Math.max(170, Math.min(460, Math.round(window.innerHeight*0.52)));
+  document.getElementById('bagView').style.height=vh+'px';
+  bagY=0;
   bindCatBtns(); bindSort(); bindScrollbar();
   renderBag();
   requestAnimationFrame(()=>{ updateBagScroll(); requestAnimationFrame(updateBagScroll); });
