@@ -22,6 +22,10 @@
            background:#4ade80; color:#052e16; border:2px solid #052e16; border-radius:0;
            box-shadow:0 4px 0 #052e16; padding:13px 34px; cursor:pointer; }
   button:active { transform:translateY(3px); box-shadow:0 1px 0 #052e16; }
+  #fsBtn { position:fixed; top:8px; right:8px; z-index:6; padding:6px 10px; font-size:14px;
+           background:rgba(15,23,42,.7); color:#e2e8f0; border:2px solid #0b0f1a;
+           box-shadow:0 2px 0 #0b0f1a; }
+  #fsBtn:active { transform:translateY(2px); box-shadow:0 0 0 #0b0f1a; }
   #rotate { position:fixed; inset:0; z-index:20; display:flex; flex-direction:column; align-items:center;
             justify-content:center; gap:18px; background:#05070d; color:#e2e8f0; text-align:center; padding:24px; }
   #rotate.hidden { display:none; }
@@ -33,6 +37,7 @@
 </head>
 <body>
 <canvas id="cv"></canvas>
+<button id="fsBtn">⛶ 全屏</button>
 
 <div id="menu" class="ov">
   <div class="title">阿尔法大陆</div>
@@ -75,14 +80,13 @@ function hash(x,y){
 }
 
 // ---------- 世界生成 ----------
-// 0 草地  1 石墙  2 山  3 树
+// 0 草地  1 石墙  2 边界(山/树/土丘)
 const world = [];
 for(let y=0;y<WROWS;y++){
   const row=[];
   for(let x=0;x<WCOLS;x++){
     const edge=Math.min(x,y,WCOLS-1-x,WROWS-1-y);
-    if(edge<2) row.push(hash(x,y)<0.5?2:3);
-    else row.push(0);
+    row.push(edge<2?2:0);
   }
   world.push(row);
 }
@@ -90,14 +94,29 @@ function stampWall(x,y,w,h){ for(let j=y;j<y+h;j++) for(let i=x;i<x+w;i++){ if(w
 stampWall(6,5,6,4); stampWall(32,5,6,4);
 stampWall(7,22,7,4); stampWall(31,22,6,4);
 
+// ---------- 边界装饰（大小不一的山丘/树/灌木/草） ----------
+const borderDeco = [];
+(()=>{
+  for(let y=0;y<WROWS;y++) for(let x=0;x<WCOLS;x++){
+    if(world[y][x]!==2) continue;
+    if(hash(x*7+1,y*11+3) < 0.4) continue;
+    const jx=(hash(x+9,y+4)-0.5)*TILE*0.7;
+    const jy=(hash(x+2,y+8)-0.5)*TILE*0.7;
+    const s=0.7+hash(x+5,y+7)*0.9;
+    const t=hash(x+3,y+9);
+    const type = t<0.42?'tree': t<0.68?'mound': t<0.86?'bush':'grass';
+    borderDeco.push({type, x:x*TILE+TILE/2+jx, y:y*TILE+TILE/2+jy, s});
+  }
+})();
+
 // ---------- 状态 ----------
 let state='menu', last=0;
 let camX=0, camY=0, walkPhase=0;
-let player = { x:360, y:248, hp:100, maxHp:100, r:7, speed:64, face:1 };
+let player = { x:360, y:248, hp:100, maxHp:100, r:6, speed:64, face:1 };
 let level=0, xp=0, xpNeed=10;
 
 function resetGame(){
-  player = { x:360, y:248, hp:100, maxHp:100, r:7, speed:64, face:1 };
+  player = { x:360, y:248, hp:100, maxHp:100, r:6, speed:64, face:1 };
   level=0; xp=0; xpNeed=10; walkPhase=0;
   camX=player.x-VW/2; camY=player.y-VH/2;
 }
@@ -132,7 +151,7 @@ function solidAt(px,py){
   return world[ty][tx]!==0;
 }
 function tryMove(dx,dy){
-  const half=6, nx=player.x+dx, ny=player.y+dy;
+  const half=5, nx=player.x+dx, ny=player.y+dy;
   const ok=(x,y)=> !solidAt(x-half,y-half)&&!solidAt(x+half,y-half)&&!solidAt(x-half,y+half)&&!solidAt(x+half,y+half);
   if(ok(nx,ny)){ player.x=nx; player.y=ny; return; }
   if(ok(nx,player.y)) player.x=nx;
@@ -144,7 +163,7 @@ function update(dt){
     const d=Math.hypot(joy.dx,joy.dy);
     if(d>2){
       tryMove(joy.dx/d*player.speed*dt, joy.dy/d*player.speed*dt);
-      walkPhase += dt*13;
+      walkPhase += dt*14;
       if(joy.dx>2) player.face=1; else if(joy.dx<-2) player.face=-1;
     }
   }
@@ -189,84 +208,96 @@ function drawBar(x,y,w,h,frac,color){
 
 // ---------- 绘制 ----------
 function px(x,y,w,h,c){ octx.fillStyle=c; octx.fillRect(Math.round(x),Math.round(y),Math.round(w),Math.round(h)); }
-function oc(x,y,r){ octx.beginPath(); octx.arc(x,y,r,0,7); octx.fill(); }
+function fillCircle(x,y,r,c){ octx.fillStyle=c; octx.beginPath(); octx.arc(x,y,r,0,7); octx.fill(); }
 
 function drawGrass(sx,sy,tx,ty){
   const h=hash(tx,ty);
-  if(h<0.18){ octx.fillStyle='#38512a'; octx.fillRect(sx,sy,TILE,TILE); }
+  if(h<0.2){ octx.fillStyle='#74a852'; octx.fillRect(sx,sy,TILE,TILE); }
+  else if(h>0.55 && h<0.65){ octx.fillStyle='#88bf66'; octx.fillRect(sx,sy,TILE,TILE); }
   for(let i=0;i<3;i++){
     const bx=sx+Math.floor(hash(tx*7+i,ty*13+i)*(TILE-2));
     const by=sy+Math.floor(hash(tx*3+i,ty*5+i)*(TILE-3));
-    px(bx,by,1,2,'#2f4620');
+    px(bx,by,1,2,'#639a45');
   }
-  if(h>0.9){
+  if(h>0.92){
     const fx=sx+4+Math.floor(hash(tx,ty)*6), fy=sy+4+Math.floor(hash(ty,tx)*6);
     px(fx,fy,2,2,'#fde047'); px(fx+1,fy+1,1,1,'#f59e0b');
   }
-  else if(h<0.07){
-    px(sx+5,sy+9,4,3,'#6b7280'); px(sx+6,sy+8,2,1,'#8b93a0');
+  else if(h<0.05){
+    px(sx+5,sy+8,4,3,'#9aa5b1'); px(sx+6,sy+7,2,1,'#b4bec8');
   }
-  else if(h>0.8 && h<0.85){
-    px(sx+9,sy+11,4,3,'#2f4a26'); px(sx+10,sy+10,2,2,'#3a5c2e');
+  else if(h>0.82 && h<0.86){
+    px(sx+9,sy+10,5,4,'#4e7d36'); px(sx+10,sy+9,3,2,'#5f9440');
   }
 }
 function drawWall(sx,sy){
-  px(sx, sy, TILE, TILE, '#4b5462');
-  px(sx, sy, TILE, 3, '#68727f');
-  px(sx, sy+TILE-3, TILE, 3, '#39404b');
-  octx.fillStyle='#39404b';
+  px(sx, sy, TILE, TILE, '#7b8492');
+  px(sx, sy, TILE, 3, '#98a1ae');
+  px(sx, sy+TILE-3, TILE, 3, '#5f6773');
+  octx.fillStyle='#5f6773';
   octx.fillRect(sx, sy+8, TILE, 1);
   octx.fillRect(sx+7, sy+3, 1, 5);
   octx.fillRect(sx+3, sy+9, 1, 4);
   octx.fillRect(sx+11, sy+9, 1, 4);
 }
-function drawMountain(sx,sy,tx,ty){
-  px(sx, sy+11, TILE, 5, '#565f6c');
-  octx.fillStyle='#6b7482';
-  octx.beginPath(); octx.moveTo(sx+8, sy+2); octx.lineTo(sx+15, sy+15); octx.lineTo(sx+1, sy+15); octx.closePath(); octx.fill();
-  octx.fillStyle='#8a93a0';
-  octx.beginPath(); octx.moveTo(sx+8, sy+2); octx.lineTo(sx+12, sy+15); octx.lineTo(sx+4, sy+15); octx.closePath(); octx.fill();
-  px(sx+6, sy+4, 2, 2, '#dbe3ec');
-  if(hash(tx,ty)>0.6){ px(sx+1,sy+9,2,2,'#4a7c3a'); }
+function drawBoundaryBase(sx,sy,tx,ty){
+  const h=hash(tx*3+1,ty*7+5);
+  octx.fillStyle = h<0.5 ? '#6b8a4e' : '#5f7d46';
+  octx.fillRect(sx,sy,TILE,TILE);
+  if(h>0.6) px(sx+3,sy+6,6,4,'#8a6b47');
+  if(h<0.25) px(sx+9,sy+3,4,3,'#79a957');
 }
-function drawTree(sx,sy,tx,ty){
-  px(sx+6, sy+9, 4, 6, '#5b3a1e');
-  px(sx+2, sy+2, 12, 8, '#2f4a26');
-  px(sx+4, sy+0, 8, 5, '#3a5c2e');
-  px(sx+6, sy+1, 4, 2, '#446e34');
-  if(hash(tx,ty)>0.7){ px(sx+12,sy+10,2,3,'#4a7c3a'); }
+function drawBorderDeco(d){
+  const sx=d.x-camX, sy=d.y-camY;
+  if(sx<-50||sx>VW+50||sy<-70||sy>VH+60) return;
+  const k=d.s;
+  if(d.type==='tree'){
+    px(sx-2*k, sy+3*k, 4*k, 10*k, '#5b3a1e');
+    fillCircle(sx, sy-3*k, 9*k, '#2f4a26');
+    fillCircle(sx-3*k, sy-5*k, 6*k, '#3a5c2e');
+    fillCircle(sx+3*k, sy-4*k, 5*k, '#446e34');
+  } else if(d.type==='mound'){
+    fillCircle(sx-2*k, sy+1*k, 9*k, '#7a5f3d');
+    fillCircle(sx+3*k, sy+2*k, 7*k, '#6b5135');
+    px(sx-1*k, sy-6*k, 1, 3, '#79a957');
+    px(sx+4*k, sy-7*k, 1, 4, '#639a45');
+  } else if(d.type==='bush'){
+    fillCircle(sx, sy, 7*k, '#3a6a2c');
+    fillCircle(sx-2*k, sy-2*k, 5*k, '#4e8538');
+    fillCircle(sx+3*k, sy-1*k, 4*k, '#5f9440');
+  } else {
+    for(let i=0;i<3;i++) px(sx-5*k+i*5*k, sy-4*k, 1, 5*k, '#5f9440');
+  }
 }
 
+// ---------- 主角（一格高，呆萌，无手） ----------
 function drawHero(){
   const cx=player.x-camX, cy=player.y-camY;
-  octx.fillStyle='rgba(0,0,0,.3)';
-  octx.beginPath(); octx.ellipse(cx, cy+9, 6, 2, 0, 0, 7); octx.fill();
+  octx.fillStyle='rgba(0,0,0,.25)';
+  octx.beginPath(); octx.ellipse(cx, cy+8, 5, 2, 0, 0, 7); octx.fill();
 
   const moving = joy.active && (Math.abs(joy.dx)+Math.abs(joy.dy))>2;
-  const sw = moving ? Math.sin(walkPhase)*2 : 0;
+  const sw = moving ? Math.sin(walkPhase)*1.6 : 0;
 
   octx.save();
   octx.translate(cx, cy);
   if(player.face<0) octx.scale(-1,1);
   // 腿
-  px(-3+sw, 2, 2, 6, '#ffffff');
-  px(1-sw, 2, 2, 6, '#ffffff');
+  px(-2+sw, 4, 2, 3, '#e8eef0');
+  px(0.5-sw, 4, 2, 3, '#e8eef0');
   // 脚
-  px(-3+sw, 7, 3, 2, '#475569');
-  px(1-sw, 7, 3, 2, '#475569');
+  px(-2.5+sw, 6, 3, 2, '#5a6673');
+  px(0.5-sw, 6, 3, 2, '#5a6673');
   // 身体
-  px(-3, -5, 6, 7, '#ffffff');
-  // 手臂
-  px(-5, -4-(moving?sw:0), 2, 5, '#ffffff');
-  px(3, -4+(moving?sw:0), 2, 5, '#ffffff');
+  px(-3, 1, 6, 4, '#ffffff');
   // 头
-  px(-3, -11, 6, 6, '#ffffff');
-  // 眼睛
-  px(-1, -9, 1, 1, '#1e293b');
-  px(1, -9, 1, 1, '#1e293b');
-  // 帽子
-  px(-4, -12, 8, 1, '#b91c1c');
-  px(-3, -15, 6, 3, '#ef4444');
+  fillCircle(0, -3, 5.6, '#a9b6c3');
+  fillCircle(0, -3, 5.0, '#ffffff');
+  // 大眼睛
+  px(-2.5, -5, 2, 3, '#1e293b');
+  px(1, -5, 2, 3, '#1e293b');
+  px(-2.5, -5, 1, 1, '#ffffff');
+  px(1, -5, 1, 1, '#ffffff');
   octx.restore();
 }
 
@@ -281,7 +312,7 @@ function drawHUD(){
 
 function render(){
   octx.clearRect(0,0,VW,VH);
-  octx.fillStyle='#3d5a2b'; octx.fillRect(0,0,VW,VH);
+  octx.fillStyle='#7db25a'; octx.fillRect(0,0,VW,VH);
 
   const x0=Math.max(0,Math.floor(camX/TILE)), x1=Math.min(WCOLS,Math.ceil((camX+VW)/TILE));
   const y0=Math.max(0,Math.floor(camY/TILE)), y1=Math.min(WROWS,Math.ceil((camY+VH)/TILE));
@@ -289,17 +320,17 @@ function render(){
     const sx=tx*TILE-camX, sy=ty*TILE-camY, t=world[ty][tx];
     if(t===0) drawGrass(sx,sy,tx,ty);
     else if(t===1) drawWall(sx,sy);
-    else if(t===2) drawMountain(sx,sy,tx,ty);
-    else drawTree(sx,sy,tx,ty);
+    else drawBoundaryBase(sx,sy,tx,ty);
   }
+  for(const d of borderDeco) drawBorderDeco(d);
 
   drawHero();
   drawHUD();
 
   if(joy.active){
-    octx.strokeStyle='rgba(148,163,184,.4)'; octx.lineWidth=2;
+    octx.strokeStyle='rgba(148,163,184,.35)'; octx.lineWidth=2;
     octx.beginPath(); octx.arc(joy.ox,joy.oy,R,0,7); octx.stroke();
-    octx.fillStyle='rgba(148,163,184,.55)'; oc(joy.ox+joy.dx, joy.oy+joy.dy, 7);
+    octx.fillStyle='rgba(148,163,184,.5)'; fillCircle(joy.ox+joy.dx, joy.oy+joy.dy, 7, 'rgba(148,163,184,.5)');
   }
 
   ctx.fillStyle='#05070d'; ctx.fillRect(0,0,cv.width,cv.height);
@@ -313,6 +344,23 @@ function frame(now){
   requestAnimationFrame(frame);
 }
 
+// ---------- 全屏 ----------
+const fsBtn=document.getElementById('fsBtn');
+fsBtn.onclick=()=>{
+  try{
+    if(!document.fullscreenElement){
+      const el=document.documentElement;
+      const rq=el.requestFullscreen||el.webkitRequestFullscreen;
+      if(rq) rq.call(el);
+    } else {
+      if(document.exitFullscreen) document.exitFullscreen();
+      else if(document.webkitExitFullscreen) document.webkitExitFullscreen();
+      else if(document.webkitCancelFullScreen) document.webkitCancelFullScreen();
+    }
+  }catch(e){}
+};
+document.addEventListener('fullscreenchange', ()=>{ resize(); checkOrientation(); });
+
 // ---------- 横屏提示 ----------
 function checkOrientation(){
   const portrait = window.innerHeight > window.innerWidth;
@@ -325,7 +373,7 @@ document.getElementById('startBtn').onclick=()=>{
   document.getElementById('menu').classList.add('hidden');
   resetGame();
   if(screen.orientation && screen.orientation.lock){
-    try { const p = screen.orientation.lock('landscape'); if(p && p.catch) p.catch(()=>{}); } catch(e){}
+    try { const p=screen.orientation.lock('landscape'); if(p&&p.catch) p.catch(()=>{}); } catch(e){}
   }
   state='arrive';
   const sub=document.getElementById('subtitle');
