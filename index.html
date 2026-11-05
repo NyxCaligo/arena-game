@@ -149,17 +149,34 @@ for(let y=0;y<WROWS;y++){
 
 // ---------- 房屋 ----------
 const BUILDINGS = [
-  {x:200, y:140, w:64, h:56, v:0},   // 大房子
-  {x:282, y:152, w:48, h:44, v:1},   // 小房子
+  {x:170, y:118, w:88, h:76, v:0},   // 大房子
+  {x:292, y:138, w:64, h:60, v:1},   // 小房子
 ];
 
 // ---------- 道路（土黄路，宽窄不一） ----------
 const ROADS = [
   {x1:390, y1:-20, x2:390, y2:500, w:46},  // 主路（竖）
   {x1:60,  y1:300, x2:660, y2:300, w:40},  // 横路
-  {x1:232, y1:196, x2:232, y2:312, w:24},  // 通往大房子
-  {x1:306, y1:196, x2:306, y2:312, w:24},  // 通往小房子
+  {x1:214, y1:194, x2:214, y2:312, w:24},  // 通往大房子
+  {x1:324, y1:198, x2:324, y2:312, w:24},  // 通往小房子
 ];
+
+// ---------- 路面遮罩（2 像素一格，边缘随机） ----------
+const MW=Math.ceil(WORLD_W/2), MH=Math.ceil(WORLD_H/2);
+const roadMask=new Uint8Array(MW*MH);
+const tileRoadCnt=new Uint8Array(WCOLS*WROWS);
+for(let my=0;my<MH;my++) for(let mx=0;mx<MW;mx++){
+  const wx=mx*2+1, wy=my*2+1;
+  let best=1e9;
+  for(const r of ROADS){ const d=segDist(wx,wy,r.x1,r.y1,r.x2,r.y2)-r.w/2; if(d<best) best=d; }
+  const n=(hash(mx*7+3,my*5+1)-0.5)*6;
+  roadMask[my*MW+mx]=(best+n<0)?1:0;
+}
+for(let ty=0;ty<WROWS;ty++) for(let tx=0;tx<WCOLS;tx++){
+  let c=0;
+  for(let j=0;j<8;j++) for(let i=0;i<8;i++) c+=roadMask[(ty*8+j)*MW+(tx*8+i)]||0;
+  tileRoadCnt[ty*WCOLS+tx]=c;
+}
 
 // ---------- 边界装饰（大小/种类不一的丘陵、树、灌木、草、花、石） ----------
 const borderDeco = [];
@@ -344,60 +361,89 @@ function drawDirt(sx,sy,tx,ty,rv){
   if(hash(tx,ty)>0.85) px(sx+6,sy+9,3,2,'#9aa5b1');
 }
 function drawGroundTile(sx,sy,tx,ty){
-  const rv=roadVal(tx,ty);
-  if(rv>0.5){ drawDirt(sx,sy,tx,ty,rv); return; }
+  const cnt=tileRoadCnt[ty*WCOLS+tx];
+  if(cnt===0){ drawGrass(sx,sy,tx,ty); return; }
+  if(cnt>=64){ drawDirt(sx,sy,tx,ty,1); return; }
   drawGrass(sx,sy,tx,ty);
-  if(rv>0.15){
-    const n=Math.floor(rv*10);
-    for(let i=0;i<n;i++){
-      const bx=sx+Math.floor(hash(tx*11+i,ty*5+i)*TILE);
-      const by=sy+Math.floor(hash(tx*3+i,ty*9+i)*TILE);
-      px(bx,by,2,1,'#c9a96b');
+  for(let j=0;j<8;j++) for(let i=0;i<8;i++){
+    if(roadMask[(ty*8+j)*MW+(tx*8+i)]){
+      px(sx+i*2, sy+j*2, 2, 2, hash(tx*8+i,ty*8+j)>0.5?'#c9a96b':'#bfa06a');
     }
   }
 }
 function drawHouse(b){
-  const x=Math.round(b.x-camX), y=Math.round(b.y-camY), w=b.w, h=b.h;
+  const x=Math.round((b.x-camX)*RES)/RES, y=Math.round((b.y-camY)*RES)/RES, w=b.w, h=b.h;
   if(x+w<-20||x>VW+20||y+h<-20||y>VH+20) return;
   const v=b.v;
-  const wall = v===0 ? '#efe0c0' : '#e8d5b0';
-  const beam = '#5b3a1e';
-  const roof = v===0 ? '#b4462f' : '#7a4a33';
-  const roofD = v===0 ? '#8f3524' : '#5c3527';
-  const roofH = Math.round(h*0.5);
-  // 阴影
+  const wallA = v===0 ? '#f1e3c2' : '#ecdcb8';
+  const wallB = v===0 ? '#ddcb9f' : '#d9c59c';
+  const beam  = v===0 ? '#5a3a1f' : '#4a2f19';
+  const roofA = v===0 ? '#b8452e' : '#7a4a33';
+  const roofB = v===0 ? '#95321f' : '#5a3527';
+  const roofH = Math.round(h*0.46);
+  const wallTop = y+roofH;
+  const baseY = y+h-8;
+
+  // 地面阴影
   octx.fillStyle='rgba(0,0,0,.16)';
   octx.beginPath(); octx.ellipse(x+w/2, y+h+2, w*0.55, 5, 0, 0, 7); octx.fill();
-  // 墙体
-  px(x+3, y+roofH-2, w-6, h-roofH+2, wall);
-  // 木梁
-  px(x+3, y+roofH-2, 2, h-roofH+2, beam);
-  px(x+w-5, y+roofH-2, 2, h-roofH+2, beam);
-  px(x+3, y+roofH-2, w-6, 2, beam);
-  // 屋顶
-  octx.fillStyle=roof;
+
+  // 墙体（上亮下暗）
+  px(x+4, wallTop-2, w-8, h-roofH+2, wallA);
+  px(x+4, wallTop+Math.round((h-roofH)*0.5), w-8, Math.round((h-roofH)*0.5)+2, wallB);
+
+  // 石砌地基
+  px(x+4, baseY, w-8, 8, '#8d8a80');
+  for(let i=0;i<w-8;i+=7) px(x+4+i, baseY, 1, 8, '#6f6c63');
+  px(x+4, baseY, w-8, 1, '#a6a298');
+
+  // 木梁（竖柱 + 横梁）
+  px(x+4, wallTop-2, 3, h-roofH+2, beam);
+  px(x+w-7, wallTop-2, 3, h-roofH+2, beam);
+  px(x+4, wallTop-2, w-8, 3, beam);
+  px(x+4, baseY-3, w-8, 2, beam);
+
+  // 屋顶（梯形 + 瓦片横纹 + 屋脊）
+  const eave=5;
+  octx.fillStyle=roofA;
   octx.beginPath();
-  octx.moveTo(x-2, y+roofH); octx.lineTo(x+w+2, y+roofH); octx.lineTo(x+w/2, y-2);
-  octx.closePath(); octx.fill();
-  // 瓦片纹（裁剪在屋顶内）
+  octx.moveTo(x-eave, wallTop); octx.lineTo(x+w+eave, wallTop);
+  octx.lineTo(x+w-4, y); octx.lineTo(x+4, y); octx.closePath(); octx.fill();
   octx.save();
   octx.beginPath();
-  octx.moveTo(x-2, y+roofH); octx.lineTo(x+w+2, y+roofH); octx.lineTo(x+w/2, y-2);
-  octx.closePath(); octx.clip();
-  for(let yy=y+4; yy<y+roofH; yy+=5) px(x-2, yy, w+4, 1, roofD);
+  octx.moveTo(x-eave, wallTop); octx.lineTo(x+w+eave, wallTop);
+  octx.lineTo(x+w-4, y); octx.lineTo(x+4, y); octx.closePath(); octx.clip();
+  for(let yy=y+4; yy<wallTop; yy+=5) px(x-eave, yy, w+eave*2, 2, roofB);
+  px(x-eave, wallTop-3, w+eave*2, 2, '#c96a3f');
   octx.restore();
+  px(x+4, y, w-8, 2, '#d9a05a');
+
   // 烟囱
-  px(x+Math.round(w*0.7), y+3, 6, Math.round(roofH*0.5), '#8a6b52');
-  // 门
-  const dw=10, dh=Math.min(16, h-roofH+2);
+  const chx=x+Math.round(w*0.7);
+  px(chx, y-10, 9, 16, '#8d8a80');
+  for(let i=0;i<4;i++) px(chx, y-10+i*4, 9, 1, '#6f6c63');
+  px(chx, y-10, 9, 2, '#a6a298');
+
+  // 窗（带十字窗棂 + 暖光）
+  const wy=wallTop+6, wh=10;
+  const win=(wx)=>{
+    px(wx-1, wy-1, wh+2, wh+2, beam);
+    px(wx, wy, wh, wh, '#3a2a1a');
+    px(wx+1, wy+1, wh-2, wh-2, '#fcd34d');
+    px(wx+Math.floor(wh/2), wy+1, 1, wh-2, beam);
+    px(wx+1, wy+Math.floor(wh/2), wh-2, 1, beam);
+  };
+  win(x+10); win(x+w-10-wh);
+
+  // 门（拱形 + 木纹 + 门灯）
+  const dw=14, dh=Math.min(22, h-roofH-8);
   const dx=Math.round(x+w/2-dw/2), dy=y+h-dh;
-  px(dx-1, dy-1, dw+2, dh+1, beam);
+  px(dx-1, dy-2, dw+2, dh+2, beam);
   px(dx, dy, dw, dh, '#6b4423');
-  px(dx+dw-2, dy+3, 1, 2, '#d4b24a');
-  // 窗
-  const wy=y+roofH+4, wh=8;
-  px(x+8, wy, 8, wh, beam); px(x+9, wy+1, 6, wh-2, '#fcd34d'); px(x+11, wy+1, 1, wh-2, beam);
-  px(x+w-16, wy, 8, wh, beam); px(x+w-15, wy+1, 6, wh-2, '#fcd34d'); px(x+w-13, wy+1, 1, wh-2, beam);
+  px(dx+2, dy+2, dw-4, dh-4, '#7d5230');
+  for(let i=0;i<3;i++) px(dx+3+i*4, dy+2, 1, dh-4, '#5f3c1f');
+  px(dx+dw-4, dy+Math.floor(dh/2), 2, 2, '#d4b24a');
+  px(x+w/2+11, dy-6, 3, 4, '#fbbf24');
 }
 function drawBoundaryBase(sx,sy,tx,ty){
   const h=hash(tx*3+1,ty*7+5);
