@@ -77,8 +77,14 @@
   .bag-grid::-webkit-scrollbar { width:10px; }
   .bag-grid::-webkit-scrollbar-track { background:#0b1220; border:1px solid #1e293b; }
   .bag-grid::-webkit-scrollbar-thumb { background:#4b5462; border:2px solid #0b1220; }
-  .pixlabel { display:flex; justify-content:center; }
-  .eq-cap.pixlabel { justify-content:flex-start; }
+  .pixlabel { display:inline-flex; align-items:center; }
+  .pixlabel canvas { image-rendering:pixelated; display:block; }
+  .panel-head { display:flex; align-items:center; gap:10px; width:100%; }
+  .panel-head .xBtn { margin-left:auto; }
+  .xBtn { width:26px; height:26px; padding:0; font-size:13px; line-height:1;
+          background:#4b5462; color:#e2e8f0; border:2px solid #0b0f1a; box-shadow:none;
+          display:flex; align-items:center; justify-content:center; }
+  .xBtn:active { transform:translateY(2px); }
   .pixlabel canvas { image-rendering:pixelated; display:block; }
   .eq-cols { display:flex; gap:20px; align-items:flex-start; }
   .eq-col { display:flex; flex-direction:column; gap:8px; }
@@ -112,7 +118,10 @@
 <div id="equipWrap" class="modal hidden">
   <div class="modal-bg" id="equipBg"></div>
   <div class="modal-box eq-box">
-    <div class="pixlabel" id="eqTitle"></div>
+    <div class="panel-head">
+      <span class="pixlabel" id="eqTitle"></span>
+      <button class="xBtn" id="eqClose">✕</button>
+    </div>
     <div class="eq-cols">
       <div class="eq-col">
         <div class="eq-cap pixlabel" id="capW"></div>
@@ -130,16 +139,17 @@
         <div class="eq-row"><div class="eq-slot"></div><div class="eq-slot"></div><div class="eq-slot"></div></div>
       </div>
     </div>
-    <button id="eqClose" class="sp-full sp-alt" style="margin-top:14px">关闭</button>
   </div>
 </div>
 <div id="bagWrap" class="modal hidden">
   <div class="modal-bg" id="bagBg"></div>
   <div class="modal-box">
-    <div class="pixlabel" id="bagTitle"></div>
-    <div class="pixlabel" id="bagCap"></div>
+    <div class="panel-head">
+      <span class="pixlabel" id="bagTitle"></span>
+      <span class="pixlabel" id="bagCap"></span>
+      <button class="xBtn" id="bagClose">✕</button>
+    </div>
     <div class="bag-grid" id="bagGrid"></div>
-    <button id="bagClose" class="sp-full sp-alt" style="margin-top:14px">关闭</button>
   </div>
 </div>
 <div id="settingsBackdrop" class="hidden"></div>
@@ -1141,27 +1151,28 @@ function eqSlot(x,y,sz){
   octx.fillStyle='#5b6472'; octx.fillRect(x+1,y+1,sz-2,1);
 }
 function armorIcon(x,y,sz,i){
-  const c1='#9aa5b1', c2='#6b7480', d='#232c38';
-  if(i===0){ // 头盔
+  const c1='#9aa5b1', c2='#74808e', d='#232c38';
+  if(i===0){ // 头盔：圆顶 + 面窗缝 + 护颊 + 下颌
     px(x+4,y+2,4,1,c1);
     px(x+3,y+3,6,1,c1);
-    px(x+2,y+4,8,4,c1);
-    px(x+4,y+5,4,2,d);
-    px(x+3,y+4,1,3,'#cbd5e1');
-    px(x+2,y+8,8,2,c2);
-  } else if(i===1){ // 胸甲
-    px(x+2,y+3,2,3,c2); px(x+8,y+3,2,3,c2);
-    px(x+4,y+2,4,3,c1);
-    px(x+3,y+5,6,4,c1);
-    px(x+5,y+3,2,1,d);
-    px(x+4,y+6,4,1,c2);
+    px(x+2,y+4,8,2,c1);
+    px(x+3,y+6,6,1,d);
+    px(x+2,y+6,1,3,c2); px(x+9,y+6,1,3,c2);
+    px(x+3,y+7,6,2,c1);
     px(x+3,y+9,6,1,c2);
-  } else { // 护膝
-    px(x+2,y+3,8,1,c2);
-    px(x+3,y+4,6,4,c1);
-    px(x+4,y+5,4,1,c2);
-    px(x+2,y+8,8,1,c2);
-    px(x+3,y+9,6,1,c1);
+  } else if(i===1){ // 胸甲：肩甲 + V领 + 躯干 + 腰带
+    px(x+4,y+2,4,1,c2);
+    px(x+1,y+3,2,3,c2); px(x+9,y+3,2,3,c2);
+    px(x+3,y+3,6,2,c1);
+    px(x+5,y+3,2,2,d);
+    px(x+3,y+5,6,4,c1);
+    px(x+4,y+6,4,1,c2);
+    px(x+4,y+9,4,1,c2);
+  } else { // 护腿：两条分开的腿
+    px(x+2,y+2,3,4,c1); px(x+7,y+2,3,4,c1);
+    px(x+2,y+6,3,1,c2); px(x+7,y+6,3,1,c2);
+    px(x+2,y+7,3,3,c1); px(x+7,y+7,3,3,c1);
+    px(x+1,y+10,4,1,c2); px(x+7,y+10,4,1,c2);
   }
 }
 function eqGroup(x,y,w,h,label){
@@ -1201,36 +1212,10 @@ function fillSlots(el,n,labels){
     d.textContent = labels ? (labels[i]||'') : ''; el.appendChild(d); }
 }
 const ARMOR_SVG=[
-  '<svg width="34" height="34" viewBox="0 0 12 12" shape-rendering="crispEdges"><rect x="4" y="1" width="4" height="1" fill="#8b95a1"/><rect x="3" y="2" width="6" height="1" fill="#8b95a1"/><rect x="2" y="3" width="8" height="5" fill="#8b95a1"/><rect x="4" y="4" width="4" height="3" fill="#2b3444"/><rect x="2" y="8" width="8" height="2" fill="#6b7480"/></svg>',
-  '<svg width="34" height="34" viewBox="0 0 12 12" shape-rendering="crispEdges"><rect x="2" y="2" width="2" height="3" fill="#8b95a1"/><rect x="8" y="2" width="2" height="3" fill="#8b95a1"/><rect x="4" y="3" width="4" height="6" fill="#8b95a1"/><rect x="4" y="4" width="4" height="2" fill="#2b3444"/><rect x="3" y="8" width="6" height="2" fill="#8b95a1"/></svg>',
-  '<svg width="34" height="34" viewBox="0 0 12 12" shape-rendering="crispEdges"><rect x="2" y="3" width="8" height="1" fill="#6b7480"/><rect x="3" y="4" width="6" height="4" fill="#8b95a1"/><rect x="4" y="5" width="4" height="1" fill="#5b6472"/><rect x="2" y="8" width="8" height="1" fill="#6b7480"/></svg>'
+  '<svg width="34" height="34" viewBox="0 0 12 12" shape-rendering="crispEdges"><rect x="4" y="1" width="4" height="1" fill="#9aa5b1"/><rect x="3" y="2" width="6" height="1" fill="#9aa5b1"/><rect x="2" y="3" width="8" height="2" fill="#9aa5b1"/><rect x="3" y="5" width="6" height="1" fill="#232c38"/><rect x="2" y="5" width="1" height="3" fill="#74808e"/><rect x="9" y="5" width="1" height="3" fill="#74808e"/><rect x="3" y="6" width="6" height="2" fill="#9aa5b1"/><rect x="3" y="8" width="6" height="1" fill="#74808e"/></svg>',
+  '<svg width="34" height="34" viewBox="0 0 12 12" shape-rendering="crispEdges"><rect x="4" y="1" width="4" height="1" fill="#74808e"/><rect x="1" y="2" width="2" height="3" fill="#74808e"/><rect x="9" y="2" width="2" height="3" fill="#74808e"/><rect x="3" y="2" width="6" height="2" fill="#9aa5b1"/><rect x="5" y="2" width="2" height="2" fill="#232c38"/><rect x="3" y="4" width="6" height="4" fill="#9aa5b1"/><rect x="4" y="5" width="4" height="1" fill="#74808e"/><rect x="4" y="8" width="4" height="1" fill="#74808e"/></svg>',
+  '<svg width="34" height="34" viewBox="0 0 12 12" shape-rendering="crispEdges"><rect x="2" y="2" width="3" height="4" fill="#9aa5b1"/><rect x="7" y="2" width="3" height="4" fill="#9aa5b1"/><rect x="2" y="6" width="3" height="1" fill="#74808e"/><rect x="7" y="6" width="3" height="1" fill="#74808e"/><rect x="2" y="7" width="3" height="3" fill="#9aa5b1"/><rect x="7" y="7" width="3" height="3" fill="#9aa5b1"/><rect x="1" y="10" width="4" height="1" fill="#74808e"/><rect x="7" y="10" width="4" height="1" fill="#74808e"/></svg>'
 ];
-function makePixLabel(text, px, color){
-  const c=document.createElement('canvas');
-  const g=c.getContext('2d');
-  g.font=px+'px monospace';
-  const w=Math.ceil(g.measureText(text).width)+6;
-  const h=px+6;
-  c.width=w; c.height=h;
-  const g2=c.getContext('2d');
-  g2.font=px+'px monospace'; g2.textBaseline='middle'; g2.fillStyle=color;
-  g2.fillText(text,3,h/2);
-  c.style.width=(w*3)+'px'; c.style.height=(h*3)+'px';
-  c.style.imageRendering='pixelated';
-  return c;
-}
-function setPixLabel(id, text, px, color){
-  const el=document.getElementById(id);
-  if(!el||el.childElementCount) return;
-  el.appendChild(makePixLabel(text, px, color));
-}
-setPixLabel('bagTitle','背包',16,'#f8fafc');
-setPixLabel('bagCap','15|100 容量',10,'#94a3b8');
-setPixLabel('eqTitle','装备',18,'#f8fafc');
-setPixLabel('capW','武器',10,'#94a3b8');
-setPixLabel('capA','防具',10,'#94a3b8');
-setPixLabel('capAcc','饰品',10,'#94a3b8');
-
 function openEquip(){
   document.getElementById('equipWrap').classList.remove('hidden');
   document.querySelectorAll('#equipWrap [data-armor]').forEach(el=>{
