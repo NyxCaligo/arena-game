@@ -96,11 +96,12 @@
 <script>
 "use strict";
 const VW=352, VH=176, TILE=16, WCOLS=44, WROWS=30;
+const RES=2;   // 内部渲染精度：2 倍，像素视觉大小不变，但镜头可半格移动
 const WORLD_W=WCOLS*TILE, WORLD_H=WROWS*TILE;
 const JBX=VW*0.2, JBY=VH*0.8, JR=26;   // 常驻摇杆位置（左下）
 const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
-const off = document.createElement('canvas'); off.width=VW; off.height=VH;
-const octx = off.getContext('2d'); octx.imageSmoothingEnabled=false;
+const off = document.createElement('canvas'); off.width=VW*RES; off.height=VH*RES;
+const octx = off.getContext('2d'); octx.imageSmoothingEnabled=false; octx.setTransform(RES,0,0,RES,0,0);
 
 let cssScale=1, oxCss=0, oyCss=0, dpr=1;
 function resize(){
@@ -108,7 +109,8 @@ function resize(){
   const W = window.innerWidth, H = window.innerHeight;
   cv.width = Math.round(W*dpr); cv.height = Math.round(H*dpr);
   cv.style.width = W+'px'; cv.style.height = H+'px';
-  cssScale = Math.max(1, Math.floor(Math.min(cv.width/VW, cv.height/VH)));
+  const s = Math.max(1, Math.floor(Math.min(cv.width/(VW*RES), cv.height/(VH*RES))));
+  cssScale = s*RES;
   oxCss = Math.floor((cv.width - VW*cssScale)/2);
   oyCss = Math.floor((cv.height - VH*cssScale)/2);
   ctx.imageSmoothingEnabled = false;
@@ -221,8 +223,8 @@ function update(dt){
     }
   }
   if(!(joy.active && Math.hypot(joy.dx,joy.dy)>2)) walkPhase = 0;
-  camX = Math.round(Math.max(0, Math.min(WORLD_W-VW, player.x-VW/2)));
-  camY = Math.round(Math.max(0, Math.min(WORLD_H-VH, player.y-VH/2)));
+  camX = Math.round(Math.max(0, Math.min(WORLD_W-VW, player.x-VW/2))*RES)/RES;
+  camY = Math.round(Math.max(0, Math.min(WORLD_H-VH, player.y-VH/2))*RES)/RES;
 }
 
 // ---------- 像素字体 ----------
@@ -257,7 +259,7 @@ function drawBar(x,y,w,h,frac,color){
 }
 
 // ---------- 绘制 ----------
-function px(x,y,w,h,c){ octx.fillStyle=c; octx.fillRect(Math.round(x),Math.round(y),Math.round(w),Math.round(h)); }
+function px(x,y,w,h,c){ octx.fillStyle=c; octx.fillRect(Math.round(x*RES)/RES,Math.round(y*RES)/RES,Math.round(w*RES)/RES,Math.round(h*RES)/RES); }
 function fillCircle(x,y,r,c){ octx.fillStyle=c; octx.beginPath(); octx.arc(x,y,r,0,7); octx.fill(); }
 
 function drawGrass(sx,sy,tx,ty){
@@ -339,7 +341,7 @@ function drawBorderDeco(d){
 
 // ---------- 主角：椭圆头身连体 + 红帽子 ----------
 function drawHero(){
-  const cx=Math.round(player.x-camX), cy=Math.round(player.y-camY);
+  const cx=Math.round((player.x-camX)*RES)/RES, cy=Math.round((player.y-camY)*RES)/RES;
   octx.fillStyle='rgba(0,0,0,.28)';
   octx.beginPath(); octx.ellipse(cx, cy+8, 5, 2, 0, 0, 7); octx.fill();
 
@@ -349,7 +351,7 @@ function drawHero(){
   const bounce = moving ? Math.abs(Math.sin(walkPhase))*1.4 : 0;
 
   octx.save();
-  octx.translate(cx, Math.round(cy - bounce));
+  octx.translate(cx, Math.round((cy-bounce)*RES)/RES);
   if(player.face<0) octx.scale(-1,1);
 
   // 红色披风内衬（身后，略窄）
