@@ -370,8 +370,9 @@ function joyMove(vx,vy){
 cv.addEventListener('touchstart', e=>{
   if(state!=='city') return;
   const t=e.touches[0]; const [vx,vy]=toV(t.clientX,t.clientY);
-  const L=equipLayout();
+  const L=equipLayout(), H=L.hudBox;
   if(vx>=L.swx&&vx<=L.swx+L.swordS&&vy>=L.swy&&vy<=L.swy+L.swordS){ openEquip(); return; }
+  if(vx>=H.x0&&vx<=H.x1&&vy>=H.y0&&vy<=H.y1){ openEquip(); return; }
   if(vx < VW*0.5 && vy > VH*0.5){ joy.active=true; joyMove(vx,vy); }
 }, {passive:true});
 cv.addEventListener('touchmove', e=>{
@@ -383,8 +384,9 @@ cv.addEventListener('touchend', ()=>{ joy.active=false; joy.dx=joy.dy=0; }, {pas
 cv.addEventListener('touchcancel', ()=>{ joy.active=false; joy.dx=joy.dy=0; }, {passive:true});
 cv.addEventListener('mousedown', e=>{
   if(state!=='city')return; const [vx,vy]=toV(e.clientX,e.clientY);
-  const L=equipLayout();
+  const L=equipLayout(), H=L.hudBox;
   if(vx>=L.swx&&vx<=L.swx+L.swordS&&vy>=L.swy&&vy<=L.swy+L.swordS){ openEquip(); return; }
+  if(vx>=H.x0&&vx<=H.x1&&vy>=H.y0&&vy<=H.y1){ openEquip(); return; }
   if(vx<VW*0.5 && vy>VH*0.5){ joy.active=true; joyMove(vx,vy); }
 });
 cv.addEventListener('mousemove', e=>{ if(!joy.active)return; const [vx,vy]=toV(e.clientX,e.clientY); joyMove(vx,vy); });
@@ -398,11 +400,11 @@ function solidAt(px,py){
   for(const b of BUILDINGS){ if(px>=b.x&&px<=b.x+b.w&&py>=b.y&&py<=b.y+b.h) return true; }
   for(const p of PROPS){
     let x0,y0,x1,y1;
-    if(p.type==='well'){ x0=p.x-14; y0=p.y-8; x1=p.x+14; y1=p.y+2; }
-    else if(p.type==='flower'){ x0=p.x-13; y0=p.y-7; x1=p.x+13; y1=p.y+1; }
-    else if(p.type==='crate'){ x0=p.x-6; y0=p.y-10; x1=p.x+6; y1=p.y; }
-    else if(p.type==='lamp'){ x0=p.x-3; y0=p.y-24; x1=p.x+3; y1=p.y; }
-    else if(p.type==='fence'){ x0=p.x; y0=p.y-12; x1=p.x+(p.n||5)*6; y1=p.y; }
+    if(p.type==='well'){ x0=p.x-12; y0=p.y-7; x1=p.x+12; y1=p.y+1; }
+    else if(p.type==='flower'){ x0=p.x-11; y0=p.y-6; x1=p.x+11; y1=p.y; }
+    else if(p.type==='crate'){ x0=p.x-5; y0=p.y-9; x1=p.x+5; y1=p.y-1; }
+    else if(p.type==='lamp'){ x0=p.x-2; y0=p.y-24; x1=p.x+2; y1=p.y-2; }
+    else if(p.type==='fence'){ x0=p.x; y0=p.y-11; x1=p.x+(p.n||5)*6; y1=p.y-1; }
     else continue;
     if(px>=x0&&px<=x1&&py>=y0&&py<=y1) return true;
   }
@@ -429,6 +431,13 @@ function update(dt){
     }
   }
   if(!(joy.active && Math.hypot(joy.dx,joy.dy)>2)) walkPhase = 0;
+  if(solidAt(player.x,player.y)){
+    let freed=false;
+    for(const d of [[0,-4],[0,4],[-4,0],[4,0],[-4,-4],[4,-4],[-4,4],[4,4],[0,-8],[0,8],[-8,0],[8,0]]){
+      if(!solidAt(player.x+d[0],player.y+d[1])){ player.x+=d[0]; player.y+=d[1]; freed=true; break; }
+    }
+    if(!freed){ player.x=680; player.y=448; }
+  }
   const tcx=Math.max(0, Math.min(WORLD_W-VW, player.x-VW/2));
   const tcy=Math.max(0, Math.min(WORLD_H-VH, player.y-VH/2));
   const k=1-Math.exp(-dt*12);
@@ -1156,12 +1165,13 @@ function equipLayout(){
   const GS=accW+pad*2, GSH=labelH+accH+pad*2;
   const totalW=GA+gap+GW+gap+GS+gap+swordS;
   const x0=Math.round(VW/2-totalW/2), bottom=VH-5;
+  const hudBox={x0:x0-4, y0:Math.min(bottom-GAH,bottom-GH,bottom-GSH)-4, x1:x0+totalW+4, y1:bottom+4};
   return {
     pad,labelH,gap,swordS,WS,AS,SS,GW,GH,GA,GAH,GS,GSH,
     ax:x0, ay:bottom-GAH,
     wx:x0+GA+gap, wy:bottom-GH,
     sx:x0+GA+gap+GW+gap, sy:bottom-GSH,
-    swx:x0+GA+gap+GW+gap+GS+gap, swy:bottom-swordS
+    swx:x0+GA+gap+GW+gap+GS+gap, swy:bottom-swordS, hudBox
   };
 }
 function eqSlot(x,y,sz){
@@ -1188,11 +1198,11 @@ function armorIcon(x,y,sz,i){
     px(x+3,y+5,6,4,c1);
     px(x+4,y+6,4,1,c2);
     px(x+4,y+9,4,1,c2);
-  } else { // 护腿：两条分开的腿
-    px(x+2,y+2,3,4,c1); px(x+7,y+2,3,4,c1);
+  } else { // 护腿：两条分开的腿（与其它图标同尺寸）
+    px(x+2,y+3,3,3,c1); px(x+7,y+3,3,3,c1);
     px(x+2,y+6,3,1,c2); px(x+7,y+6,3,1,c2);
-    px(x+2,y+7,3,3,c1); px(x+7,y+7,3,3,c1);
-    px(x+1,y+10,4,1,c2); px(x+7,y+10,4,1,c2);
+    px(x+2,y+7,3,2,c1); px(x+7,y+7,3,2,c1);
+    px(x+1,y+9,4,1,c2); px(x+7,y+9,4,1,c2);
   }
 }
 function eqGroup(x,y,w,h,label){
@@ -1234,7 +1244,7 @@ function fillSlots(el,n,labels){
 const ARMOR_SVG=[
   '<svg width="34" height="34" viewBox="0 0 12 12" shape-rendering="crispEdges"><rect x="4" y="1" width="4" height="1" fill="#9aa5b1"/><rect x="3" y="2" width="6" height="1" fill="#9aa5b1"/><rect x="2" y="3" width="8" height="2" fill="#9aa5b1"/><rect x="3" y="5" width="6" height="1" fill="#232c38"/><rect x="2" y="5" width="1" height="3" fill="#74808e"/><rect x="9" y="5" width="1" height="3" fill="#74808e"/><rect x="3" y="6" width="6" height="2" fill="#9aa5b1"/><rect x="3" y="8" width="6" height="1" fill="#74808e"/></svg>',
   '<svg width="34" height="34" viewBox="0 0 12 12" shape-rendering="crispEdges"><rect x="4" y="1" width="4" height="1" fill="#74808e"/><rect x="1" y="2" width="2" height="3" fill="#74808e"/><rect x="9" y="2" width="2" height="3" fill="#74808e"/><rect x="3" y="2" width="6" height="2" fill="#9aa5b1"/><rect x="5" y="2" width="2" height="2" fill="#232c38"/><rect x="3" y="4" width="6" height="4" fill="#9aa5b1"/><rect x="4" y="5" width="4" height="1" fill="#74808e"/><rect x="4" y="8" width="4" height="1" fill="#74808e"/></svg>',
-  '<svg width="34" height="34" viewBox="0 0 12 12" shape-rendering="crispEdges"><rect x="2" y="2" width="3" height="4" fill="#9aa5b1"/><rect x="7" y="2" width="3" height="4" fill="#9aa5b1"/><rect x="2" y="6" width="3" height="1" fill="#74808e"/><rect x="7" y="6" width="3" height="1" fill="#74808e"/><rect x="2" y="7" width="3" height="3" fill="#9aa5b1"/><rect x="7" y="7" width="3" height="3" fill="#9aa5b1"/><rect x="1" y="10" width="4" height="1" fill="#74808e"/><rect x="7" y="10" width="4" height="1" fill="#74808e"/></svg>'
+  '<svg width="34" height="34" viewBox="0 0 12 12" shape-rendering="crispEdges"><rect x="2" y="3" width="3" height="3" fill="#9aa5b1"/><rect x="7" y="3" width="3" height="3" fill="#9aa5b1"/><rect x="2" y="6" width="3" height="1" fill="#74808e"/><rect x="7" y="6" width="3" height="1" fill="#74808e"/><rect x="2" y="7" width="3" height="2" fill="#9aa5b1"/><rect x="7" y="7" width="3" height="2" fill="#9aa5b1"/><rect x="1" y="9" width="4" height="1" fill="#74808e"/><rect x="7" y="9" width="4" height="1" fill="#74808e"/></svg>'
 ];
 function makePixLabel(text, px, color){
   const c=document.createElement('canvas');
@@ -1247,7 +1257,7 @@ function makePixLabel(text, px, color){
   g.fillText(text,2,2);
   try{
     const img=g.getImageData(0,0,w,h), d=img.data;
-    for(let i=0;i<d.length;i+=4) d[i+3]=d[i+3]>100?255:0;
+    for(let i=0;i<d.length;i+=4) d[i+3]=d[i+3]>55?255:0;
     g.putImageData(img,0,0);
     g.globalCompositeOperation='source-in';
     g.fillStyle=color; g.fillRect(0,0,w,h);
@@ -1262,27 +1272,30 @@ function setPixLabel(id, text, px, color){
   if(!el||el.childElementCount) return;
   el.appendChild(makePixLabel(text, px, color));
 }
-setPixLabel('bagTitle','背包',11,'#f8fafc');
-setPixLabel('bagCap','15|100 容量',9,'#94a3b8');
-setPixLabel('eqTitle','装备',11,'#f8fafc');
-setPixLabel('capW','武器',9,'#94a3b8');
-setPixLabel('capA','防具',9,'#94a3b8');
-setPixLabel('capAcc','饰品',9,'#94a3b8');
+setPixLabel('bagTitle','背包',15,'#f8fafc');
+setPixLabel('bagCap','15|100 容量',12,'#94a3b8');
+setPixLabel('eqTitle','装备',15,'#f8fafc');
+setPixLabel('capW','武器',12,'#94a3b8');
+setPixLabel('capA','防具',12,'#94a3b8');
+setPixLabel('capAcc','饰品',12,'#94a3b8');
 
+let equipOpenAt=0, bagOpenAt=0;
 function openEquip(){
+  equipOpenAt=performance.now();
   document.getElementById('equipWrap').classList.remove('hidden');
   document.querySelectorAll('#equipWrap [data-armor]').forEach(el=>{
     if(!el.innerHTML) el.innerHTML = ARMOR_SVG[+el.dataset.armor] || '';
   });
 }
 function openBag(){
+  bagOpenAt=performance.now();
   fillSlots(document.getElementById('bagGrid'),100,null);
   document.getElementById('bagWrap').classList.remove('hidden');
 }
 document.getElementById('eqClose').onclick=()=>document.getElementById('equipWrap').classList.add('hidden');
-document.getElementById('equipBg').onclick=()=>document.getElementById('equipWrap').classList.add('hidden');
+document.getElementById('equipBg').onclick=()=>{ if(performance.now()-equipOpenAt<450) return; document.getElementById('equipWrap').classList.add('hidden'); };
 document.getElementById('bagClose').onclick=()=>document.getElementById('bagWrap').classList.add('hidden');
-document.getElementById('bagBg').onclick=()=>document.getElementById('bagWrap').classList.add('hidden');
+document.getElementById('bagBg').onclick=()=>{ if(performance.now()-bagOpenAt<450) return; document.getElementById('bagWrap').classList.add('hidden'); };
 document.getElementById('bagBtn').onclick=openBag;
 
 // ---------- 横屏提示 ----------
