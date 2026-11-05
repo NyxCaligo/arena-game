@@ -645,6 +645,84 @@ function drawNPC(){
   px(x+5,y-1,2,3,'#a87c50');
 }
 
+function drawBoundaryBase(sx,sy,tx,ty){
+  const h=hash(tx*3+1,ty*7+5);
+  octx.fillStyle = h<0.5 ? '#8a919c' : '#828994';
+  octx.fillRect(sx,sy,TILE,TILE);
+  octx.fillStyle='#a9b0bb';
+  octx.fillRect(sx,sy,TILE,2);
+  octx.fillRect(sx,sy,2,TILE);
+  octx.fillStyle='#666d78';
+  octx.fillRect(sx,sy+TILE-2,TILE,2);
+  octx.fillRect(sx+TILE-2,sy,2,TILE);
+  if(h>0.6) px(sx+4,sy+5,4,2,'#949ba6');
+  if(h<0.4) px(sx+9,sy+10,4,2,'#737a85');
+}
+
+function drawHero(){
+  const cx=Math.round((player.x-camX)*RES)/RES, cy=Math.round((player.y-camY)*RES)/RES;
+  octx.fillStyle='rgba(0,0,0,.28)';
+  octx.beginPath(); octx.ellipse(cx, cy+8, 5, 2, 0, 0, 7); octx.fill();
+
+  const moving = joy.active && (Math.abs(joy.dx)+Math.abs(joy.dy))>2;
+  const sw = moving ? Math.sin(walkPhase)*2.0 : 0;
+  const ab = moving ? Math.sin(walkPhase)*1.3 : 0;
+  const bounce = moving ? Math.abs(Math.sin(walkPhase))*1.4 : 0;
+
+  octx.save();
+  octx.translate(cx, Math.round((cy-bounce)*RES)/RES);
+  if(player.face<0) octx.scale(-1,1);
+
+  px(-4, -5, 9, 9, '#6d1a1a');
+  px(-2+sw, 4, 2, 4, '#17171a');
+  px(0.5-sw, 4, 2, 4, '#17171a');
+  px(-2.5+sw, 7, 3, 2, '#050507');
+  px(0.5-sw, 7, 3, 2, '#050507');
+  px(-3, -4, 7, 8, '#141416');
+  px(-3, -4, 7, 1, '#2a2a30');
+  px(0, -3, 1, 5, '#b91c1c');
+  px(-1, -3, 3, 1, '#b91c1c');
+  px(1, -1, 1, 1, '#d4b24a');
+  px(1, 1, 1, 1, '#d4b24a');
+  px(-5, -4-ab, 2, 4, '#141416');
+  px(4, -4+ab, 2, 4, '#141416');
+  px(-5, 0-ab, 2, 2, '#08080a');
+  px(4, 0+ab, 2, 2, '#08080a');
+  px(-2, -8, 5, 4, '#f0c9a0');
+  px(-2, -7, 2, 2, '#f2c23c');
+  px(1, -7, 2, 2, '#f2c23c');
+  px(-3, -10, 7, 2, '#191919');
+  px(-4, -9, 2, 4, '#191919');
+  px(3, -9, 2, 4, '#191919');
+  px(-3, -11, 2, 1, '#191919');
+  px(1, -11, 2, 1, '#191919');
+  px(-1, -12, 1, 2, '#191919');
+  px(2, -12, 1, 2, '#191919');
+  px(2, -10, 2, 3, '#de2b2b');
+  octx.restore();
+}
+
+function drawHUD(){
+  drawIcon(IC.heart, 4, 4, '#f43f5e');
+  drawBar(11, 5, 64, 7, player.hp/player.maxHp, '#fb7185');
+  drawText(String(Math.max(0,Math.ceil(player.hp))), 11, 14, '#f8fafc');
+  drawText('LV', 4, 23, '#a5b4fc');
+  drawText(String(level), 13, 23, '#f8fafc');
+  drawBar(26, 24, 49, 4, xp/xpNeed, '#38bdf8');
+}
+
+function drawJoystick(){
+  octx.strokeStyle='rgba(20,30,20,.45)'; octx.lineWidth=3;
+  octx.beginPath(); octx.arc(JBX,JBY,JR,0,7); octx.stroke();
+  octx.fillStyle='rgba(255,255,255,.14)';
+  octx.beginPath(); octx.arc(JBX,JBY,JR-3,0,7); octx.fill();
+  const kx=JBX+(joy.active?joy.dx:0), ky=JBY+(joy.active?joy.dy:0);
+  octx.fillStyle='rgba(255,255,255,.55)';
+  octx.beginPath(); octx.arc(kx,ky,9,0,7); octx.fill();
+  octx.fillStyle='rgba(0,0,0,.25)';
+  octx.beginPath(); octx.arc(kx,ky,9,0,7); octx.stroke();
+}
+
 function buildGround(){
   baking = true;
   const saved = octx;
