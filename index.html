@@ -9,7 +9,7 @@
   html,body { width:100%; height:100%; overflow:hidden; background:#05070d; }
   body { font-family:"Courier New",monospace; color:#e2e8f0;
          touch-action:none; user-select:none; -webkit-user-select:none; }
-  #cv { position:fixed; inset:0; display:block; touch-action:none; }
+  #cv { position:fixed; inset:0; display:block; touch-action:none; image-rendering:pixelated; }
   .ov { position:fixed; inset:0; display:flex; flex-direction:column; align-items:center;
         justify-content:center; gap:18px; background:rgba(5,7,13,.94); text-align:center; padding:24px; z-index:5; }
   .ov.hidden { display:none; }
@@ -102,12 +102,15 @@ const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
 const off = document.createElement('canvas'); off.width=VW; off.height=VH;
 const octx = off.getContext('2d'); octx.imageSmoothingEnabled=false;
 
-let cssScale=1, oxCss=0, oyCss=0;
+let cssScale=1, oxCss=0, oyCss=0, dpr=1;
 function resize(){
-  cv.width = window.innerWidth; cv.height = window.innerHeight;
-  cssScale = Math.min(cv.width/VW, cv.height/VH);
-  oxCss = (cv.width - VW*cssScale)/2;
-  oyCss = (cv.height - VH*cssScale)/2;
+  dpr = window.devicePixelRatio || 1;
+  const W = window.innerWidth, H = window.innerHeight;
+  cv.width = Math.round(W*dpr); cv.height = Math.round(H*dpr);
+  cv.style.width = W+'px'; cv.style.height = H+'px';
+  cssScale = Math.max(1, Math.floor(Math.min(cv.width/VW, cv.height/VH)));
+  oxCss = Math.floor((cv.width - VW*cssScale)/2);
+  oyCss = Math.floor((cv.height - VH*cssScale)/2);
   ctx.imageSmoothingEnabled = false;
 }
 resize();
@@ -168,7 +171,7 @@ function resetGame(){
 
 // ---------- 输入（常驻摇杆，仅右下角 1/4 可操作） ----------
 let joy={active:false, dx:0, dy:0};
-function toV(x,y){ return [(x-oxCss)/cssScale, (y-oyCss)/cssScale]; }
+function toV(x,y){ return [((x*dpr)-oxCss)/cssScale, ((y*dpr)-oyCss)/cssScale]; }
 function joyMove(vx,vy){
   const dx=vx-JBX, dy=vy-JBY, d=Math.hypot(dx,dy), m=d>JR?JR/d:1;
   joy.dx=dx*m; joy.dy=dy*m;
