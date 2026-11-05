@@ -391,6 +391,7 @@
     <div class="panel-head">
       <span class="pixlabel" id="bagTitle"></span>
       <span class="pixlabel" id="bagCap"></span>
+      <span id="bagDbg" style="font-size:9px;color:#64748b;margin-left:auto;margin-right:6px;"></span>
       <button id="bagSort" class="miniBtn">整理</button>
       <button class="xBtn" id="bagClose">✕</button>
     </div>
@@ -2285,12 +2286,16 @@ function updateBagScroll(){
   if(!v||!track||!thumb) return;
   const vh=v.clientHeight||0, sh=v.scrollHeight||0;
   const max=sh-vh;
+  const dbg0=document.getElementById('bagDbg');
+  if(dbg0) dbg0.textContent=Math.round(v.scrollTop)+'/'+Math.round(max);
   if(max<=2){ track.style.display='none'; return; }
   track.style.display='block';
   const thH=Math.max(18, Math.round(vh*vh/sh));
   const travel=Math.max(1, vh-thH);
   thumb.style.height=thH+'px';
   thumb.style.top=Math.round(travel*(v.scrollTop/max))+'px';
+  const dbg=document.getElementById('bagDbg');
+  if(dbg) dbg.textContent=Math.round(v.scrollTop)+'/'+Math.round(max);
 }
 function bagSet(y){
   const v=bagViewEl(); if(!v) return;
