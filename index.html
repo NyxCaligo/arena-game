@@ -208,12 +208,14 @@
   .eq-cap { font-size:12px; color:#94a3b8; letter-spacing:2px; text-align:left; width:100%; }
   .eq-row { display:flex; gap:8px; }
   .eq-box .eq-slot { width:52px; height:52px; }
-  #bagWrap .modal-box { max-height:86vh; overflow-y:auto; overscroll-behavior:contain; }
-  .bag-scroll { width:100%; overflow:visible; }
-  .modal-box::-webkit-scrollbar { width:16px; }
-  .modal-box::-webkit-scrollbar-track { background:#0b0f1a; border-left:1px solid #1e293b; }
-  .modal-box::-webkit-scrollbar-thumb { background:#5b6472; border:2px solid #9aa5b1; border-radius:0; }
-  .modal-box { scrollbar-width:auto; }
+  #bagWrap .modal-box { max-height:86vh; overflow:hidden; display:flex; flex-direction:column; }
+  .bag-scrollwrap { position:relative; width:100%; flex:1 1 auto; min-height:0; display:flex; }
+  .bag-scroll { flex:1 1 auto; min-height:0; width:100%; overflow-y:auto; overflow-x:hidden;
+                padding-right:20px; -webkit-overflow-scrolling:touch; }
+  .bag-scroll::-webkit-scrollbar { width:0; height:0; }
+  .bag-track { position:absolute; right:2px; top:0; bottom:0; width:14px; background:#0b0f1a; border:1px solid #1e293b; }
+  .bag-thumb { position:absolute; left:0; right:0; top:0; height:40px; background:#5b6472;
+               border:1px solid #9aa5b1; box-shadow:inset 0 1px 0 #7b8492; }
   .bag-grid .eq-slot { width:100%; height:auto; aspect-ratio:1/1; position:relative; padding:0;
                        display:flex; align-items:center; justify-content:center; touch-action:manipulation; }
   .bag-grid .item-name { position:absolute; left:0; right:0; bottom:1px; font-size:9px; text-align:center;
@@ -396,7 +398,10 @@
       <button class="catBtn" data-f="armor">防具</button>
       <button class="catBtn" data-f="acc">饰品</button>
     </div>
-    <div class="bag-scroll" id="bagScroll"><div class="bag-grid" id="bagGrid"></div></div>
+    <div class="bag-scrollwrap" id="bagScrollWrap">
+      <div class="bag-scroll" id="bagScroll"><div class="bag-grid" id="bagGrid"></div></div>
+      <div class="bag-track" id="bagTrack"><div class="bag-thumb" id="bagThumb"></div></div>
+    </div>
   </div>
 </div>
 <div id="settingsBackdrop" class="hidden"></div>
@@ -2265,11 +2270,11 @@ function updateBagScroll(){
   const ch=sc.clientHeight||0, sh=sc.scrollHeight||0;
   if(!ch || sh<=ch+2){ th.style.display='none'; return; }
   th.style.display='block';
-  const thH=Math.min(ch-16, Math.max(Math.round(ch*0.30), Math.round(ch*ch/sh)));
+  const thH=Math.max(24, Math.round(ch*ch/sh));
   const maxTop=Math.max(1, ch-thH);
   const top=Math.round(maxTop*(sc.scrollTop/Math.max(1,sh-ch)));
   th.style.height=thH+'px';
-  th.style.top=top+'px';
+  th.style.top=Math.max(0,Math.min(maxTop,top))+'px';
 }
 let bagDrag=null;
 function bindScrollbar(){
@@ -2297,6 +2302,19 @@ function bindScrollbar(){
   addEventListener('touchend', end);
   addEventListener('mousemove', move);
   addEventListener('mouseup', end);
+  const track=document.getElementById('bagTrack');
+  if(track){
+    track.addEventListener('touchstart', (e)=>{
+      const t=e.touches?e.touches[0]:e;
+      const r=track.getBoundingClientRect();
+      const ch=sc.clientHeight, sh=sc.scrollHeight, thH=th.offsetHeight||24;
+      const maxTop=Math.max(1, ch-thH);
+      const rel=Math.max(0, Math.min(maxTop, t.clientY-r.top-thH/2));
+      sc.scrollTop = rel*(sh-ch)/maxTop;
+      updateBagScroll();
+      if(e.cancelable) e.preventDefault();
+    }, {passive:false});
+  }
 }
 function bindSort(){
   const b=document.getElementById('bagSort'); if(!b) return;
@@ -2308,10 +2326,10 @@ function bindSort(){
 }
 function openBag(){
   bagOpenAt=performance.now();
+  document.getElementById('bagWrap').classList.remove('hidden');
   bindCatBtns(); bindSort(); bindScrollbar();
   renderBag();
-  setTimeout(updateBagScroll, 30);
-  document.getElementById('bagWrap').classList.remove('hidden');
+  requestAnimationFrame(()=>{ updateBagScroll(); requestAnimationFrame(updateBagScroll); });
 }
 document.getElementById('eqClose').onclick=()=>document.getElementById('equipWrap').classList.add('hidden');
 document.getElementById('equipBg').onclick=()=>{ if(performance.now()-equipOpenAt<450) return; document.getElementById('equipWrap').classList.add('hidden'); };
