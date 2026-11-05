@@ -218,8 +218,8 @@ function update(dt){
     }
   }
   if(!(joy.active && Math.hypot(joy.dx,joy.dy)>2)) walkPhase = 0;
-  camX = Math.max(0, Math.min(WORLD_W-VW, player.x-VW/2));
-  camY = Math.max(0, Math.min(WORLD_H-VH, player.y-VH/2));
+  camX = Math.round(Math.max(0, Math.min(WORLD_W-VW, player.x-VW/2)));
+  camY = Math.round(Math.max(0, Math.min(WORLD_H-VH, player.y-VH/2)));
 }
 
 // ---------- 像素字体 ----------
@@ -336,7 +336,7 @@ function drawBorderDeco(d){
 
 // ---------- 主角：椭圆头身连体 + 红帽子 ----------
 function drawHero(){
-  const cx=player.x-camX, cy=player.y-camY;
+  const cx=Math.round(player.x-camX), cy=Math.round(player.y-camY);
   octx.fillStyle='rgba(0,0,0,.28)';
   octx.beginPath(); octx.ellipse(cx, cy+8, 5, 2, 0, 0, 7); octx.fill();
 
@@ -346,7 +346,7 @@ function drawHero(){
   const bounce = moving ? Math.abs(Math.sin(walkPhase))*1.4 : 0;
 
   octx.save();
-  octx.translate(cx, cy - bounce);
+  octx.translate(cx, Math.round(cy - bounce));
   if(player.face<0) octx.scale(-1,1);
 
   // 红色披风内衬（身后，略窄）
