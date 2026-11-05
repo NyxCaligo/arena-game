@@ -205,6 +205,10 @@
     </div>
     <button id="fullscreenBtn" class="sp-full">全屏</button>
     <button id="vibToggle" class="sp-full sp-alt">振动：开</button>
+    <div class="sp-group">
+      <div class="sp-label">整体震感</div>
+      <input type="range" id="vibPower" min="0" max="100" value="100">
+    </div>
     <button id="muteAll" class="sp-full sp-alt">一键静音：关</button>
     <button id="openSave" class="sp-full sp-alt">存档</button>
   </div>
@@ -414,7 +418,7 @@ cv.addEventListener('touchstart', e=>{
   const L=equipLayout(), H=L.hudBox;
   if(vx>=L.swx&&vx<=L.swx+L.swordS&&vy>=L.swy&&vy<=L.swy+L.swordS){ openEquip(); return; }
   if(vx>=H.x0&&vx<=H.x1&&vy>=H.y0&&vy<=H.y1){ openEquip(); return; }
-  if(vx < VW*0.5 && vy > VH*0.5){ joy.active=true; joyMove(vx,vy); vibrate(12); }
+  if(vx < VW*0.5 && vy > VH*0.5){ joy.active=true; joyMove(vx,vy); vibrate(1); }
 }, {passive:true});
 cv.addEventListener('touchmove', e=>{
   if(!joy.active) return;
@@ -428,7 +432,7 @@ cv.addEventListener('mousedown', e=>{
   const L=equipLayout(), H=L.hudBox;
   if(vx>=L.swx&&vx<=L.swx+L.swordS&&vy>=L.swy&&vy<=L.swy+L.swordS){ openEquip(); return; }
   if(vx>=H.x0&&vx<=H.x1&&vy>=H.y0&&vy<=H.y1){ openEquip(); return; }
-  if(vx<VW*0.5 && vy>VH*0.5){ joy.active=true; joyMove(vx,vy); vibrate(12); }
+  if(vx<VW*0.5 && vy>VH*0.5){ joy.active=true; joyMove(vx,vy); vibrate(1); }
 });
 cv.addEventListener('mousemove', e=>{ if(!joy.active)return; const [vx,vy]=toV(e.clientX,e.clientY); joyMove(vx,vy); });
 cv.addEventListener('mouseup', ()=>{ joy.active=false; joy.dx=joy.dy=0; });
@@ -467,7 +471,7 @@ function update(dt){
       tryMove(joy.dx/d*player.speed*dt, joy.dy/d*player.speed*dt);
       walkPhase += dt*16;
       const si=Math.floor(walkPhase/Math.PI);
-      if(si!==lastStep){ lastStep=si; playStep(); if(si%2===0) vibrate(6); }
+      if(si!==lastStep){ lastStep=si; playStep(); if(si%2===0) vibrate(1); }
       if(joy.dx>2) player.face=1; else if(joy.dx<-2) player.face=-1;
     }
   }
@@ -1088,8 +1092,13 @@ function playStep(){
   src.connect(lp); lp.connect(g); g.connect(sfxGain);
   src.start(t); src.stop(t+0.16);
 }
-let mutedAll=false, vibOn=true;
-function vibrate(ms){ try{ if(vibOn && navigator.vibrate) navigator.vibrate(ms); }catch(e){} }
+let mutedAll=false, vibOn=true, vibPower=100;
+const VIB={1:10, 2:20, 3:34};
+function vibrate(level){
+  if(!vibOn || vibPower<=0) return;
+  const ms=Math.round((VIB[level]||10)*(vibPower/100));
+  try{ if(ms>0 && navigator.vibrate) navigator.vibrate(ms); }catch(e){}
+}
 function sfxDrop(){
   if(!actx||!sfxOn||mutedAll) return;
   const t=actx.currentTime;
@@ -1426,7 +1435,7 @@ function renderBag(){
       bindItemSlot(d,
         ()=>showItemMenu(id, [
           {label:'查看', fn:()=>openItemDetail(id)},
-          {label:'穿', fn:()=>{ if(equipItem(id)){ renderBag(); renderEquipPanel(); saveGame(); } }}
+          {label:'装配', fn:()=>{ vibrate(3); if(equipItem(id)){ renderBag(); renderEquipPanel(); saveGame(); } }}
         ], d),
         ()=>openItemDetail(id)
       );
@@ -1444,7 +1453,7 @@ function renderEquipPanel(){
     if(cur) bindItemSlot(d,
       ()=>showItemMenu(cur, [
         {label:'查看', fn:()=>openItemDetail(cur)},
-        {label:'卸', fn:()=>{ unequip(t,i); renderEquipPanel(); renderBag(); saveGame(); }}
+        {label:'卸下', fn:()=>{ vibrate(3); unequip(t,i); renderEquipPanel(); renderBag(); saveGame(); }}
       ], d),
       ()=>openItemDetail(cur)
     );
@@ -1464,7 +1473,7 @@ function bindItemSlot(el, onTap, onLong){
     if(timer) clearTimeout(timer);
     timer=setTimeout(()=>{ timer=null; longFired=true; onLong(); }, 450);
   };
-  const finish=()=>{ if(timer){ clearTimeout(timer); timer=null; if(!longFired){ sfxBeep(); onTap(); } } };
+  const finish=()=>{ if(timer){ clearTimeout(timer); timer=null; if(!longFired){ sfxBeep(); vibrate(2); onTap(); } } };
   const cancel=()=>{ if(timer){ clearTimeout(timer); timer=null; } };
   el.addEventListener('touchstart', start, {passive:false});
   el.addEventListener('touchend', finish);
@@ -1486,7 +1495,7 @@ function showItemMenu(id, opts, anchor){
   for(const o of opts){
     const b=document.createElement('button');
     b.textContent=o.label;
-    b.onclick=(e)=>{ e.stopPropagation(); sfxBeep(); closeItemMenu(); o.fn(); };
+    b.onclick=(e)=>{ e.stopPropagation(); sfxBeep(); vibrate(2); closeItemMenu(); o.fn(); };
     box.appendChild(b);
   }
   menuOpenAt=performance.now();
@@ -1592,7 +1601,11 @@ document.getElementById('vibToggle').onclick=()=>{
   const b=document.getElementById('vibToggle');
   b.textContent='振动：'+(vibOn?'开':'关');
   b.classList.toggle('on', vibOn);
-  vibrate(30);
+  vibrate(3);
+};
+document.getElementById('vibPower').oninput=(e)=>{
+  vibPower=+e.target.value;
+  vibrate(2);
 };
 document.getElementById('muteAll').onclick=()=>{
   mutedAll=!mutedAll;
