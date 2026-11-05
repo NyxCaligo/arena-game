@@ -22,10 +22,14 @@
            background:#4ade80; color:#052e16; border:2px solid #052e16; border-radius:0;
            box-shadow:0 4px 0 #052e16; padding:13px 34px; cursor:pointer; }
   button:active { transform:translateY(3px); box-shadow:0 1px 0 #052e16; }
-  #fsBtn { position:fixed; top:8px; right:8px; z-index:6; padding:6px 10px; font-size:14px;
-           background:rgba(15,23,42,.7); color:#e2e8f0; border:2px solid #0b0f1a;
-           box-shadow:0 2px 0 #0b0f1a; }
-  #fsBtn:active { transform:translateY(2px); box-shadow:0 0 0 #0b0f1a; }
+  #fsBtn { position:fixed; z-index:6;
+           top:calc(10px + env(safe-area-inset-top, 0px));
+           right:calc(12px + env(safe-area-inset-right, 0px));
+           width:44px; height:44px; padding:0;
+           background:#9aa3ae; color:#1e293b; border:2px solid #4b5462; border-radius:6px;
+           font-size:13px; letter-spacing:1px; box-shadow:none;
+           display:flex; align-items:center; justify-content:center; }
+  #fsBtn:active { transform:translateY(2px); }
   #rotate { position:fixed; inset:0; z-index:20; display:flex; flex-direction:column; align-items:center;
             justify-content:center; gap:18px; background:#05070d; color:#e2e8f0; text-align:center; padding:24px; }
   #rotate.hidden { display:none; }
@@ -37,7 +41,7 @@
 </head>
 <body>
 <canvas id="cv"></canvas>
-<button id="fsBtn">⛶ 全屏</button>
+<button id="fsBtn">全屏</button>
 
 <div id="menu" class="ov">
   <div class="title">阿尔法大陆</div>
@@ -57,6 +61,7 @@
 "use strict";
 const VW=352, VH=176, TILE=16, WCOLS=44, WROWS=30;
 const WORLD_W=WCOLS*TILE, WORLD_H=WROWS*TILE;
+const JBX=VW*0.8, JBY=VH*0.8, JR=26;   // 常驻摇杆位置（右下）
 const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
 const off = document.createElement('canvas'); off.width=VW; off.height=VH;
 const octx = off.getContext('2d'); octx.imageSmoothingEnabled=false;
@@ -80,32 +85,36 @@ function hash(x,y){
 }
 
 // ---------- 世界生成 ----------
-// 0 草地  1 石墙  2 边界(山/树/土丘)
+// 0 草地  2 边界丘陵
 const world = [];
 for(let y=0;y<WROWS;y++){
   const row=[];
   for(let x=0;x<WCOLS;x++){
     const edge=Math.min(x,y,WCOLS-1-x,WROWS-1-y);
-    row.push(edge<2?2:0);
+    row.push(edge<3?2:0);
   }
   world.push(row);
 }
-function stampWall(x,y,w,h){ for(let j=y;j<y+h;j++) for(let i=x;i<x+w;i++){ if(world[j]&&world[j][i]!==undefined) world[j][i]=1; } }
-stampWall(6,5,6,4); stampWall(32,5,6,4);
-stampWall(7,22,7,4); stampWall(31,22,6,4);
 
-// ---------- 边界装饰（大小不一的山丘/树/灌木/草） ----------
+// ---------- 边界装饰（大小/种类不一的丘陵、树、灌木、草、花、石） ----------
 const borderDeco = [];
 (()=>{
   for(let y=0;y<WROWS;y++) for(let x=0;x<WCOLS;x++){
     if(world[y][x]!==2) continue;
-    if(hash(x*7+1,y*11+3) < 0.4) continue;
-    const jx=(hash(x+9,y+4)-0.5)*TILE*0.7;
-    const jy=(hash(x+2,y+8)-0.5)*TILE*0.7;
-    const s=0.7+hash(x+5,y+7)*0.9;
+    if(hash(x*7+1,y*11+3) < 0.22) continue;
+    const jx=(hash(x+9,y+4)-0.5)*TILE*0.8;
+    const jy=(hash(x+2,y+8)-0.5)*TILE*0.8;
+    const s=0.6+hash(x+5,y+7)*1.0;
     const t=hash(x+3,y+9);
-    const type = t<0.42?'tree': t<0.68?'mound': t<0.86?'bush':'grass';
-    borderDeco.push({type, x:x*TILE+TILE/2+jx, y:y*TILE+TILE/2+jy, s});
+    let type;
+    if(t<0.28) type='tree';
+    else if(t<0.40) type='pine';
+    else if(t<0.58) type='mound';
+    else if(t<0.72) type='bush';
+    else if(t<0.84) type='grass';
+    else if(t<0.93) type='flower';
+    else type='rock';
+    borderDeco.push({type, x:x*TILE+TILE/2+jx, y:y*TILE+TILE/2+jy, s, v:hash(x+1,y+2)});
   }
 })();
 
@@ -121,18 +130,17 @@ function resetGame(){
   camX=player.x-VW/2; camY=player.y-VH/2;
 }
 
-// ---------- 输入 ----------
-let joy={active:false, ox:0, oy:0, dx:0, dy:0};
-const R=30;
+// ---------- 输入（常驻摇杆，仅右下角 1/4 可操作） ----------
+let joy={active:false, dx:0, dy:0};
 function toV(x,y){ return [(x-oxCss)/cssScale, (y-oyCss)/cssScale]; }
-function joyMove(x,y){
-  const dx=x-joy.ox, dy=y-joy.oy, d=Math.hypot(dx,dy), m=d>R?R/d:1;
+function joyMove(vx,vy){
+  const dx=vx-JBX, dy=vy-JBY, d=Math.hypot(dx,dy), m=d>JR?JR/d:1;
   joy.dx=dx*m; joy.dy=dy*m;
 }
 cv.addEventListener('touchstart', e=>{
   if(state!=='city') return;
   const t=e.touches[0]; const [vx,vy]=toV(t.clientX,t.clientY);
-  joy.active=true; joy.ox=vx; joy.oy=vy; joy.dx=joy.dy=0;
+  if(vx > VW*0.5 && vy > VH*0.5){ joy.active=true; joyMove(vx,vy); }
 }, {passive:true});
 cv.addEventListener('touchmove', e=>{
   if(!joy.active) return;
@@ -140,7 +148,11 @@ cv.addEventListener('touchmove', e=>{
   joyMove(vx,vy);
 }, {passive:true});
 cv.addEventListener('touchend', ()=>{ joy.active=false; joy.dx=joy.dy=0; }, {passive:true});
-cv.addEventListener('mousedown', e=>{ if(state!=='city')return; const [vx,vy]=toV(e.clientX,e.clientY); joy.active=true; joy.ox=vx; joy.oy=vy; joy.dx=joy.dy=0; });
+cv.addEventListener('touchcancel', ()=>{ joy.active=false; joy.dx=joy.dy=0; }, {passive:true});
+cv.addEventListener('mousedown', e=>{
+  if(state!=='city')return; const [vx,vy]=toV(e.clientX,e.clientY);
+  if(vx>VW*0.5 && vy>VH*0.5){ joy.active=true; joyMove(vx,vy); }
+});
 cv.addEventListener('mousemove', e=>{ if(!joy.active)return; const [vx,vy]=toV(e.clientX,e.clientY); joyMove(vx,vy); });
 cv.addEventListener('mouseup', ()=>{ joy.active=false; joy.dx=joy.dy=0; });
 
@@ -222,82 +234,94 @@ function drawGrass(sx,sy,tx,ty){
   if(h>0.92){
     const fx=sx+4+Math.floor(hash(tx,ty)*6), fy=sy+4+Math.floor(hash(ty,tx)*6);
     px(fx,fy,2,2,'#fde047'); px(fx+1,fy+1,1,1,'#f59e0b');
-  }
-  else if(h<0.05){
+  } else if(h<0.05){
     px(sx+5,sy+8,4,3,'#9aa5b1'); px(sx+6,sy+7,2,1,'#b4bec8');
-  }
-  else if(h>0.82 && h<0.86){
+  } else if(h>0.82 && h<0.86){
     px(sx+9,sy+10,5,4,'#4e7d36'); px(sx+10,sy+9,3,2,'#5f9440');
   }
-}
-function drawWall(sx,sy){
-  px(sx, sy, TILE, TILE, '#7b8492');
-  px(sx, sy, TILE, 3, '#98a1ae');
-  px(sx, sy+TILE-3, TILE, 3, '#5f6773');
-  octx.fillStyle='#5f6773';
-  octx.fillRect(sx, sy+8, TILE, 1);
-  octx.fillRect(sx+7, sy+3, 1, 5);
-  octx.fillRect(sx+3, sy+9, 1, 4);
-  octx.fillRect(sx+11, sy+9, 1, 4);
 }
 function drawBoundaryBase(sx,sy,tx,ty){
   const h=hash(tx*3+1,ty*7+5);
   octx.fillStyle = h<0.5 ? '#6b8a4e' : '#5f7d46';
   octx.fillRect(sx,sy,TILE,TILE);
-  if(h>0.6) px(sx+3,sy+6,6,4,'#8a6b47');
-  if(h<0.25) px(sx+9,sy+3,4,3,'#79a957');
+  if(h>0.55) px(sx+2,sy+5,7,5,'#7a5f3d');
+  if(h>0.8) px(sx+4,sy+7,4,3,'#8a6b47');
+  if(h<0.3) px(sx+9,sy+3,4,3,'#79a957');
 }
 function drawBorderDeco(d){
   const sx=d.x-camX, sy=d.y-camY;
-  if(sx<-50||sx>VW+50||sy<-70||sy>VH+60) return;
-  const k=d.s;
+  if(sx<-60||sx>VW+60||sy<-80||sy>VH+70) return;
+  const k=d.s, v=d.v;
   if(d.type==='tree'){
     px(sx-2*k, sy+3*k, 4*k, 10*k, '#5b3a1e');
-    fillCircle(sx, sy-3*k, 9*k, '#2f4a26');
+    fillCircle(sx, sy-3*k, 9*k, v<0.5?'#2f4a26':'#356028');
     fillCircle(sx-3*k, sy-5*k, 6*k, '#3a5c2e');
     fillCircle(sx+3*k, sy-4*k, 5*k, '#446e34');
+  } else if(d.type==='pine'){
+    px(sx-1.5*k, sy+4*k, 3*k, 8*k, '#5b3a1e');
+    octx.fillStyle='#2d5230';
+    octx.beginPath(); octx.moveTo(sx, sy-14*k); octx.lineTo(sx+8*k, sy+4*k); octx.lineTo(sx-8*k, sy+4*k); octx.closePath(); octx.fill();
+    octx.fillStyle='#3a6a38';
+    octx.beginPath(); octx.moveTo(sx, sy-14*k); octx.lineTo(sx+5*k, sy-3*k); octx.lineTo(sx-5*k, sy-3*k); octx.closePath(); octx.fill();
   } else if(d.type==='mound'){
-    fillCircle(sx-2*k, sy+1*k, 9*k, '#7a5f3d');
-    fillCircle(sx+3*k, sy+2*k, 7*k, '#6b5135');
-    px(sx-1*k, sy-6*k, 1, 3, '#79a957');
-    px(sx+4*k, sy-7*k, 1, 4, '#639a45');
+    fillCircle(sx-2*k, sy+2*k, 10*k, '#6b5135');
+    fillCircle(sx+3*k, sy+3*k, 8*k, '#7a5f3d');
+    fillCircle(sx, sy-2*k, 7*k, '#8a6b47');
+    fillCircle(sx-1*k, sy-4*k, 4*k, '#9c7a52');
+    px(sx-4*k, sy-7*k, 1, 5*k, '#79a957');
+    px(sx+4*k, sy-8*k, 1, 6*k, '#639a45');
+    if(v>0.6) px(sx+1*k, sy-9*k, 2, 2, '#fde047');
   } else if(d.type==='bush'){
-    fillCircle(sx, sy, 7*k, '#3a6a2c');
-    fillCircle(sx-2*k, sy-2*k, 5*k, '#4e8538');
-    fillCircle(sx+3*k, sy-1*k, 4*k, '#5f9440');
-  } else {
-    for(let i=0;i<3;i++) px(sx-5*k+i*5*k, sy-4*k, 1, 5*k, '#5f9440');
+    fillCircle(sx, sy, 8*k, '#3a6a2c');
+    fillCircle(sx-3*k, sy-3*k, 5*k, '#4e8538');
+    fillCircle(sx+4*k, sy-2*k, 4*k, '#5f9440');
+    if(v>0.7) px(sx+1*k, sy-6*k, 2, 2, '#f87171');
+  } else if(d.type==='grass'){
+    for(let i=0;i<4;i++) px(sx-6*k+i*4*k, sy-5*k, 1, 6*k, i%2?'#5f9440':'#6aa34a');
+  } else if(d.type==='flower'){
+    fillCircle(sx, sy+1*k, 8*k, '#4e8538');
+    px(sx-4*k, sy-3*k, 2, 2, '#f472b6');
+    px(sx+1*k, sy-5*k, 2, 2, '#fde047');
+    px(sx+5*k, sy-2*k, 2, 2, '#f87171');
+    px(sx-1*k, sy-4*k, 1, 1, '#ffffff');
+  } else { // rock
+    fillCircle(sx, sy, 6*k, '#7b8492');
+    fillCircle(sx-2*k, sy-2*k, 4*k, '#98a1ae');
+    fillCircle(sx+2*k, sy+1*k, 3*k, '#5f6773');
   }
 }
 
-// ---------- 主角（一格高，呆萌，无手） ----------
+// ---------- 主角：椭圆头身连体 + 红帽子 ----------
 function drawHero(){
   const cx=player.x-camX, cy=player.y-camY;
   octx.fillStyle='rgba(0,0,0,.25)';
-  octx.beginPath(); octx.ellipse(cx, cy+8, 5, 2, 0, 0, 7); octx.fill();
+  octx.beginPath(); octx.ellipse(cx, cy+9, 5, 2, 0, 0, 7); octx.fill();
 
   const moving = joy.active && (Math.abs(joy.dx)+Math.abs(joy.dy))>2;
-  const sw = moving ? Math.sin(walkPhase)*1.6 : 0;
+  const sw = moving ? Math.sin(walkPhase)*1.5 : 0;
 
   octx.save();
   octx.translate(cx, cy);
   if(player.face<0) octx.scale(-1,1);
   // 腿
-  px(-2+sw, 4, 2, 3, '#e8eef0');
-  px(0.5-sw, 4, 2, 3, '#e8eef0');
+  px(-2+sw, 4, 2, 5, '#e8eef0');
+  px(0.5-sw, 4, 2, 5, '#e8eef0');
   // 脚
-  px(-2.5+sw, 6, 3, 2, '#5a6673');
-  px(0.5-sw, 6, 3, 2, '#5a6673');
-  // 身体
-  px(-3, 1, 6, 4, '#ffffff');
-  // 头
-  fillCircle(0, -3, 5.6, '#a9b6c3');
-  fillCircle(0, -3, 5.0, '#ffffff');
+  px(-2.5+sw, 7, 3, 2, '#5a6673');
+  px(0.5-sw, 7, 3, 2, '#5a6673');
+  // 头身连体椭圆
+  octx.fillStyle='#a9b6c3';
+  octx.beginPath(); octx.ellipse(0, -2, 5.6, 7.2, 0, 0, 7); octx.fill();
+  octx.fillStyle='#ffffff';
+  octx.beginPath(); octx.ellipse(0, -2, 5.0, 6.6, 0, 0, 7); octx.fill();
   // 大眼睛
   px(-2.5, -5, 2, 3, '#1e293b');
   px(1, -5, 2, 3, '#1e293b');
   px(-2.5, -5, 1, 1, '#ffffff');
   px(1, -5, 1, 1, '#ffffff');
+  // 红帽子
+  px(-5, -8, 10, 2, '#b91c1c');
+  px(-3, -11, 6, 3, '#ef4444');
   octx.restore();
 }
 
@@ -310,6 +334,20 @@ function drawHUD(){
   drawText(String(level), 13, 30, '#f8fafc');
 }
 
+function drawJoystick(){
+  // 底盘
+  octx.strokeStyle='rgba(20,30,20,.45)'; octx.lineWidth=3;
+  octx.beginPath(); octx.arc(JBX,JBY,JR,0,7); octx.stroke();
+  octx.fillStyle='rgba(255,255,255,.14)';
+  octx.beginPath(); octx.arc(JBX,JBY,JR-3,0,7); octx.fill();
+  // 摇杆头
+  const kx=JBX+(joy.active?joy.dx:0), ky=JBY+(joy.active?joy.dy:0);
+  octx.fillStyle='rgba(255,255,255,.55)';
+  octx.beginPath(); octx.arc(kx,ky,9,0,7); octx.fill();
+  octx.fillStyle='rgba(0,0,0,.25)';
+  octx.beginPath(); octx.arc(kx,ky,9,0,7); octx.stroke();
+}
+
 function render(){
   octx.clearRect(0,0,VW,VH);
   octx.fillStyle='#7db25a'; octx.fillRect(0,0,VW,VH);
@@ -319,19 +357,13 @@ function render(){
   for(let ty=y0; ty<y1; ty++) for(let tx=x0; tx<x1; tx++){
     const sx=tx*TILE-camX, sy=ty*TILE-camY, t=world[ty][tx];
     if(t===0) drawGrass(sx,sy,tx,ty);
-    else if(t===1) drawWall(sx,sy);
     else drawBoundaryBase(sx,sy,tx,ty);
   }
   for(const d of borderDeco) drawBorderDeco(d);
 
   drawHero();
   drawHUD();
-
-  if(joy.active){
-    octx.strokeStyle='rgba(148,163,184,.35)'; octx.lineWidth=2;
-    octx.beginPath(); octx.arc(joy.ox,joy.oy,R,0,7); octx.stroke();
-    octx.fillStyle='rgba(148,163,184,.5)'; fillCircle(joy.ox+joy.dx, joy.oy+joy.dy, 7, 'rgba(148,163,184,.5)');
-  }
+  if(state==='city') drawJoystick();
 
   ctx.fillStyle='#05070d'; ctx.fillRect(0,0,cv.width,cv.height);
   ctx.drawImage(off, oxCss, oyCss, VW*cssScale, VH*cssScale);
@@ -350,12 +382,10 @@ fsBtn.onclick=()=>{
   try{
     if(!document.fullscreenElement){
       const el=document.documentElement;
-      const rq=el.requestFullscreen||el.webkitRequestFullscreen;
+      const rq=el.requestFullscreen||el.webkitRequestFullscreen||el.msRequestFullscreen;
       if(rq) rq.call(el);
     } else {
-      if(document.exitFullscreen) document.exitFullscreen();
-      else if(document.webkitExitFullscreen) document.webkitExitFullscreen();
-      else if(document.webkitCancelFullScreen) document.webkitCancelFullScreen();
+      (document.exitFullscreen||document.webkitExitFullscreen||document.msExitFullscreen||function(){}).call(document);
     }
   }catch(e){}
 };
