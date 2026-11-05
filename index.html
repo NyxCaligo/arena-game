@@ -28,13 +28,14 @@
              box-shadow:inset 0 1px 0 #5b6472; font-size:18px;
              display:flex; align-items:center; justify-content:center; }
   #menuBtn:active { transform:translateY(2px); }
-  #menuTray { position:fixed; z-index:7; top:calc(60px + env(safe-area-inset-top, 0px));
-              right:calc(12px + env(safe-area-inset-right, 0px)); display:flex; flex-direction:column; gap:8px; }
-  #menuTray.hidden { display:none; }
-  #menuTray button { width:44px; height:44px; padding:0; background:#4b5462; color:#e2e8f0;
-                     border:2px solid #0b0f1a; border-radius:0; box-shadow:inset 0 1px 0 #5b6472;
-                     font-size:16px; display:flex; align-items:center; justify-content:center; }
-  #menuTray button:active { transform:translateY(2px); }
+  #menuWrap { position:fixed; inset:0; z-index:12; display:flex; align-items:center; justify-content:center; }
+  #menuWrap.hidden { display:none; }
+  .menu-box { position:relative; display:flex; gap:16px; animation:popIn .16s ease-out; }
+  .menu-sq { width:78px; height:78px; padding:0; display:flex; flex-direction:column; align-items:center;
+             justify-content:center; gap:4px; background:#4b5462; color:#e2e8f0; border:2px solid #0b0f1a;
+             border-radius:0; box-shadow:inset 0 1px 0 #5b6472, 0 3px 0 rgba(0,0,0,.35); font-size:22px; }
+  .menu-sq span { font-size:11px; letter-spacing:1px; color:#cbd5e1; }
+  .menu-sq:active { transform:translateY(2px); }
   #settingsBackdrop { position:fixed; inset:0; z-index:7; background:rgba(0,0,0,.45); }
   #settingsBackdrop.hidden, #settingsPanel.hidden { display:none; }
   #settingsPanel { position:fixed; z-index:8; top:0; right:0; bottom:0;
@@ -68,10 +69,11 @@
               box-shadow:inset 0 1px 0 #5b6472; font-size:14px;
               display:flex; align-items:center; justify-content:center; }
   #interactBtn { position:fixed; z-index:11; right:calc(14px + env(safe-area-inset-right, 0px));
-                 top:56%; transform:translateY(-50%); padding:10px 16px;
+                 top:56%; transform:translateY(-50%); width:54px; height:54px; padding:0;
                  background:#4b5462; color:#f5e6cf; border:2px solid #0b0f1a; border-radius:0;
                  box-shadow:inset 0 1px 0 #5b6472, 0 3px 0 rgba(0,0,0,.35);
-                 font-size:14px; font-weight:bold; letter-spacing:2px; }
+                 font-size:24px; display:flex; align-items:center; justify-content:center; }
+  #interactBtn.near { border-color:#f5c542; box-shadow:inset 0 1px 0 #5b6472, 0 0 10px #f5c542; }
   #interactBtn.hidden { display:none; }
   #msgToast { position:fixed; z-index:12; left:50%; transform:translateX(-50%);
               bottom:calc(150px + env(safe-area-inset-bottom, 0px)); padding:8px 16px;
@@ -164,12 +166,16 @@
 <body>
 <canvas id="cv"></canvas>
 <button id="menuBtn">☰</button>
-<div id="menuTray" class="hidden">
-  <button id="settingsBtn">⚙</button>
-  <button id="pauseBtn">❚❚</button>
+<div id="menuWrap" class="hidden">
+  <div class="modal-bg" id="menuWrapBg"></div>
+  <div class="menu-box">
+    <button class="menu-sq" id="mTitle">🏠<span>标题</span></button>
+    <button class="menu-sq" id="settingsBtn">⚙<span>设置</span></button>
+    <button class="menu-sq" id="pauseBtn">❚❚<span>暂停</span></button>
+  </div>
 </div>
 <button id="eqToggle">▼</button>
-<button id="interactBtn" class="hidden">对话</button>
+<button id="interactBtn" class="hidden">✋</button>
 <div id="msgToast"></div>
 <div id="saveToast"></div>
 <div id="pauseWrap" class="pause-ov hidden">
@@ -289,10 +295,23 @@
   <div class="title">星辰回响</div>
   <div class="sub">STELLAR ECHO</div>
   <button id="startBtn">开始游戏</button>
+  <button id="titleLoadBtn" style="background:#4b5462;color:#e2e8f0;border-color:#0b0f1a;box-shadow:0 3px 0 #0b0f1a;font-size:14px;padding:9px 20px">导入存档 / 存档码</button>
   <div id="menuNotice">⚠ 清除浏览器缓存会导致存档丢失，建议在「设置 → 存档」里导出备份或保存存档码</div>
 </div>
 <div id="subtitle" class="ov hidden">
   <div class="text">到达主城</div>
+</div>
+<div id="titleLoad" class="modal hidden" style="z-index:13">
+  <div class="modal-bg" id="titleLoadBg"></div>
+  <div class="modal-box">
+    <div class="eq-title">导入存档</div>
+    <button id="tlFile" class="sp-full">选择存档文件</button>
+    <input type="file" id="tlFileInput" style="display:none">
+    <div class="sp-label">或粘贴存档码</div>
+    <textarea id="tlCode" placeholder="把存档码粘贴到这里"></textarea>
+    <button id="tlImport" class="sp-full">导入存档码</button>
+    <button id="tlClose" class="sp-full sp-alt">关闭</button>
+  </div>
 </div>
 <div id="rotate" class="hidden">
   <div class="icon">📱</div>
@@ -1202,16 +1221,38 @@ const settingsBackdrop=document.getElementById('settingsBackdrop');
 function openSettings(open){
   settingsPanel.classList.toggle('hidden', !open);
   settingsBackdrop.classList.toggle('hidden', !open);
-  if(open){ if(autoPause && state==='city'){ pausedAuto=true; paused=true; } }
+  if(open){
+    document.getElementById('spMain').classList.remove('hidden');
+    document.getElementById('spSave').classList.add('hidden');
+    if(autoPause && state==='city'){ pausedAuto=true; paused=true; }
+  }
   else if(pausedAuto){ paused=false; pausedAuto=false; }
   updateHudButtons();
 }
+let pausedAutoMenu=false;
+function goTitle(){
+  saveGame();
+  document.getElementById('menuWrap').classList.add('hidden');
+  document.getElementById('pauseWrap').classList.add('hidden');
+  document.getElementById('itemMenu').classList.add('hidden');
+  paused=false; pausedAutoMenu=false;
+  state='menu';
+  document.getElementById('menu').classList.remove('hidden');
+  updateHudButtons(); sfxBeep(); vibrate(2);
+}
 document.getElementById('menuBtn').onclick=()=>{
-  const t=document.getElementById('menuTray');
-  t.classList.toggle('hidden');
-  sfxBeep();
+  document.getElementById('menuWrap').classList.remove('hidden');
+  sfxBeep(); vibrate(2);
+  if(autoPause && state==='city'){ pausedAutoMenu=true; paused=true; }
+  updateHudButtons();
 };
-settingsBtn.onclick=()=>{ document.getElementById('menuTray').classList.add('hidden'); openSettings(true); };
+document.getElementById('menuWrapBg').onclick=()=>{
+  document.getElementById('menuWrap').classList.add('hidden');
+  if(pausedAutoMenu){ paused=false; pausedAutoMenu=false; }
+  updateHudButtons();
+};
+document.getElementById('mTitle').onclick=goTitle;
+settingsBtn.onclick=()=>{ document.getElementById('menuWrap').classList.add('hidden'); if(pausedAutoMenu){ paused=false; pausedAutoMenu=false; } openSettings(true); };
 document.getElementById('settingsClose').onclick=()=>openSettings(false);
 settingsBackdrop.onclick=()=>openSettings(false);
 
@@ -1236,7 +1277,12 @@ sfxToggle.onclick=()=>{
 musicVolEl.oninput=()=>{ musicVol=musicVolEl.value/100; applyMusic(); };
 sfxVolEl.oninput=()=>{ sfxVol=sfxVolEl.value/100; applySfx(); };
 
+function updateFsLabel(){
+  const b=document.getElementById('fullscreenBtn');
+  if(b) b.textContent = document.fullscreenElement ? '全屏：关' : '全屏：开';
+}
 document.getElementById('fullscreenBtn').onclick=()=>{
+  setTimeout(updateFsLabel, 200);
   try{
     if(!document.fullscreenElement){
       const el=document.documentElement;
@@ -1247,7 +1293,7 @@ document.getElementById('fullscreenBtn').onclick=()=>{
     }
   }catch(e){}
 };
-document.addEventListener('fullscreenchange', ()=>{ resize(); checkOrientation(); });
+document.addEventListener('fullscreenchange', ()=>{ resize(); checkOrientation(); updateFsLabel(); });
 
 // ---------- 存档系统 ----------
 const SAVE_KEY='xingchen_huixiang_save_v1';
@@ -1317,7 +1363,7 @@ function useSaveCode(code){
 }
 
 // 自动存档
-setInterval(()=>{ if(state==='city') saveGame(); }, 15000);
+setInterval(()=>{ if(state==='city') saveGame(); }, 60000);
 document.addEventListener('visibilitychange', ()=>{ if(document.hidden && state==='city') saveGame(); });
 window.addEventListener('pagehide', ()=>{ if(state==='city') saveGame(); });
 
@@ -1746,7 +1792,12 @@ document.getElementById('muteAll').onclick=()=>{
 
 // ---------- 暂停 / 折叠 / 存档提示 / 小地图 / 环境 ----------
 let paused=false, equipHudOn=true, gtime=0, saveMsgT=-99;
-document.getElementById('pauseBtn').onclick=()=>{ paused=true; document.getElementById('pauseWrap').classList.remove('hidden'); document.getElementById('menuTray').classList.add('hidden'); sfxBeep(); updateHudButtons(); };
+document.getElementById('pauseBtn').onclick=()=>{
+  document.getElementById('menuWrap').classList.add('hidden');
+  pausedAutoMenu=false; paused=true;
+  document.getElementById('pauseWrap').classList.remove('hidden');
+  sfxBeep(); updateHudButtons();
+};
 document.getElementById('resumeBtn').onclick=()=>{ paused=false; document.getElementById('pauseWrap').classList.add('hidden'); sfxDrop(); updateHudButtons(); };
 document.getElementById('eqToggle').onclick=()=>{
   equipHudOn=!equipHudOn;
@@ -1796,6 +1847,15 @@ function drawAmbient(){
       px(sx+9-ph*2, sy+11, 2,1,'#5fa8e6');
     }
   }
+  if(nearNpc){
+    const bx=Math.round(NPC.x-camX), by=Math.round(NPC.y-camY);
+    octx.strokeStyle='#ffffff'; octx.lineWidth=1;
+    octx.strokeRect(bx-8, by-14, 17, 25);
+    px(bx-4, by-30, 9, 12, '#0b0f1a');
+    px(bx-3, by-29, 7, 10, '#f5c542');
+    px(bx, by-27, 1, 5, '#0b0f1a');
+    px(bx, by-21, 1, 1, '#0b0f1a');
+  }
   for(let i=0;i<14;i++){
     const fx=hash(i,7)*WORLD_W + Math.sin(gtime*0.15+i)*30;
     const fy=hash(i,13)*WORLD_H + Math.cos(gtime*0.12+i*1.7)*24;
@@ -1836,17 +1896,31 @@ function drawMini(){
   px(pxp-1,pyp-1,3,3,'#f5c542');
 }
 
+// ---------- 标题界面导入存档 ----------
+document.getElementById('titleLoadBtn').onclick=()=>{ document.getElementById('titleLoad').classList.remove('hidden'); sfxBeep(); };
+document.getElementById('tlClose').onclick=()=>document.getElementById('titleLoad').classList.add('hidden');
+document.getElementById('titleLoadBg').onclick=()=>document.getElementById('titleLoad').classList.add('hidden');
+document.getElementById('tlFile').onclick=()=>document.getElementById('tlFileInput').click();
+document.getElementById('tlFileInput').onchange=(e)=>{ const f=e.target.files[0]; if(f) readSaveFile(f); e.target.value=''; };
+document.getElementById('tlImport').onclick=()=>{
+  const c=document.getElementById('tlCode').value;
+  if(!c.trim()){ alert('请先粘贴存档码'); return; }
+  if(useSaveCode(c)){ hasSave=true; saveGame(); alert('导入成功'); document.getElementById('titleLoad').classList.add('hidden'); }
+  else alert('存档码无效');
+};
+
 // ---------- 横屏提示 ----------
 let nearNpc=false, autoPause=true, pausedAuto=false;
 function updateHudButtons(){
   const settingsOpen=!document.getElementById('settingsPanel').classList.contains('hidden');
   const pauseOpen=!document.getElementById('pauseWrap').classList.contains('hidden');
-  const hide=(state!=='city') || settingsOpen || pauseOpen;
+  const menuOpen=!document.getElementById('menuWrap').classList.contains('hidden');
+  const hide=(state!=='city') || settingsOpen || pauseOpen || menuOpen;
   const bag=document.getElementById('bagBtn'), eq=document.getElementById('eqToggle');
   if(bag) bag.style.display = hide ? 'none' : 'flex';
   if(eq) eq.style.display = hide ? 'none' : 'flex';
   const ib=document.getElementById('interactBtn');
-  if(ib) ib.classList.toggle('hidden', hide || !nearNpc);
+  if(ib){ ib.classList.toggle('hidden', hide); ib.classList.toggle('near', nearNpc); }
 }
 function syncBagBtn(){ updateHudButtons(); }
 function checkOrientation(){
