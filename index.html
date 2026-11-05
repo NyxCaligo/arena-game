@@ -71,10 +71,11 @@
   #menuNotice { color:#fbbf24; font-size:12px; line-height:1.7; max-width:300px; margin-top:4px; }
 
   #eqToggle { position:fixed; z-index:11; right:calc(10px + env(safe-area-inset-right, 0px));
-              bottom:calc(10px + env(safe-area-inset-bottom, 0px)); width:46px; height:46px; padding:0;
+              bottom:calc(10px + env(safe-area-inset-bottom, 0px)); width:74px; height:34px; padding:0;
               background:#4b5462; color:#e2e8f0; border:2px solid #0b0f1a; border-radius:0;
-              box-shadow:inset 0 1px 0 #5b6472; font-size:14px;
+              box-shadow:inset 0 1px 0 #5b6472; font-size:12px; gap:5px;
               display:flex; align-items:center; justify-content:center; }
+  #eqLabel { font-size:12px; letter-spacing:1px; }
   #atkBtn { position:fixed; z-index:11; right:8%; bottom:22%; width:76px; height:76px; padding:0;
             background:rgba(75,84,98,.92); border:3px solid #0b0f1a; border-radius:50%;
             box-shadow:inset 0 2px 0 #6b7484, 0 4px 0 rgba(0,0,0,.4);
@@ -183,11 +184,17 @@
   .eq-cap { font-size:12px; color:#94a3b8; letter-spacing:2px; text-align:left; width:100%; }
   .eq-row { display:flex; gap:8px; }
   .eq-box .eq-slot { width:52px; height:52px; }
-  .bag-grid .eq-slot { width:100%; height:auto; aspect-ratio:auto; min-height:62px;
-                       display:flex; flex-direction:column; align-items:center; justify-content:center;
-                       gap:3px; padding:5px 2px; touch-action:manipulation; }
-  .item-name { font-size:10px; color:#cbd5e1; max-width:100%; overflow:hidden;
-               white-space:nowrap; text-overflow:ellipsis; text-align:center; }
+  .bag-scrollwrap { position:relative; width:100%; flex:1 1 auto; min-height:0; display:flex; }
+  .bag-scroll { flex:1 1 auto; overflow-y:auto; max-height:46vh; padding-right:16px;
+                -webkit-overflow-scrolling:touch; }
+  .bag-scroll::-webkit-scrollbar { width:0; height:0; }
+  .bag-track { position:absolute; right:2px; top:0; bottom:0; width:10px; background:#0b0f1a; border:1px solid #1e293b; }
+  .bag-thumb { position:absolute; left:1px; right:1px; top:0; height:30px; background:#4b5462; border:1px solid #8a94a3; }
+  .bag-grid .eq-slot { width:100%; height:auto; aspect-ratio:1/1; position:relative; padding:0;
+                       display:flex; align-items:center; justify-content:center; touch-action:manipulation; }
+  .bag-grid .item-name { position:absolute; left:0; right:0; bottom:1px; font-size:9px; text-align:center;
+                         color:#e2e8f0; background:rgba(11,15,26,.6); line-height:1.25;
+                         overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
   #rotate { position:fixed; inset:0; z-index:20; display:flex; flex-direction:column; align-items:center;
             justify-content:center; gap:18px; background:#05070d; color:#e2e8f0; text-align:center; padding:24px; }
   #rotate.hidden { display:none; }
@@ -231,11 +238,12 @@
   </div>
 </div>
 <button id="eqToggle">
-  <svg id="eqChev" width="20" height="20" viewBox="0 0 8 8" shape-rendering="crispEdges">
+  <svg id="eqChev" width="16" height="9" viewBox="0 0 8 5" shape-rendering="crispEdges">
+    <rect x="0" y="1" width="8" height="1" fill="#e2e8f0"/>
     <rect x="1" y="2" width="6" height="1" fill="#e2e8f0"/>
     <rect x="2" y="3" width="4" height="1" fill="#e2e8f0"/>
-    <rect x="3" y="4" width="2" height="1" fill="#e2e8f0"/>
   </svg>
+  <span id="eqLabel">折叠</span>
 </button>
 <button id="atkBtn" class="hidden">
   <svg width="34" height="34" viewBox="0 0 12 12" shape-rendering="crispEdges">
@@ -327,7 +335,10 @@
       <button class="catBtn" data-f="acc">饰品</button>
       <button class="catBtn" id="bagSort">整理</button>
     </div>
-    <div class="bag-grid" id="bagGrid"></div>
+    <div class="bag-scrollwrap">
+      <div class="bag-scroll" id="bagScroll"><div class="bag-grid" id="bagGrid"></div></div>
+      <div class="bag-track" id="bagTrack"><div class="bag-thumb" id="bagThumb"></div></div>
+    </div>
   </div>
 </div>
 <div id="settingsBackdrop" class="hidden"></div>
@@ -354,7 +365,7 @@
     <div class="sp-label">操作</div>
     <div class="sp-group">
       <button id="vibToggle" class="sp-full sp-alt">振动：开</button>
-      <div class="sp-row"><span class="sp-cap">震感</span><input type="range" id="vibPower" min="0" max="100" value="100"></div>
+      <div class="sp-row"><span class="sp-cap">强度</span><input type="range" id="vibPower" min="0" max="100" value="100"></div>
       <button id="autoPauseToggle" class="sp-full sp-alt">打开菜单自动暂停：关</button>
     </div>
     <div class="sp-label">数据</div>
@@ -1172,18 +1183,21 @@ function drawHero(){
 
   // 挥砍残影
   if(atkP>=0){
-    const head = -1.2 + 2.5*Math.min(1, atkP*1.3);
-    for(let k=0;k<4;k++){
-      const aa = head - k*0.20;
-      if(aa < -1.2) break;
-      octx.strokeStyle='rgba(255,255,255,'+(0.60-k*0.14)+')';
-      octx.lineWidth = 3 - (k>1?1:0);
-      octx.lineCap='round';
-      octx.beginPath(); octx.arc(1, -4, 15 + k*1.6, -1.2, aa); octx.stroke();
+    const a0=-1.15;
+    const head=a0+2.5*Math.min(1, atkP*1.3);
+    const N=16, fade=1-atkP*0.5;
+    octx.lineCap='round';
+    for(let k=0;k<N;k++){
+      const t0=a0+(head-a0)*(k/N), t1=a0+(head-a0)*((k+1)/N);
+      const a=Math.pow(k/N,1.8)*0.9*fade;
+      if(a<=0.012) continue;
+      octx.strokeStyle='rgba(255,255,255,'+a.toFixed(3)+')';
+      octx.lineWidth=4;
+      octx.beginPath(); octx.arc(1,-4,16,t0,t1); octx.stroke();
     }
-    octx.strokeStyle='rgba(255,255,255,.9)';
-    octx.lineWidth=1;
-    octx.beginPath(); octx.arc(1, -4, 15, head-0.10, head); octx.stroke();
+    octx.strokeStyle='rgba(255,255,255,'+(0.9*fade).toFixed(3)+')';
+    octx.lineWidth=1.5;
+    octx.beginPath(); octx.arc(1,-4,16,Math.max(a0,head-0.14),head); octx.stroke();
   }
 
   octx.restore();
@@ -1931,6 +1945,7 @@ function renderBag(){
     g.appendChild(d);
   }
   updateBagCap();
+  setTimeout(updateBagScroll, 0);
 }
 function renderEquipPanel(){
   const mk=(t,i,empty)=>{
@@ -2078,6 +2093,45 @@ function bindCatBtns(){
     };
   });
 }
+function updateBagScroll(){
+  const sc=document.getElementById('bagScroll'), th=document.getElementById('bagThumb');
+  if(!sc||!th) return;
+  const ch=sc.clientHeight||0, sh=sc.scrollHeight||0;
+  if(!ch || sh<=ch+2){ th.style.display='none'; return; }
+  th.style.display='block';
+  const thH=Math.max(28, Math.round(ch*ch/sh));
+  const maxTop=ch-thH;
+  const top=Math.round(maxTop*(sc.scrollTop/Math.max(1,sh-ch)));
+  th.style.height=thH+'px';
+  th.style.top=top+'px';
+}
+let bagDrag=null;
+function bindScrollbar(){
+  const sc=document.getElementById('bagScroll'), th=document.getElementById('bagThumb');
+  if(!sc||!th) return;
+  sc.onscroll=updateBagScroll;
+  const start=(e)=>{
+    const t=e.touches?e.touches[0]:e;
+    bagDrag={ y:t.clientY, top:sc.scrollTop };
+    if(e.cancelable) e.preventDefault();
+  };
+  const move=(e)=>{
+    if(!bagDrag) return;
+    const t=e.touches?e.touches[0]:e;
+    const ch=sc.clientHeight, sh=sc.scrollHeight, thH=th.offsetHeight||28;
+    const maxTop=Math.max(1, ch-thH);
+    const dy=t.clientY-bagDrag.y;
+    sc.scrollTop=bagDrag.top + dy*(sh-ch)/maxTop;
+    if(e.cancelable) e.preventDefault();
+  };
+  const end=()=>{ bagDrag=null; };
+  th.addEventListener('touchstart', start, {passive:false});
+  th.addEventListener('mousedown', start);
+  addEventListener('touchmove', move, {passive:false});
+  addEventListener('touchend', end);
+  addEventListener('mousemove', move);
+  addEventListener('mouseup', end);
+}
 function bindSort(){
   const b=document.getElementById('bagSort'); if(!b) return;
   b.onclick=()=>{
@@ -2088,8 +2142,9 @@ function bindSort(){
 }
 function openBag(){
   bagOpenAt=performance.now();
-  bindCatBtns(); bindSort();
+  bindCatBtns(); bindSort(); bindScrollbar();
   renderBag();
+  setTimeout(updateBagScroll, 30);
   document.getElementById('bagWrap').classList.remove('hidden');
 }
 document.getElementById('eqClose').onclick=()=>document.getElementById('equipWrap').classList.add('hidden');
@@ -2168,6 +2223,8 @@ document.getElementById('eqToggle').onclick=()=>{
   equipHudOn=!equipHudOn;
   const ch=document.getElementById('eqChev');
   if(ch) ch.style.transform = equipHudOn ? 'rotate(0deg)' : 'rotate(180deg)';
+  const lb=document.getElementById('eqLabel');
+  if(lb) lb.textContent = equipHudOn ? '折叠' : '展开';
   sfxBeep(); vibrate(2);
 };
 function showToast(msg){
