@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<title>阿尔法大陆</title>
+<title>星辰回响</title>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
   html,body { width:100%; height:100%; overflow:hidden; background:#05070d; }
@@ -43,7 +43,7 @@
   #settingsPanel { position:fixed; z-index:8; top:0; right:0; bottom:0;
            width:min(300px, 74vw); background:#0d1524; border-left:2px solid #1e293b;
            padding:calc(14px + env(safe-area-inset-top, 0px)) 16px 18px;
-           display:flex; flex-direction:column; gap:18px; }
+           display:flex; flex-direction:column; gap:14px; overflow-y:auto; -webkit-overflow-scrolling:touch; }
   .sp-title { font-size:18px; font-weight:bold; letter-spacing:2px; color:#f8fafc;
               display:flex; justify-content:space-between; align-items:center; }
   .sp-close { background:none; border:none; box-shadow:none; padding:0 6px; color:#94a3b8; font-size:24px; }
@@ -55,6 +55,13 @@
   .sp-toggle.on { background:#4ade80; color:#052e16; border-color:#052e16; }
   input[type=range] { flex:1; accent-color:#4ade80; }
   .sp-full { width:100%; background:#3b82f6; color:#eff6ff; border:2px solid #1e3a8a; box-shadow:0 3px 0 #1e3a8a; }
+  .sp-page { display:flex; flex-direction:column; gap:12px; }
+  .sp-page.hidden { display:none; }
+  .sp-alt { background:#475569; color:#e2e8f0; border-color:#1e293b; box-shadow:0 3px 0 #1e293b; }
+  .sp-danger { background:#dc2626; color:#fff; border-color:#7f1d1d; box-shadow:0 3px 0 #7f1d1d; }
+  textarea { width:100%; min-height:64px; background:#0b1220; color:#cbd5e1; border:2px solid #1e293b;
+             border-radius:4px; padding:8px; font-family:inherit; font-size:12px; resize:vertical; }
+  #menuNotice { color:#fbbf24; font-size:12px; line-height:1.7; max-width:300px; margin-top:4px; }
   #rotate { position:fixed; inset:0; z-index:20; display:flex; flex-direction:column; align-items:center;
             justify-content:center; gap:18px; background:#05070d; color:#e2e8f0; text-align:center; padding:24px; }
   #rotate.hidden { display:none; }
@@ -71,27 +78,44 @@
 <div id="settingsBackdrop" class="hidden"></div>
 <div id="settingsPanel" class="hidden">
   <div class="sp-title">设置<button id="settingsClose" class="sp-close">×</button></div>
-  <div class="sp-group">
-    <div class="sp-label">音乐</div>
-    <div class="sp-row">
-      <button id="musicToggle" class="sp-toggle on">开</button>
-      <input type="range" id="musicVol" min="0" max="100" value="60">
+  <div id="spMain" class="sp-page">
+    <div class="sp-group">
+      <div class="sp-label">音乐</div>
+      <div class="sp-row">
+        <button id="musicToggle" class="sp-toggle on">开</button>
+        <input type="range" id="musicVol" min="0" max="100" value="60">
+      </div>
     </div>
-  </div>
-  <div class="sp-group">
-    <div class="sp-label">音效</div>
-    <div class="sp-row">
-      <button id="sfxToggle" class="sp-toggle on">开</button>
-      <input type="range" id="sfxVol" min="0" max="100" value="70">
+    <div class="sp-group">
+      <div class="sp-label">音效</div>
+      <div class="sp-row">
+        <button id="sfxToggle" class="sp-toggle on">开</button>
+        <input type="range" id="sfxVol" min="0" max="100" value="70">
+      </div>
     </div>
+    <button id="fullscreenBtn" class="sp-full">全屏</button>
+    <button id="openSave" class="sp-full sp-alt">存档</button>
   </div>
-  <button id="fullscreenBtn" class="sp-full">全屏</button>
+  <div id="spSave" class="sp-page hidden">
+    <div class="sp-label">存档管理</div>
+    <button id="saveExport" class="sp-full">导出存档文件</button>
+    <button id="saveImportBtn" class="sp-full">导入存档文件</button>
+    <input type="file" id="saveFile" style="display:none">
+    <div class="sp-label">存档码</div>
+    <textarea id="saveCodeShow" readonly placeholder="点下方按钮生成存档码"></textarea>
+    <button id="saveCodeGen" class="sp-full sp-alt">生成并复制存档码</button>
+    <textarea id="saveCodeIn" placeholder="把存档码粘贴到这里"></textarea>
+    <button id="saveCodeLoad" class="sp-full">用存档码导入</button>
+    <button id="saveClear" class="sp-full sp-danger">清除存档数据</button>
+    <button id="saveBack" class="sp-full sp-alt">返回</button>
+  </div>
 </div>
 
 <div id="menu" class="ov">
-  <div class="title">阿尔法大陆</div>
-  <div class="sub">ALPHA LAND</div>
+  <div class="title">星辰回响</div>
+  <div class="sub">STELLAR ECHO</div>
   <button id="startBtn">开始游戏</button>
+  <div id="menuNotice">⚠ 清除浏览器缓存会导致存档丢失，建议在「设置 → 存档」里导出备份或保存存档码</div>
 </div>
 <div id="subtitle" class="ov hidden">
   <div class="text">到达主城</div>
@@ -819,6 +843,93 @@ document.getElementById('fullscreenBtn').onclick=()=>{
 };
 document.addEventListener('fullscreenchange', ()=>{ resize(); checkOrientation(); });
 
+// ---------- 存档系统 ----------
+const SAVE_KEY='xingchen_huixiang_save_v1';
+const SAVE_SIG='星辰回响';
+const SAVE_VER=1;
+let hasSave=false;
+
+function collectSave(){
+  return { sig:SAVE_SIG, ver:SAVE_VER, at:Date.now(),
+    p:{ x:player.x, y:player.y, hp:player.hp, maxHp:player.maxHp, speed:player.speed },
+    lv:level, xp:xp, need:xpNeed };
+}
+function applySave(s){
+  if(!s || s.sig!==SAVE_SIG) return false;
+  const p=player;
+  if(s.p){ p.x=s.p.x; p.y=s.p.y; p.hp=s.p.hp; p.maxHp=s.p.maxHp; p.speed=s.p.speed||80; }
+  level=s.lv||0; xp=s.xp||0; xpNeed=s.need||10;
+  camXs=Math.max(0,Math.min(WORLD_W-VW, p.x-VW/2));
+  camYs=Math.max(0,Math.min(WORLD_H-VH, p.y-VH/2));
+  camX=Math.round(camXs*RES)/RES; camY=Math.round(camYs*RES)/RES;
+  return true;
+}
+function saveGame(){
+  try{ localStorage.setItem(SAVE_KEY, JSON.stringify(collectSave())); }catch(e){}
+}
+function loadGame(){
+  try{
+    const raw=localStorage.getItem(SAVE_KEY);
+    if(!raw) return false;
+    return applySave(JSON.parse(raw));
+  }catch(e){ return false; }
+}
+function clearSave(){ try{ localStorage.removeItem(SAVE_KEY); }catch(e){} }
+function downloadSave(){
+  const blob=new Blob([JSON.stringify(collectSave())],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  a.download='星辰回响-存档-'+new Date().toISOString().slice(0,10)+'.star';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+function readSaveFile(file){
+  const r=new FileReader();
+  r.onload=()=>{
+    try{
+      if(applySave(JSON.parse(r.result))){ saveGame(); alert('存档导入成功'); }
+      else alert('这不是有效的「星辰回响」存档');
+    }catch(e){ alert('存档文件损坏或格式不对'); }
+  };
+  r.readAsText(file);
+}
+function makeSaveCode(){ return btoa(unescape(encodeURIComponent(JSON.stringify(collectSave())))); }
+function useSaveCode(code){
+  try{ return applySave(JSON.parse(decodeURIComponent(escape(atob(code.trim()))))); }
+  catch(e){ return false; }
+}
+
+// 自动存档
+setInterval(()=>{ if(state==='city') saveGame(); }, 4000);
+document.addEventListener('visibilitychange', ()=>{ if(document.hidden && state==='city') saveGame(); });
+window.addEventListener('pagehide', ()=>{ if(state==='city') saveGame(); });
+
+const spMain=document.getElementById('spMain'), spSave=document.getElementById('spSave');
+document.getElementById('openSave').onclick=()=>{ spMain.classList.add('hidden'); spSave.classList.remove('hidden'); };
+document.getElementById('saveBack').onclick=()=>{ spSave.classList.add('hidden'); spMain.classList.remove('hidden'); };
+document.getElementById('saveExport').onclick=()=>downloadSave();
+document.getElementById('saveImportBtn').onclick=()=>document.getElementById('saveFile').click();
+document.getElementById('saveFile').onchange=(e)=>{ const f=e.target.files[0]; if(f) readSaveFile(f); e.target.value=''; };
+document.getElementById('saveCodeGen').onclick=()=>{
+  const code=makeSaveCode();
+  const box=document.getElementById('saveCodeShow');
+  box.value=code;
+  try{ box.select(); navigator.clipboard && navigator.clipboard.writeText(code); }catch(e){}
+};
+document.getElementById('saveCodeLoad').onclick=()=>{
+  const code=document.getElementById('saveCodeIn').value;
+  if(!code.trim()){ alert('请先粘贴存档码'); return; }
+  if(useSaveCode(code)){ saveGame(); alert('存档码导入成功'); }
+  else alert('存档码无效');
+};
+document.getElementById('saveClear').onclick=()=>{
+  if(confirm('确定清除本地存档吗？清除后无法恢复。')){
+    clearSave();
+    alert('本地存档已清除，刷新页面将以新游戏开始');
+  }
+};
+
 // ---------- 横屏提示 ----------
 function checkOrientation(){
   const portrait = window.innerHeight > window.innerWidth;
@@ -829,7 +940,8 @@ checkOrientation();
 
 document.getElementById('startBtn').onclick=()=>{
   document.getElementById('menu').classList.add('hidden');
-  resetGame();
+  if(!hasSave) resetGame();
+  hasSave=true; saveGame();
   initAudio(); startMusic();
   if(screen.orientation && screen.orientation.lock){
     try { const p=screen.orientation.lock('landscape'); if(p&&p.catch) p.catch(()=>{}); } catch(e){}
@@ -840,7 +952,7 @@ document.getElementById('startBtn').onclick=()=>{
   setTimeout(()=>{ sub.classList.add('hidden'); state='city'; }, 1600);
 };
 
-buildGround(); resetGame(); last=performance.now(); fpsLast=performance.now(); requestAnimationFrame(frame);
+buildGround(); resetGame(); hasSave=loadGame(); last=performance.now(); fpsLast=performance.now(); requestAnimationFrame(frame);
 </script>
 </body>
 </html>
