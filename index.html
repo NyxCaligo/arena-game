@@ -434,6 +434,7 @@ function update(dt){
   const k=1-Math.exp(-dt*12);
   camXs += (tcx-camXs)*k;
   camYs += (tcy-camYs)*k;
+  if(!isFinite(camXs)||!isFinite(camYs)){ camXs=tcx; camYs=tcy; }
   camX = Math.round(camXs*RES)/RES;
   camY = Math.round(camYs*RES)/RES;
 }
@@ -557,7 +558,7 @@ function drawWaterTile(sx,sy,tx,ty){
   }
 }
 function drawBridge(){
-  const b=BRIDGE, x=b.x, y=b.y, w=b.w, h=b.h;
+  const b=BRIDGE, x=b.x-camX, y=b.y-camY, w=b.w, h=b.h;
   px(x, y, w, h, '#9a7248');
   for(let yy=y; yy<y+h; yy+=6) px(x, yy, w, 1, '#7a5a36');
   px(x, y, 3, h, '#6b4a2e');
@@ -855,31 +856,50 @@ function drawJoystick(){
   octx.beginPath(); octx.arc(kx,ky,9,0,7); octx.stroke();
 }
 
+let groundOK = false;
 function buildGround(){
-  baking = true;
-  const saved = octx;
-  octx = gctx;
-  octx.clearRect(0,0,WORLD_W,WORLD_H);
-  for(let ty=0; ty<WROWS; ty++) for(let tx=0; tx<WCOLS; tx++){
-    const sx=tx*TILE, sy=ty*TILE, t=world[ty][tx];
-    if(t===0){
-      if(tileWaterCnt[ty*WCOLS+tx]>0) drawWaterTile(sx,sy,tx,ty);
-      else drawGroundTile(sx,sy,tx,ty);
-    } else drawBoundaryBase(sx,sy,tx,ty);
+  try{
+    baking = true;
+    const saved = octx;
+    const sx0=camX, sy0=camY;
+    octx = gctx; camX=0; camY=0;
+    octx.clearRect(0,0,WORLD_W,WORLD_H);
+    for(let ty=0; ty<WROWS; ty++) for(let tx=0; tx<WCOLS; tx++){
+      const sx=tx*TILE, sy=ty*TILE, t=world[ty][tx];
+      if(t===0){
+        if(tileWaterCnt[ty*WCOLS+tx]>0) drawWaterTile(sx,sy,tx,ty);
+        else drawGroundTile(sx,sy,tx,ty);
+      } else drawBoundaryBase(sx,sy,tx,ty);
+    }
+    drawBridge();
+    octx = saved; camX=sx0; camY=sy0;
+    baking = false;
+    groundOK = true;
+  }catch(e){
+    groundOK = false;
   }
-  drawBridge();
-  octx = saved;
-  baking = false;
 }
 
 function render(){
   octx.clearRect(0,0,VW,VH);
   octx.fillStyle='#7db25a'; octx.fillRect(0,0,VW,VH);
 
-  octx.save();
-  octx.setTransform(1,0,0,1,0,0);
-  octx.drawImage(groundCanvas, camX*RES, camY*RES, VW*RES, VH*RES, 0, 0, VW*RES, VH*RES);
-  octx.restore();
+  if(groundOK){
+    octx.save();
+    octx.setTransform(1,0,0,1,0,0);
+    const bcx=Math.max(0,Math.min(WORLD_W-VW,camX)), bcy=Math.max(0,Math.min(WORLD_H-VH,camY));
+    octx.drawImage(groundCanvas, bcx*RES, bcy*RES, VW*RES, VH*RES, 0, 0, VW*RES, VH*RES);
+    octx.restore();
+  } else {
+    const gx0=Math.max(0,Math.floor(camX/TILE)), gx1=Math.min(WCOLS,Math.ceil((camX+VW)/TILE));
+    const gy0=Math.max(0,Math.floor(camY/TILE)), gy1=Math.min(WROWS,Math.ceil((camY+VH)/TILE));
+    for(let ty=gy0; ty<gy1; ty++) for(let tx=gx0; tx<gx1; tx++){
+      const sx=tx*TILE-camX, sy=ty*TILE-camY, t=world[ty][tx];
+      if(t===0){ if(tileWaterCnt[ty*WCOLS+tx]>0) drawWaterTile(sx,sy,tx,ty); else drawGroundTile(sx,sy,tx,ty); }
+      else drawBoundaryBase(sx,sy,tx,ty);
+    }
+    drawBridge();
+  }
   const ds=[];
   for(const b of BUILDINGS) ds.push({bottom:b.y+b.h, draw:()=>drawHouse(b)});
   for(const p of PROPS) ds.push({bottom:p.y, draw:()=>drawProp(p)});
@@ -1050,7 +1070,7 @@ function applySave(s){
   if(!s || s.sig!==SAVE_SIG) return false;
   const p=player;
   if(s.p){ p.x=s.p.x; p.y=s.p.y; p.hp=s.p.hp; p.maxHp=s.p.maxHp; p.speed=s.p.speed||80; }
-  if(solidAt(p.x,p.y)){ p.x=680; p.y=448; }   // 旧存档位置若已不可站立则回出生点
+  if(!isFinite(p.x)||!isFinite(p.y)||solidAt(p.x,p.y)){ p.x=680; p.y=448; }
   level=s.lv||0; xp=s.xp||0; xpNeed=s.need||10;
   camXs=Math.max(0,Math.min(WORLD_W-VW, p.x-VW/2));
   camYs=Math.max(0,Math.min(WORLD_H-VH, p.y-VH/2));
@@ -1216,6 +1236,39 @@ const ARMOR_SVG=[
   '<svg width="34" height="34" viewBox="0 0 12 12" shape-rendering="crispEdges"><rect x="4" y="1" width="4" height="1" fill="#74808e"/><rect x="1" y="2" width="2" height="3" fill="#74808e"/><rect x="9" y="2" width="2" height="3" fill="#74808e"/><rect x="3" y="2" width="6" height="2" fill="#9aa5b1"/><rect x="5" y="2" width="2" height="2" fill="#232c38"/><rect x="3" y="4" width="6" height="4" fill="#9aa5b1"/><rect x="4" y="5" width="4" height="1" fill="#74808e"/><rect x="4" y="8" width="4" height="1" fill="#74808e"/></svg>',
   '<svg width="34" height="34" viewBox="0 0 12 12" shape-rendering="crispEdges"><rect x="2" y="2" width="3" height="4" fill="#9aa5b1"/><rect x="7" y="2" width="3" height="4" fill="#9aa5b1"/><rect x="2" y="6" width="3" height="1" fill="#74808e"/><rect x="7" y="6" width="3" height="1" fill="#74808e"/><rect x="2" y="7" width="3" height="3" fill="#9aa5b1"/><rect x="7" y="7" width="3" height="3" fill="#9aa5b1"/><rect x="1" y="10" width="4" height="1" fill="#74808e"/><rect x="7" y="10" width="4" height="1" fill="#74808e"/></svg>'
 ];
+function makePixLabel(text, px, color){
+  const c=document.createElement('canvas');
+  const g=c.getContext('2d');
+  g.font=px+'px monospace';
+  const w=Math.ceil(g.measureText(text).width)+4;
+  const h=px+4;
+  c.width=w; c.height=h;
+  g.font=px+'px monospace'; g.textBaseline='top'; g.fillStyle='#ffffff';
+  g.fillText(text,2,2);
+  try{
+    const img=g.getImageData(0,0,w,h), d=img.data;
+    for(let i=0;i<d.length;i+=4) d[i+3]=d[i+3]>100?255:0;
+    g.putImageData(img,0,0);
+    g.globalCompositeOperation='source-in';
+    g.fillStyle=color; g.fillRect(0,0,w,h);
+    g.globalCompositeOperation='source-over';
+  }catch(e){}
+  c.style.width=(w*2)+'px'; c.style.height=(h*2)+'px';
+  c.style.imageRendering='pixelated';
+  return c;
+}
+function setPixLabel(id, text, px, color){
+  const el=document.getElementById(id);
+  if(!el||el.childElementCount) return;
+  el.appendChild(makePixLabel(text, px, color));
+}
+setPixLabel('bagTitle','背包',11,'#f8fafc');
+setPixLabel('bagCap','15|100 容量',9,'#94a3b8');
+setPixLabel('eqTitle','装备',11,'#f8fafc');
+setPixLabel('capW','武器',9,'#94a3b8');
+setPixLabel('capA','防具',9,'#94a3b8');
+setPixLabel('capAcc','饰品',9,'#94a3b8');
+
 function openEquip(){
   document.getElementById('equipWrap').classList.remove('hidden');
   document.querySelectorAll('#equipWrap [data-armor]').forEach(el=>{
