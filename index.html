@@ -169,12 +169,40 @@
 <div id="menuWrap" class="hidden">
   <div class="modal-bg" id="menuWrapBg"></div>
   <div class="menu-box">
-    <button class="menu-sq" id="mTitle">🏠<span>标题</span></button>
-    <button class="menu-sq" id="settingsBtn">⚙<span>设置</span></button>
-    <button class="menu-sq" id="pauseBtn">❚❚<span>暂停</span></button>
+    <button class="menu-sq" id="mTitle">
+      <svg width="26" height="26" viewBox="0 0 8 8" shape-rendering="crispEdges">
+        <rect x="3" y="1" width="2" height="1" fill="#e2e8f0"/>
+        <rect x="2" y="2" width="4" height="1" fill="#e2e8f0"/>
+        <rect x="1" y="3" width="6" height="1" fill="#e2e8f0"/>
+        <rect x="1" y="4" width="6" height="3" fill="#e2e8f0"/>
+        <rect x="3" y="5" width="2" height="2" fill="#4b5462"/>
+      </svg><span>标题</span>
+    </button>
+    <button class="menu-sq" id="settingsBtn">
+      <svg width="26" height="26" viewBox="0 0 8 8" shape-rendering="crispEdges">
+        <rect x="3" y="1" width="2" height="1" fill="#e2e8f0"/>
+        <rect x="1" y="3" width="1" height="2" fill="#e2e8f0"/>
+        <rect x="6" y="3" width="1" height="2" fill="#e2e8f0"/>
+        <rect x="3" y="6" width="2" height="1" fill="#e2e8f0"/>
+        <rect x="2" y="2" width="4" height="4" fill="#e2e8f0"/>
+        <rect x="3" y="3" width="2" height="2" fill="#4b5462"/>
+      </svg><span>设置</span>
+    </button>
+    <button class="menu-sq" id="pauseBtn">
+      <svg width="26" height="26" viewBox="0 0 8 8" shape-rendering="crispEdges">
+        <rect x="2" y="1" width="1" height="6" fill="#e2e8f0"/>
+        <rect x="5" y="1" width="1" height="6" fill="#e2e8f0"/>
+      </svg><span>暂停</span>
+    </button>
   </div>
 </div>
-<button id="eqToggle">▼</button>
+<button id="eqToggle">
+  <svg id="eqChev" width="20" height="20" viewBox="0 0 8 8" shape-rendering="crispEdges">
+    <rect x="1" y="2" width="6" height="1" fill="#e2e8f0"/>
+    <rect x="2" y="3" width="4" height="1" fill="#e2e8f0"/>
+    <rect x="3" y="4" width="2" height="1" fill="#e2e8f0"/>
+  </svg>
+</button>
 <button id="interactBtn" class="hidden">
   <svg width="30" height="30" viewBox="0 0 12 12" shape-rendering="crispEdges">
     <rect x="4" y="1" width="1" height="4" fill="#f0d0ae"/>
@@ -283,7 +311,7 @@
     <div class="sp-group">
       <button id="vibToggle" class="sp-full sp-alt">振动：开</button>
       <div class="sp-row"><span class="sp-cap">震感</span><input type="range" id="vibPower" min="0" max="100" value="100"></div>
-      <button id="autoPauseToggle" class="sp-full sp-alt">打开菜单自动暂停：开</button>
+      <button id="autoPauseToggle" class="sp-full sp-alt">打开菜单自动暂停：关</button>
     </div>
     <div class="sp-label">数据</div>
     <div class="sp-group">
@@ -1823,7 +1851,8 @@ document.getElementById('pauseBtn').onclick=()=>{
 document.getElementById('resumeBtn').onclick=()=>{ paused=false; document.getElementById('pauseWrap').classList.add('hidden'); sfxDrop(); updateHudButtons(); };
 document.getElementById('eqToggle').onclick=()=>{
   equipHudOn=!equipHudOn;
-  document.getElementById('eqToggle').textContent = equipHudOn?'▼':'▲';
+  const ch=document.getElementById('eqChev');
+  if(ch) ch.style.transform = equipHudOn ? 'rotate(0deg)' : 'rotate(180deg)';
   sfxBeep(); vibrate(2);
 };
 function showToast(msg){
@@ -1863,6 +1892,8 @@ function drawAmbient(){
   const gy0=Math.max(0,Math.floor(camY/TILE)), gy1=Math.min(WROWS,Math.ceil((camY+VH)/TILE));
   for(let ty=gy0; ty<gy1; ty++) for(let tx=gx0; tx<gx1; tx++){
     if(tileWaterCnt[ty*WCOLS+tx]>20){
+      const wx0=tx*TILE, wy0=ty*TILE;
+      if(wx0+TILE>BRIDGE.x && wx0<BRIDGE.x+BRIDGE.w && wy0+TILE>BRIDGE.y && wy0<BRIDGE.y+BRIDGE.h) continue;
       const sx=tx*TILE-camX, sy=ty*TILE-camY;
       const ph=Math.sin(gtime*2+tx*0.7+ty*1.3);
       px(sx+3+ph*3, sy+5, 3,1,'#4a8fd4');
@@ -1933,10 +1964,13 @@ document.getElementById('tlImport').onclick=()=>{
 };
 
 // ---------- 横屏提示 ----------
-let nearNpc=false, autoPause=true, pausedAuto=false;
+let nearNpc=false, autoPause=false, pausedAuto=false;
+const ICON_MENU='<svg width="24" height="24" viewBox="0 0 8 8" shape-rendering="crispEdges"><rect x="1" y="2" width="6" height="1" fill="#e2e8f0"/><rect x="1" y="4" width="6" height="1" fill="#e2e8f0"/><rect x="1" y="6" width="6" height="1" fill="#e2e8f0"/></svg>';
+const ICON_GEAR='<svg width="24" height="24" viewBox="0 0 8 8" shape-rendering="crispEdges"><rect x="3" y="1" width="2" height="1" fill="#e2e8f0"/><rect x="1" y="3" width="1" height="2" fill="#e2e8f0"/><rect x="6" y="3" width="1" height="2" fill="#e2e8f0"/><rect x="3" y="6" width="2" height="1" fill="#e2e8f0"/><rect x="2" y="2" width="4" height="4" fill="#e2e8f0"/><rect x="3" y="3" width="2" height="2" fill="#4b5462"/></svg>';
 function syncMenuIcon(){
   const b=document.getElementById('menuBtn'); if(!b) return;
-  b.textContent = (state==='city' || state==='arrive') ? '☰' : '⚙';
+  const html=(state==='city' || state==='arrive') ? ICON_MENU : ICON_GEAR;
+  if(b.dataset.ic!==html){ b.innerHTML=html; b.dataset.ic=html; }
 }
 function updateHudButtons(){
   syncMenuIcon();
