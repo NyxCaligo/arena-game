@@ -54,6 +54,22 @@
   textarea { width:100%; min-height:64px; background:#0b1220; color:#cbd5e1; border:2px solid #1e293b;
              border-radius:4px; padding:8px; font-family:inherit; font-size:12px; resize:vertical; }
   #menuNotice { color:#fbbf24; font-size:12px; line-height:1.7; max-width:300px; margin-top:4px; }
+  #pauseBtn { position:fixed; z-index:6; top:calc(10px + env(safe-area-inset-top, 0px));
+              right:calc(66px + env(safe-area-inset-right, 0px)); width:44px; height:44px; padding:0;
+              background:#9aa3ae; color:#1e293b; border:2px solid #4b5462; border-radius:6px;
+              font-size:16px; box-shadow:none; display:flex; align-items:center; justify-content:center; }
+  #eqToggle { position:fixed; z-index:11; right:calc(10px + env(safe-area-inset-right, 0px));
+              bottom:calc(10px + env(safe-area-inset-bottom, 0px)); width:40px; height:40px; padding:0;
+              background:#4b5462; color:#e2e8f0; border:2px solid #0b0f1a; border-radius:0;
+              font-size:15px; box-shadow:none; display:flex; align-items:center; justify-content:center; }
+  #saveToast { position:fixed; z-index:7; left:50%; transform:translateX(-50%);
+               bottom:calc(64px + env(safe-area-inset-bottom, 0px)); color:#4ade80;
+               font-size:12px; opacity:0; transition:opacity .25s; pointer-events:none;
+               text-shadow:0 1px 2px #000; }
+  .pause-ov { position:fixed; inset:0; z-index:14; display:flex; flex-direction:column;
+              align-items:center; justify-content:center; gap:18px; background:rgba(5,7,13,.92); }
+  .pause-ov.hidden { display:none; }
+  .pause-ov h2 { font-size:26px; color:#f8fafc; letter-spacing:6px; }
   #bagBtn { position:fixed; z-index:11; left:calc(10px + env(safe-area-inset-left, 0px));
             bottom:calc(10px + env(safe-area-inset-bottom, 0px)); width:46px; height:46px; padding:0;
             background:#4b5462; border:2px solid #0b0f1a; border-radius:0;
@@ -130,6 +146,13 @@
 <body>
 <canvas id="cv"></canvas>
 <button id="settingsBtn">⚙</button>
+<button id="pauseBtn">❚❚</button>
+<button id="eqToggle">▾</button>
+<div id="saveToast"></div>
+<div id="pauseWrap" class="pause-ov hidden">
+  <h2>已暂停</h2>
+  <button id="resumeBtn" class="sp-full" style="width:auto;padding:12px 30px">继续游戏</button>
+</div>
 <button id="bagBtn">
   <svg width="22" height="22" viewBox="0 0 11 11" shape-rendering="crispEdges">
     <rect x="4" y="0" width="3" height="1" fill="#1e293b"/>
@@ -193,6 +216,7 @@
       <button class="catBtn" data-f="weapon">武器</button>
       <button class="catBtn" data-f="armor">防具</button>
       <button class="catBtn" data-f="acc">饰品</button>
+      <button class="catBtn" id="bagSort">整理</button>
     </div>
     <div class="bag-grid" id="bagGrid"></div>
   </div>
@@ -412,6 +436,8 @@ let level=0, xp=0, xpNeed=10;
 function resetGame(){
   player = { x:680, y:448, hp:100, maxHp:100, r:6, speed:80, face:1 };
   level=0; xp=0; xpNeed=10; walkPhase=0; lastStep=-1;
+  EQUIP.weapons[0]='sword';
+  bagItems=bagItems.filter(id=>id!=='sword');
   camX=Math.max(0,Math.min(WORLD_W-VW, player.x-VW/2));
   camY=Math.max(0,Math.min(WORLD_H-VH, player.y-VH/2));
   camXs=camX; camYs=camY;
@@ -993,6 +1019,7 @@ function render(){
     }
     drawBridge();
   }
+  drawAmbient();
   const ds=[];
   for(const b of BUILDINGS) ds.push({bottom:b.y+b.h, draw:()=>drawHouse(b)});
   for(const p of PROPS) ds.push({bottom:p.y, draw:()=>drawProp(p)});
@@ -1003,8 +1030,9 @@ function render(){
   for(const d of ds){ if(d.bottom>player.y) d.draw(); }
   drawHUD();
   const ft=fpsVal+' FPS';
-  drawText(ft, VW-6-(ft.length*4), 32, '#4ade80');
-  if(state==='city'){ drawEquipHUD(); drawJoystick(); }
+  drawText(ft, 4, 44, '#4ade80');
+  drawMini();
+  if(state==='city'){ if(equipHudOn) drawEquipHUD(); drawJoystick(); }
 
   ctx.fillStyle='#05070d'; ctx.fillRect(0,0,cv.width,cv.height);
   ctx.drawImage(off, oxCss, oyCss, VW*cssScale, VH*cssScale);
@@ -1013,7 +1041,8 @@ function render(){
 let fpsFrames=0, fpsLast=0, fpsVal=0;
 function frame(now){
   const dt=Math.min((now-last)/1000,0.05); last=now;
-  if(state==='city') update(dt);
+  gtime += dt;
+  if(state==='city' && !paused) update(dt);
   render();
   fpsFrames++;
   if(now-fpsLast>=500){
@@ -1213,6 +1242,7 @@ function applySave(s){
 }
 function saveGame(){
   try{ localStorage.setItem(SAVE_KEY, JSON.stringify(collectSave())); }catch(e){}
+  if(typeof showToast==='function') showToast('已保存');
 }
 function loadGame(){
   try{
@@ -1455,7 +1485,7 @@ function renderBag(){
           d.classList.add('sel');
           showItemMenu(id, [
           {label:'查看', fn:()=>openItemDetail(id)},
-          {label:'装配', fn:()=>{ vibrate(3); if(equipItem(id)){ renderBag(); renderEquipPanel(); saveGame(); } }}
+          {label:'装配', fn:()=>{ vibrate(3); if(equipItem(id)){ sfxEquip(); renderBag(); renderEquipPanel(); saveGame(); } }}
         ], d);
         },
         ()=>openItemDetail(id)
@@ -1474,7 +1504,7 @@ function renderEquipPanel(){
     if(cur) bindItemSlot(d,
       ()=>showItemMenu(cur, [
         {label:'查看', fn:()=>openItemDetail(cur)},
-        {label:'卸下', fn:()=>{ vibrate(3); unequip(t,i); renderEquipPanel(); renderBag(); saveGame(); }}
+        {label:'卸下', fn:()=>{ vibrate(3); sfxEquip(); unequip(t,i); renderEquipPanel(); renderBag(); saveGame(); }}
       ], d),
       ()=>openItemDetail(cur)
     );
@@ -1603,8 +1633,8 @@ function openEquip(){
   document.getElementById('equipWrap').classList.remove('hidden');
 }
 function bindCatBtns(){
-  document.querySelectorAll('#bagWrap .catBtn').forEach(x=>x.classList.toggle('on', x.dataset.f===bagFilter));
-  document.querySelectorAll('#bagWrap .catBtn').forEach(b=>{
+  document.querySelectorAll('#bagWrap .catBtn[data-f]').forEach(x=>x.classList.toggle('on', x.dataset.f===bagFilter));
+  document.querySelectorAll('#bagWrap .catBtn[data-f]').forEach(b=>{
     b.onclick=()=>{
       bagFilter=b.dataset.f;
       document.querySelectorAll('#bagWrap .catBtn').forEach(x=>x.classList.toggle('on', x===b));
@@ -1613,9 +1643,17 @@ function bindCatBtns(){
     };
   });
 }
+function bindSort(){
+  const b=document.getElementById('bagSort'); if(!b) return;
+  b.onclick=()=>{
+    const order={weapon:0,armor:1,acc:2};
+    bagItems.sort((a,c)=>(order[ITEMS[a].t]-order[ITEMS[c].t]) || a.localeCompare(c));
+    sfxBeep(); vibrate(2); renderBag();
+  };
+}
 function openBag(){
   bagOpenAt=performance.now();
-  bindCatBtns();
+  bindCatBtns(); bindSort();
   renderBag();
   document.getElementById('bagWrap').classList.remove('hidden');
 }
@@ -1656,6 +1694,85 @@ document.getElementById('muteAll').onclick=()=>{
   applyMusic(); applySfx();
 };
 
+// ---------- 暂停 / 折叠 / 存档提示 / 小地图 / 环境 ----------
+let paused=false, equipHudOn=true, toastTimer=null, gtime=0;
+document.getElementById('pauseBtn').onclick=()=>{ paused=true; document.getElementById('pauseWrap').classList.remove('hidden'); sfxBeep(); };
+document.getElementById('resumeBtn').onclick=()=>{ paused=false; document.getElementById('pauseWrap').classList.add('hidden'); sfxDrop(); };
+document.getElementById('eqToggle').onclick=()=>{
+  equipHudOn=!equipHudOn;
+  document.getElementById('eqToggle').textContent = equipHudOn?'▾':'▴';
+  sfxBeep(); vibrate(2);
+};
+function showToast(msg){
+  const t=document.getElementById('saveToast');
+  t.textContent=msg; t.style.opacity='1';
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>{ t.style.opacity='0'; }, 900);
+}
+function sfxEquip(){
+  if(!actx||!sfxOn||mutedAll) return;
+  const t=actx.currentTime;
+  const o=actx.createOscillator(), g=actx.createGain();
+  o.type='triangle';
+  o.frequency.setValueAtTime(660,t); o.frequency.setValueAtTime(990,t+0.05);
+  g.gain.setValueAtTime(0.0001,t); g.gain.linearRampToValueAtTime(0.14,t+0.006);
+  g.gain.exponentialRampToValueAtTime(0.0001,t+0.16);
+  o.connect(g); g.connect(sfxGain); o.start(t); o.stop(t+0.18);
+}
+const miniCanvas=document.createElement('canvas');
+miniCanvas.width=WCOLS; miniCanvas.height=WROWS;
+const mctx=miniCanvas.getContext('2d');
+function buildMini(){
+  for(let y=0;y<WROWS;y++) for(let x=0;x<WCOLS;x++){
+    const t=world[y][x];
+    let c;
+    if(t!==0) c='#6f7784';
+    else if(tileWaterCnt[y*WCOLS+x]>0) c='#2f6fb0';
+    else if(tileRoadCnt[y*WCOLS+x]>0) c='#c9a96b';
+    else c='#5f8f46';
+    mctx.fillStyle=c; mctx.fillRect(x,y,1,1);
+  }
+  for(const b of BUILDINGS){ mctx.fillStyle='#e0b070';
+    mctx.fillRect(Math.round(b.x/TILE), Math.round(b.y/TILE), Math.max(1,Math.round(b.w/TILE)), Math.max(1,Math.round(b.h/TILE))); }
+}
+function drawAmbient(){
+  const gx0=Math.max(0,Math.floor(camX/TILE)), gx1=Math.min(WCOLS,Math.ceil((camX+VW)/TILE));
+  const gy0=Math.max(0,Math.floor(camY/TILE)), gy1=Math.min(WROWS,Math.ceil((camY+VH)/TILE));
+  for(let ty=gy0; ty<gy1; ty++) for(let tx=gx0; tx<gx1; tx++){
+    if(tileWaterCnt[ty*WCOLS+tx]>20){
+      const sx=tx*TILE-camX, sy=ty*TILE-camY;
+      const ph=Math.sin(gtime*2+tx*0.7+ty*1.3);
+      px(sx+3+ph*3, sy+5, 3,1,'#4a8fd4');
+      px(sx+9-ph*2, sy+11, 2,1,'#5fa8e6');
+    }
+  }
+  for(let i=0;i<14;i++){
+    const fx=hash(i,7)*WORLD_W + Math.sin(gtime*0.15+i)*30;
+    const fy=hash(i,13)*WORLD_H + Math.cos(gtime*0.12+i*1.7)*24;
+    const x=fx-camX, y=fy-camY;
+    if(x>-4&&x<VW+4&&y>-4&&y<VH+4){
+      octx.globalAlpha=0.35+0.45*Math.abs(Math.sin(gtime*1.5+i));
+      px(x,y,1,1,'#fde68a');
+      octx.globalAlpha=1;
+    }
+  }
+  const dx=player.x-NPC.x, dy=player.y-NPC.y;
+  if(dx*dx+dy*dy < 48*48){
+    const bx=Math.round(NPC.x-camX), by=Math.round(NPC.y-camY)-30;
+    px(bx-19, by-8, 38, 12, '#0b0f1a');
+    px(bx-18, by-7, 36, 10, '#f8fafc');
+    octx.font='8px monospace'; octx.textBaseline='top'; octx.fillStyle='#0b0f1a';
+    octx.fillText('点击对话', bx-16, by-6);
+  }
+}
+function drawMini(){
+  const mx=VW-70, my=36;
+  px(mx-1,my-1,66,46,'#0b0f1a');
+  octx.drawImage(miniCanvas, mx, my, WCOLS, WROWS);
+  const px0=mx+Math.round(player.x/TILE), py0=my+Math.round(player.y/TILE);
+  px(px0-1,py0-1,3,3,'#f5c542');
+}
+
 // ---------- 横屏提示 ----------
 function syncBagBtn(){
   const b=document.getElementById('bagBtn');
@@ -1682,7 +1799,7 @@ document.getElementById('startBtn').onclick=()=>{
   setTimeout(()=>{ sub.classList.add('hidden'); state='city'; syncBagBtn(); }, 1600);
 };
 
-buildGround(); resetGame(); hasSave=loadGame(); syncBagBtn(); last=performance.now(); fpsLast=performance.now(); requestAnimationFrame(frame);
+buildGround(); buildMini(); resetGame(); hasSave=loadGame(); syncBagBtn(); last=performance.now(); fpsLast=performance.now(); requestAnimationFrame(frame);
 </script>
 </body>
 </html>
