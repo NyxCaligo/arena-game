@@ -55,13 +55,29 @@
              border-radius:4px; padding:8px; font-family:inherit; font-size:12px; resize:vertical; }
   #menuNotice { color:#fbbf24; font-size:12px; line-height:1.7; max-width:300px; margin-top:4px; }
   #pauseBtn { position:fixed; z-index:6; top:calc(10px + env(safe-area-inset-top, 0px));
-              right:calc(66px + env(safe-area-inset-right, 0px)); width:44px; height:44px; padding:0;
-              background:#9aa3ae; color:#1e293b; border:2px solid #4b5462; border-radius:6px;
-              font-size:16px; box-shadow:none; display:flex; align-items:center; justify-content:center; }
-  #eqToggle { position:fixed; z-index:11; right:calc(10px + env(safe-area-inset-right, 0px));
-              bottom:calc(10px + env(safe-area-inset-bottom, 0px)); width:40px; height:40px; padding:0;
+              right:calc(64px + env(safe-area-inset-right, 0px)); width:76px; height:44px; padding:0;
               background:#4b5462; color:#e2e8f0; border:2px solid #0b0f1a; border-radius:0;
-              font-size:15px; box-shadow:none; display:flex; align-items:center; justify-content:center; }
+              box-shadow:inset 0 1px 0 #5b6472; font-size:13px; letter-spacing:1px;
+              display:flex; align-items:center; justify-content:center; }
+  #pauseBtn:active { transform:translateY(2px); }
+  #eqToggle { position:fixed; z-index:11; right:calc(10px + env(safe-area-inset-right, 0px));
+              bottom:calc(10px + env(safe-area-inset-bottom, 0px)); width:46px; height:46px; padding:0;
+              background:#4b5462; color:#e2e8f0; border:2px solid #0b0f1a; border-radius:0;
+              box-shadow:inset 0 1px 0 #5b6472; font-size:14px;
+              display:flex; align-items:center; justify-content:center; }
+  #interactBtn { position:fixed; z-index:11; left:50%; transform:translateX(-50%);
+                 bottom:calc(112px + env(safe-area-inset-bottom, 0px)); padding:9px 22px;
+                 background:#4b5462; color:#f5e6cf; border:2px solid #0b0f1a; border-radius:0;
+                 box-shadow:inset 0 1px 0 #5b6472, 0 3px 0 rgba(0,0,0,.35);
+                 font-size:14px; font-weight:bold; letter-spacing:2px; }
+  #interactBtn.hidden { display:none; }
+  #msgToast { position:fixed; z-index:12; left:50%; transform:translateX(-50%);
+              bottom:calc(150px + env(safe-area-inset-bottom, 0px)); padding:8px 16px;
+              background:rgba(11,15,26,.92); color:#f8fafc; font-size:13px; border:2px solid #3a4250;
+              opacity:0; transition:opacity .2s; pointer-events:none; }
+  @keyframes popIn { from { transform:scale(.94); opacity:0; } to { transform:scale(1); opacity:1; } }
+  .modal-box { animation:popIn .16s ease-out; }
+  .item-menu { animation:popIn .12s ease-out; }
   #saveToast { position:fixed; z-index:7; left:50%; transform:translateX(-50%);
                bottom:calc(64px + env(safe-area-inset-bottom, 0px)); color:#4ade80;
                font-size:12px; opacity:0; transition:opacity .25s; pointer-events:none;
@@ -146,22 +162,25 @@
 <body>
 <canvas id="cv"></canvas>
 <button id="settingsBtn">⚙</button>
-<button id="pauseBtn">❚❚</button>
-<button id="eqToggle">▾</button>
+<button id="pauseBtn">❚❚ 暂停</button>
+<button id="eqToggle">▼</button>
+<button id="interactBtn" class="hidden">对话</button>
+<div id="msgToast"></div>
 <div id="saveToast"></div>
 <div id="pauseWrap" class="pause-ov hidden">
   <h2>已暂停</h2>
   <button id="resumeBtn" class="sp-full" style="width:auto;padding:12px 30px">继续游戏</button>
 </div>
 <button id="bagBtn">
-  <svg width="22" height="22" viewBox="0 0 11 11" shape-rendering="crispEdges">
-    <rect x="4" y="0" width="3" height="1" fill="#1e293b"/>
-    <rect x="3" y="1" width="1" height="2" fill="#1e293b"/>
-    <rect x="7" y="1" width="1" height="2" fill="#1e293b"/>
-    <rect x="2" y="3" width="7" height="7" fill="#8a6440"/>
-    <rect x="2" y="3" width="7" height="2" fill="#a87c50"/>
-    <rect x="4" y="6" width="3" height="1" fill="#5f4127"/>
-    <rect x="4" y="7" width="3" height="2" fill="#6b4a2e"/>
+  <svg width="26" height="26" viewBox="0 0 12 12" shape-rendering="crispEdges">
+    <rect x="4" y="1" width="4" height="1" fill="#1e293b"/>
+    <rect x="3" y="2" width="1" height="2" fill="#1e293b"/>
+    <rect x="8" y="2" width="1" height="2" fill="#1e293b"/>
+    <rect x="3" y="3" width="6" height="1" fill="#6b4a2e"/>
+    <rect x="2" y="4" width="8" height="7" fill="#8a6440"/>
+    <rect x="2" y="7" width="8" height="1" fill="#5f4127"/>
+    <rect x="4" y="8" width="4" height="3" fill="#a87c50"/>
+    <rect x="5" y="6" width="2" height="1" fill="#d4b24a"/>
   </svg>
 </button>
 <div id="equipWrap" class="modal hidden">
@@ -455,7 +474,7 @@ cv.addEventListener('touchstart', e=>{
   const t=e.touches[0]; const [vx,vy]=toV(t.clientX,t.clientY);
   const L=equipLayout(), H=L.hudBox;
   if(vx>=L.swx&&vx<=L.swx+L.swordS&&vy>=L.swy&&vy<=L.swy+L.swordS){ openEquip(); return; }
-  if(vx>=H.x0&&vx<=H.x1&&vy>=H.y0&&vy<=H.y1){ openEquip(); return; }
+  if(equipHudOn && vx>=H.x0&&vx<=H.x1&&vy>=H.y0&&vy<=H.y1){ openEquip(); return; }
   if(vx < VW*0.5 && vy > VH*0.5){ joy.active=true; joyMove(vx,vy); vibrate(1); }
 }, {passive:true});
 cv.addEventListener('touchmove', e=>{
@@ -469,7 +488,7 @@ cv.addEventListener('mousedown', e=>{
   if(state!=='city')return; const [vx,vy]=toV(e.clientX,e.clientY);
   const L=equipLayout(), H=L.hudBox;
   if(vx>=L.swx&&vx<=L.swx+L.swordS&&vy>=L.swy&&vy<=L.swy+L.swordS){ openEquip(); return; }
-  if(vx>=H.x0&&vx<=H.x1&&vy>=H.y0&&vy<=H.y1){ openEquip(); return; }
+  if(equipHudOn && vx>=H.x0&&vx<=H.x1&&vy>=H.y0&&vy<=H.y1){ openEquip(); return; }
   if(vx<VW*0.5 && vy>VH*0.5){ joy.active=true; joyMove(vx,vy); vibrate(1); }
 });
 cv.addEventListener('mousemove', e=>{ if(!joy.active)return; const [vx,vy]=toV(e.clientX,e.clientY); joyMove(vx,vy); });
@@ -527,6 +546,7 @@ function update(dt){
   camXs += (tcx-camXs)*k;
   camYs += (tcy-camYs)*k;
   if(!isFinite(camXs)||!isFinite(camYs)){ camXs=tcx; camYs=tcy; }
+  updateInteract();
   camX = Math.round(camXs*RES)/RES;
   camY = Math.round(camYs*RES)/RES;
 }
@@ -1030,7 +1050,12 @@ function render(){
   for(const d of ds){ if(d.bottom>player.y) d.draw(); }
   drawHUD();
   const ft=fpsVal+' FPS';
-  drawText(ft, 4, 44, '#4ade80');
+  drawText(ft, 4, 34, '#4ade80');
+  if(gtime - saveMsgT < 1.3){
+    octx.globalAlpha = Math.max(0, 1-(gtime-saveMsgT)/1.3);
+    drawText('OK', 4, 44, '#4ade80');
+    octx.globalAlpha = 1;
+  }
   drawMini();
   if(state==='city'){ if(equipHudOn) drawEquipHUD(); drawJoystick(); }
 
@@ -1242,7 +1267,7 @@ function applySave(s){
 }
 function saveGame(){
   try{ localStorage.setItem(SAVE_KEY, JSON.stringify(collectSave())); }catch(e){}
-  if(typeof showToast==='function') showToast('已保存');
+  if(typeof saveMsgT!=='undefined') saveMsgT=gtime;
 }
 function loadGame(){
   try{
@@ -1278,7 +1303,7 @@ function useSaveCode(code){
 }
 
 // 自动存档
-setInterval(()=>{ if(state==='city') saveGame(); }, 4000);
+setInterval(()=>{ if(state==='city') saveGame(); }, 15000);
 document.addEventListener('visibilitychange', ()=>{ if(document.hidden && state==='city') saveGame(); });
 window.addEventListener('pagehide', ()=>{ if(state==='city') saveGame(); });
 
@@ -1695,12 +1720,12 @@ document.getElementById('muteAll').onclick=()=>{
 };
 
 // ---------- 暂停 / 折叠 / 存档提示 / 小地图 / 环境 ----------
-let paused=false, equipHudOn=true, toastTimer=null, gtime=0;
+let paused=false, equipHudOn=true, gtime=0, saveMsgT=-99;
 document.getElementById('pauseBtn').onclick=()=>{ paused=true; document.getElementById('pauseWrap').classList.remove('hidden'); sfxBeep(); };
 document.getElementById('resumeBtn').onclick=()=>{ paused=false; document.getElementById('pauseWrap').classList.add('hidden'); sfxDrop(); };
 document.getElementById('eqToggle').onclick=()=>{
   equipHudOn=!equipHudOn;
-  document.getElementById('eqToggle').textContent = equipHudOn?'▾':'▴';
+  document.getElementById('eqToggle').textContent = equipHudOn?'▼':'▲';
   sfxBeep(); vibrate(2);
 };
 function showToast(msg){
@@ -1756,21 +1781,35 @@ function drawAmbient(){
       octx.globalAlpha=1;
     }
   }
-  const dx=player.x-NPC.x, dy=player.y-NPC.y;
-  if(dx*dx+dy*dy < 48*48){
-    const bx=Math.round(NPC.x-camX), by=Math.round(NPC.y-camY)-30;
-    px(bx-19, by-8, 38, 12, '#0b0f1a');
-    px(bx-18, by-7, 36, 10, '#f8fafc');
-    octx.font='8px monospace'; octx.textBaseline='top'; octx.fillStyle='#0b0f1a';
-    octx.fillText('点击对话', bx-16, by-6);
-  }
+
 }
+let toastTimer=null;
+function updateInteract(){
+  const btn=document.getElementById('interactBtn'); if(!btn) return;
+  const dx=player.x-NPC.x, dy=player.y-NPC.y;
+  const near=(dx*dx+dy*dy) < 54*54;
+  btn.classList.toggle('hidden', !near || state!=='city' || paused);
+}
+function toastMsg(t){
+  const el=document.getElementById('msgToast'); if(!el) return;
+  el.textContent=t; el.style.opacity='1';
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>{ el.style.opacity='0'; }, 1600);
+}
+document.getElementById('interactBtn').onclick=()=>{
+  sfxBeep(); vibrate(2);
+  toastMsg('……（她好像在等你说点什么）');
+};
 function drawMini(){
-  const mx=VW-70, my=36;
-  px(mx-1,my-1,66,46,'#0b0f1a');
-  octx.drawImage(miniCanvas, mx, my, WCOLS, WROWS);
-  const px0=mx+Math.round(player.x/TILE), py0=my+Math.round(player.y/TILE);
-  px(px0-1,py0-1,3,3,'#f5c542');
+  const S=50, mx=VW-58, my=48;
+  px(mx-2,my-2,S+4,S+4,'#0b0f1a');
+  px(mx-1,my-1,S+2,S+2,'#3a4250');
+  const sc=Math.min(S/WCOLS, S/WROWS);
+  const dw=WCOLS*sc, dh=WROWS*sc;
+  const ox=mx+(S-dw)/2, oy=my+(S-dh)/2;
+  octx.drawImage(miniCanvas, ox, oy, dw, dh);
+  const pxp=ox+(player.x/TILE)*sc, pyp=oy+(player.y/TILE)*sc;
+  px(pxp-1,pyp-1,3,3,'#f5c542');
 }
 
 // ---------- 横屏提示 ----------
