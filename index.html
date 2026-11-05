@@ -209,6 +209,29 @@ for(let ty=0;ty<WROWS;ty++) for(let tx=0;tx<WCOLS;tx++){
   tileRoadCnt[ty*WCOLS+tx]=c;
 }
 
+// ---------- 河流与桥 ----------
+const RIVER={x1:-30,y1:540,x2:1060,y2:540,w:78};
+const BRIDGE={x:655,y:490,w:48,h:104};
+const waterMask=new Uint8Array(MW*MH);
+const tileWaterCnt=new Uint8Array(WCOLS*WROWS);
+for(let my=0;my<MH;my++) for(let mx=0;mx<MW;mx++){
+  const wx=mx*2+1, wy=my*2+1;
+  let d=segDist(wx,wy,RIVER.x1,RIVER.y1,RIVER.x2,RIVER.y2)-RIVER.w/2;
+  d += (hash(mx*3+7,my*9+2)-0.5)*7;
+  waterMask[my*MW+mx]=(d<0)?1:0;
+}
+for(let ty=0;ty<WROWS;ty++) for(let tx=0;tx<WCOLS;tx++){
+  let c=0;
+  for(let j=0;j<8;j++) for(let i=0;i<8;i++) c+=waterMask[(ty*8+j)*MW+(tx*8+i)]||0;
+  tileWaterCnt[ty*WCOLS+tx]=c;
+}
+function waterAt(px,py){
+  if(px>BRIDGE.x&&px<BRIDGE.x+BRIDGE.w&&py>BRIDGE.y&&py<BRIDGE.y+BRIDGE.h) return false;
+  const mx=Math.floor(px/2), my=Math.floor(py/2);
+  if(mx<0||my<0||mx>=MW||my>=MH) return false;
+  return waterMask[my*MW+mx]===1;
+}
+
 // ---------- 边界装饰（大小/种类不一的丘陵、树、灌木、草、花、石） ----------
 const borderDeco = [];
 (()=>{
@@ -277,6 +300,7 @@ function solidAt(px,py){
   if(tx<0||ty<0||tx>=WCOLS||ty>=WROWS) return true;
   if(world[ty][tx]!==0) return true;
   for(const b of BUILDINGS){ if(px>=b.x&&px<=b.x+b.w&&py>=b.y&&py<=b.y+b.h) return true; }
+  if(waterAt(px,py)) return true;
   return false;
 }
 function tryMove(dx,dy){
@@ -410,6 +434,28 @@ function drawGroundTile(sx,sy,tx,ty){
       px(sx+i*2, sy+j*2, 2, 2, hash(tx*8+i,ty*8+j)>0.5?'#c9a96b':'#bfa06a');
     }
   }
+}
+function drawWaterTile(sx,sy,tx,ty){
+  const cnt=tileWaterCnt[ty*WCOLS+tx];
+  if(cnt===0){ drawGroundTile(sx,sy,tx,ty); return; }
+  if(cnt>=64){
+    px(sx,sy,TILE,TILE,'#2f6fb0');
+    if(hash(tx,ty)>0.5){ px(sx+3,sy+5,5,1,'#4a8fd4'); px(sx+9,sy+11,4,1,'#4a8fd4'); }
+    else { px(sx+5,sy+9,6,1,'#4a8fd4'); }
+    return;
+  }
+  drawGrass(sx,sy,tx,ty);
+  for(let j=0;j<8;j++) for(let i=0;i<8;i++){
+    if(waterMask[(ty*8+j)*MW+(tx*8+i)]) px(sx+i*2, sy+j*2, 2,2, '#2f6fb0');
+  }
+}
+function drawBridge(){
+  const b=BRIDGE, x=b.x, y=b.y, w=b.w, h=b.h;
+  px(x, y, w, h, '#9a7248');
+  for(let yy=y; yy<y+h; yy+=6) px(x, yy, w, 1, '#7a5a36');
+  px(x, y, 3, h, '#6b4a2e');
+  px(x+w-3, y, 3, h, '#6b4a2e');
+  for(let yy=y+6; yy<y+h; yy+=16){ px(x, yy, 3, 3, '#5a3a1f'); px(x+w-3, yy, 3, 3, '#5a3a1f'); }
 }
 function drawHouse(b){
   const x=Math.round((b.x-camX)*RES)/RES, y=Math.round((b.y-camY)*RES)/RES, w=b.w, h=b.h;
@@ -665,6 +711,74 @@ function drawJoystick(){
   octx.beginPath(); octx.arc(kx,ky,9,0,7); octx.stroke();
 }
 
+const PROPS=[
+  {type:'well', x:800, y:380},
+  {type:'lamp', x:640, y:420},
+  {type:'lamp', x:745, y:420},
+  {type:'lamp', x:690, y:620},
+  {type:'flower', x:600, y:382},
+  {type:'flower', x:370, y:408},
+  {type:'crate', x:632, y:364},
+  {type:'crate', x:648, y:360},
+  {type:'fence', x:396, y:330, n:5},
+  {type:'fence', x:534, y:360, n:4},
+];
+const NPC={x:520,y:382};
+
+function drawProp(p){
+  const x=Math.round((p.x-camX)*RES)/RES, y=Math.round((p.y-camY)*RES)/RES;
+  if(p.type==='well'){
+    px(x-14,y-6,28,7,'#8d8a80');
+    px(x-12,y-8,24,3,'#a6a298');
+    px(x-10,y-5,20,4,'#2f6fb0');
+    px(x-8,y-5,6,2,'#4a8fd4');
+    px(x-16,y-22,2,16,'#6b4a2e');
+    px(x+14,y-22,2,16,'#6b4a2e');
+    px(x-18,y-26,36,4,'#5a3a1f');
+    px(x-16,y-26,32,2,'#7a5a36');
+  } else if(p.type==='lamp'){
+    px(x-1,y-26,2,26,'#1f2937');
+    px(x-3,y-30,6,4,'#fbbf24');
+    px(x-4,y-31,8,1,'#7c2d12');
+    px(x-5,y-29,1,2,'#7c2d12');
+  } else if(p.type==='crate'){
+    px(x-6,y-10,12,10,'#8a6440');
+    px(x-6,y-10,12,2,'#a87c50');
+    px(x-6,y-1,12,1,'#6b4a2e');
+    px(x-6,y-10,1,10,'#6b4a2e');
+    px(x+5,y-10,1,10,'#6b4a2e');
+    px(x-1,y-10,1,10,'#6b4a2e');
+  } else if(p.type==='flower'){
+    px(x-13,y-5,26,6,'#8d8a80');
+    px(x-12,y-7,24,3,'#6b5135');
+    px(x-9,y-9,2,2,'#f472b6'); px(x-4,y-10,2,2,'#fde047');
+    px(x+2,y-9,2,2,'#f87171'); px(x+7,y-10,2,2,'#a78bfa');
+    px(x-1,y-8,2,2,'#fde047');
+  } else if(p.type==='fence'){
+    const n=p.n||5, w=n*6;
+    px(x, y-4, w, 2, '#8a6440');
+    px(x, y-9, w, 2, '#8a6440');
+    for(let i=0;i<n;i++) px(x+i*6, y-12, 2, 12, '#6b4a2e');
+  }
+}
+function drawNPC(){
+  const x=Math.round((NPC.x-camX)*RES)/RES, y=Math.round((NPC.y-camY)*RES)/RES;
+  px(x-5,y+8,10,2,'rgba(0,0,0,.16)');
+  px(x-4,y+6,3,3,'#5a3a24'); px(x+1,y+6,3,3,'#5a3a24');
+  px(x-3,y+3,2,3,'#f0c9a0'); px(x+1,y+3,2,3,'#f0c9a0');
+  px(x-5,y,10,4,'#2b2b33');
+  px(x-4,y-7,8,7,'#2b2b33');
+  px(x-2,y-7,4,6,'#f8fafc');
+  px(x-2,y-7,4,2,'#b91c1c');
+  px(x-3,y-12,7,5,'#f0c9a0');
+  px(x-2,y-10,1,1,'#1e293b'); px(x+1,y-10,1,1,'#1e293b');
+  px(x-4,y-14,9,3,'#8b4a2b');
+  px(x-4,y-12,2,5,'#8b4a2b');
+  px(x+3,y-12,2,5,'#8b4a2b');
+  px(x+4,y-2,4,5,'#7a4a2e');
+  px(x+5,y-1,2,3,'#a87c50');
+}
+
 function buildGround(){
   baking = true;
   const saved = octx;
@@ -672,9 +786,12 @@ function buildGround(){
   octx.clearRect(0,0,WORLD_W,WORLD_H);
   for(let ty=0; ty<WROWS; ty++) for(let tx=0; tx<WCOLS; tx++){
     const sx=tx*TILE, sy=ty*TILE, t=world[ty][tx];
-    if(t===0) drawGroundTile(sx,sy,tx,ty);
-    else drawBoundaryBase(sx,sy,tx,ty);
+    if(t===0){
+      if(tileWaterCnt[ty*WCOLS+tx]>0) drawWaterTile(sx,sy,tx,ty);
+      else drawGroundTile(sx,sy,tx,ty);
+    } else drawBoundaryBase(sx,sy,tx,ty);
   }
+  drawBridge();
   octx = saved;
   baking = false;
 }
@@ -687,10 +804,14 @@ function render(){
   octx.setTransform(1,0,0,1,0,0);
   octx.drawImage(groundCanvas, camX*RES, camY*RES, VW*RES, VH*RES, 0, 0, VW*RES, VH*RES);
   octx.restore();
-  const hs=BUILDINGS.slice().sort((a,b)=>(a.y+a.h)-(b.y+b.h));
-  for(const b of hs){ if(b.y+b.h <= player.y) drawHouse(b); }
+  const ds=[];
+  for(const b of BUILDINGS) ds.push({bottom:b.y+b.h, draw:()=>drawHouse(b)});
+  for(const p of PROPS) ds.push({bottom:p.y, draw:()=>drawProp(p)});
+  ds.push({bottom:NPC.y, draw:drawNPC});
+  ds.sort((a,b)=>a.bottom-b.bottom);
+  for(const d of ds){ if(d.bottom<=player.y) d.draw(); }
   drawHero();
-  for(const b of hs){ if(b.y+b.h > player.y) drawHouse(b); }
+  for(const d of ds){ if(d.bottom>player.y) d.draw(); }
   drawHUD();
   const ft=fpsVal+' FPS';
   drawText(ft, VW-6-(ft.length*4), 32, '#4ade80');
@@ -853,6 +974,7 @@ function applySave(s){
   if(!s || s.sig!==SAVE_SIG) return false;
   const p=player;
   if(s.p){ p.x=s.p.x; p.y=s.p.y; p.hp=s.p.hp; p.maxHp=s.p.maxHp; p.speed=s.p.speed||80; }
+  if(solidAt(p.x,p.y)){ p.x=680; p.y=480; }   // 旧存档位置若已不可站立则回出生点
   level=s.lv||0; xp=s.xp||0; xpNeed=s.need||10;
   camXs=Math.max(0,Math.min(WORLD_W-VW, p.x-VW/2));
   camYs=Math.max(0,Math.min(WORLD_H-VH, p.y-VH/2));
