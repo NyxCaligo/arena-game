@@ -95,10 +95,11 @@
 
 <script>
 "use strict";
-const VW=352, VH=176, TILE=16, WCOLS=44, WROWS=30;
+let VW=352, VH=176;
+const TILE=16, WCOLS=44, WROWS=30;
 const RES=2;   // 内部渲染精度：2 倍，像素视觉大小不变，但镜头可半格移动
 const WORLD_W=WCOLS*TILE, WORLD_H=WROWS*TILE;
-const JBX=VW*0.2, JBY=VH*0.8, JR=26;   // 常驻摇杆位置（左下）
+let JBX=70, JBY=140; const JR=26;   // 常驻摇杆位置（左下，随屏幕）
 const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
 const off = document.createElement('canvas'); off.width=VW*RES; off.height=VH*RES;
 const octx = off.getContext('2d'); octx.imageSmoothingEnabled=false; octx.setTransform(RES,0,0,RES,0,0);
@@ -109,11 +110,20 @@ function resize(){
   const W = window.innerWidth, H = window.innerHeight;
   cv.width = Math.round(W*dpr); cv.height = Math.round(H*dpr);
   cv.style.width = W+'px'; cv.style.height = H+'px';
-  const s = Math.max(1, Math.floor(Math.min(cv.width/(VW*RES), cv.height/(VH*RES))));
-  cssScale = s*RES;
-  oxCss = Math.floor((cv.width - VW*cssScale)/2);
-  oyCss = Math.floor((cv.height - VH*cssScale)/2);
+  // 每个美术像素占 P 个设备像素（偶数，配合 2 倍内部渲染）
+  let P = Math.round(Math.min(cv.width, cv.height)/195);
+  P = Math.max(4, P - (P%2));
+  cssScale = P;
+  // 可视区域随屏幕自适应，填满
+  VW = Math.min(WORLD_W, Math.floor(cv.width/P));
+  VH = Math.min(WORLD_H, Math.floor(cv.height/P));
+  off.width = VW*RES; off.height = VH*RES;
+  octx.imageSmoothingEnabled = false;
+  octx.setTransform(RES,0,0,RES,0,0);
+  oxCss = Math.floor((cv.width - VW*P)/2);
+  oyCss = Math.floor((cv.height - VH*P)/2);
   ctx.imageSmoothingEnabled = false;
+  JBX = VW*0.2; JBY = VH*0.8;
 }
 resize();
 window.addEventListener('resize', resize);
