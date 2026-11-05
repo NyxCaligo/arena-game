@@ -211,11 +211,11 @@
   .eq-box .eq-slot { width:52px; height:52px; }
   .bag-view { position:relative; width:100%; height:280px; overflow:hidden;
               background:#0a1018; border:1px solid #1e293b; touch-action:none; }
-  .bag-content { position:absolute; left:0; top:0; right:18px; will-change:transform; }
-  .bag-track { position:absolute; right:0; top:0; bottom:0; width:16px; background:#0b0f1a;
+  .bag-content { position:absolute; left:0; top:0; right:14px; will-change:transform; }
+  .bag-track { position:absolute; right:0; top:0; bottom:0; width:12px; background:#0b0f1a;
                border-left:1px solid #1e293b; }
-  .bag-thumb { position:absolute; left:1px; right:1px; top:0; height:40px; background:#5b6472;
-               border:1px solid #9aa5b1; box-shadow:inset 0 1px 0 #7b8492; }
+  .bag-thumb { position:absolute; left:1px; right:1px; top:0; height:30px; background:#5b6472;
+               border:1px solid #9aa5b1; }
   .bag-grid .eq-slot { width:100%; height:auto; aspect-ratio:1/1; position:relative; padding:0;
                        display:flex; align-items:center; justify-content:center; touch-action:manipulation; }
   .bag-grid .item-name { position:absolute; left:0; right:0; bottom:1px; font-size:9px; text-align:center;
@@ -1980,6 +1980,12 @@ function bagDisplay(){
 }
 function renderBag(){
   const g=document.getElementById('bagGrid'); if(!g) return;
+  const cols=4, gap=5;
+  const avail=(document.getElementById('bagView')?.clientWidth||400)-14;
+  const cell=Math.max(56, Math.floor((avail-gap*(cols-1))/cols));
+  g.style.gridTemplateColumns='repeat('+cols+', '+cell+'px)';
+  g.style.gridAutoRows=cell+'px';
+  g.style.gap=gap+'px';
   g.innerHTML='';
   const dis=bagDisplay();
   for(let i=0;i<100;i++){
@@ -2283,7 +2289,7 @@ function updateBagScroll(){
   track.style.display='block';
   bagY=Math.max(0, Math.min(max, bagY));
   content.style.transform='translateY('+(-bagY)+'px)';
-  const thH=Math.max(26, Math.round(vh*vh/(vh+max)));
+  const thH=Math.max(18, Math.round(vh*vh/(vh+max)));
   const travel=Math.max(1, vh-thH);
   thumb.style.height=thH+'px';
   thumb.style.top=Math.round(travel*(bagY/max))+'px';
@@ -2297,7 +2303,7 @@ function bagSet(y){
   const thumb=document.getElementById('bagThumb');
   if(view&&thumb){
     const vh=view.clientHeight||0;
-    const thH=Math.max(26, Math.round(vh*vh/(vh+max)));
+    const thH=Math.max(18, Math.round(vh*vh/(vh+max)));
     const travel=Math.max(1, vh-thH);
     thumb.style.height=thH+'px';
     thumb.style.top=Math.round(travel*(bagY/Math.max(1,max)))+'px';
