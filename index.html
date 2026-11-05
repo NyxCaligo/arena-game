@@ -75,8 +75,15 @@
               background:#4b5462; color:#e2e8f0; border:2px solid #0b0f1a; border-radius:0;
               box-shadow:inset 0 1px 0 #5b6472; font-size:14px;
               display:flex; align-items:center; justify-content:center; }
-  #interactBtn { position:fixed; z-index:11; right:12%; bottom:24%; width:62px; height:62px; padding:0;
-                 background:#4b5462; border:2px solid #0b0f1a; border-radius:50%;
+  #atkBtn { position:fixed; z-index:11; right:8%; bottom:22%; width:76px; height:76px; padding:0;
+            background:rgba(75,84,98,.92); border:3px solid #0b0f1a; border-radius:50%;
+            box-shadow:inset 0 2px 0 #6b7484, 0 4px 0 rgba(0,0,0,.4);
+            display:flex; align-items:center; justify-content:center; touch-action:none; }
+  #atkBtn:active { transform:translateY(2px); box-shadow:inset 0 2px 0 #6b7484, 0 1px 0 rgba(0,0,0,.4); }
+  #atkBtn.hidden { display:none; }
+  #interactBtn { position:fixed; z-index:11; right:calc(8% + 84px); bottom:calc(22% - 12px);
+                 width:38px; height:38px; padding:0;
+                 background:rgba(75,84,98,.9); border:2px solid #0b0f1a; border-radius:50%;
                  box-shadow:inset 0 1px 0 #5b6472, 0 3px 0 rgba(0,0,0,.35);
                  display:flex; align-items:center; justify-content:center; }
   #interactBtn.near { border-color:#f5c542; box-shadow:inset 0 1px 0 #5b6472, 0 0 10px #f5c542; }
@@ -226,8 +233,16 @@
     <rect x="3" y="4" width="2" height="1" fill="#e2e8f0"/>
   </svg>
 </button>
+<button id="atkBtn" class="hidden">
+  <svg width="34" height="34" viewBox="0 0 12 12" shape-rendering="crispEdges">
+    <rect x="7" y="1" width="2" height="1" fill="#f2f6fa"/>
+    <rect x="6" y="2" width="2" height="6" fill="#dfe7ef"/>
+    <rect x="3" y="8" width="8" height="1" fill="#d4b24a"/>
+    <rect x="6" y="9" width="2" height="2" fill="#6b4a2e"/>
+  </svg>
+</button>
 <button id="interactBtn" class="hidden">
-  <svg width="30" height="30" viewBox="0 0 12 12" shape-rendering="crispEdges">
+  <svg width="22" height="22" viewBox="0 0 12 12" shape-rendering="crispEdges">
     <rect x="4" y="1" width="1" height="4" fill="#f0d0ae"/>
     <rect x="6" y="0" width="1" height="5" fill="#f0d0ae"/>
     <rect x="8" y="1" width="1" height="4" fill="#f0d0ae"/>
@@ -590,6 +605,16 @@ cv.addEventListener('touchstart', e=>{
   const t=e.touches[0]; const [vx,vy]=toV(t.clientX,t.clientY);
   const L=equipLayout(), H=L.hudBox;
   if(vx>=L.swx&&vx<=L.swx+L.swordS&&vy>=L.swy&&vy<=L.swy+L.swordS){ openEquip(); return; }
+  if(equipHudOn){
+    const El=equipLayout();
+    for(let i=0;i<3;i++){
+      const wx=El.wx+El.pad+i*(El.WS+4), wy=El.wy+El.labelH+El.pad;
+      if(vx>=wx&&vx<=wx+El.WS&&vy>=wy&&vy<=wy+El.WS){
+        if(EQUIP.weapons[i]){ heldSlot=i; sfxBeep(); vibrate(2); updateHudButtons(); }
+        return;
+      }
+    }
+  }
   if(equipHudOn && vx>=H.x0&&vx<=H.x1&&vy>=H.y0&&vy<=H.y1){ openEquip(); return; }
   if(vx < VW*0.5 && vy > VH*0.5){ joy.active=true; joyMove(vx,vy); vibrate(1); }
 }, {passive:true});
@@ -659,6 +684,7 @@ function update(dt){
     walkPhase = 0;
     lastStep = -1;
   }
+  if(attacking>0) attacking=Math.max(0,attacking-dt);
   if(solidAt(player.x,player.y)){
     let freed=false;
     for(const d of [[0,-4],[0,4],[-4,0],[4,0],[-4,-4],[4,-4],[-4,4],[4,4],[0,-8],[0,8],[-8,0],[8,0]]){
@@ -1062,15 +1088,18 @@ function drawHero(){
   octx.fillStyle='rgba(0,0,0,.28)';
   octx.beginPath(); octx.ellipse(cx, cy+8, 5, 2, 0, 0, 7); octx.fill();
 
-  const moving = joy.active && (Math.abs(joy.dx)+Math.abs(joy.dy))>2;
+  const moving = (joy.active && (Math.abs(joy.dx)+Math.abs(joy.dy))>2) || keysDown();
   const sw = moving ? Math.sin(walkPhase)*2.0 : 0;
   const ab = moving ? Math.sin(walkPhase)*1.3 : 0;
   const bounce = moving ? Math.abs(Math.sin(walkPhase))*1.4 : 0;
+  const atkP = attacking>0 ? 1 - attacking/ATK_DUR : -1;
+  const lean = atkP>=0 ? Math.sin(Math.min(1,atkP*1.4)*Math.PI)*1.2 : 0;
 
   octx.save();
-  octx.translate(cx, Math.round((cy-bounce)*RES)/RES);
+  octx.translate(Math.round((cx+lean*player.face)*RES)/RES, Math.round((cy-bounce)*RES)/RES);
   if(player.face<0) octx.scale(-1,1);
 
+  // 身体
   px(-4, -5, 9, 9, '#6d1a1a');
   px(-2+sw, 4, 2, 4, '#17171a');
   px(0.5-sw, 4, 2, 4, '#17171a');
@@ -1082,10 +1111,18 @@ function drawHero(){
   px(-1, -3, 3, 1, '#b91c1c');
   px(1, -1, 1, 1, '#d4b24a');
   px(1, 1, 1, 1, '#d4b24a');
+  // 左臂
   px(-5, -4-ab, 2, 4, '#141416');
-  px(4, -4+ab, 2, 4, '#141416');
   px(-5, 0-ab, 2, 2, '#08080a');
-  px(4, 0+ab, 2, 2, '#08080a');
+  // 右臂：攻击时前伸
+  if(atkP>=0){
+    px(3, -4, 4, 2, '#141416');
+    px(6, -4, 2, 2, '#08080a');
+  } else {
+    px(4, -4+ab, 2, 4, '#141416');
+    px(4, 0+ab, 2, 2, '#08080a');
+  }
+  // 头
   px(-2, -8, 5, 4, '#f0c9a0');
   px(-2, -7, 2, 2, '#f2c23c');
   px(1, -7, 2, 2, '#f2c23c');
@@ -1097,6 +1134,43 @@ function drawHero(){
   px(-1, -12, 1, 2, '#191919');
   px(2, -12, 1, 2, '#191919');
   px(2, -10, 2, 3, '#de2b2b');
+
+  // 手持武器
+  const wid = EQUIP.weapons[heldSlot];
+  if(wid){
+    const im = itemImg(ITEMS[wid].ic);
+    if(im && im.complete && im.naturalWidth>0){
+      let ang;
+      if(atkP>=0) ang = -1.15 + 2.5*Math.min(1, atkP*1.35);
+      else ang = 0.55 + (moving?Math.sin(walkPhase)*0.10:0);
+      const hx = atkP>=0 ? 7 : 5;
+      const hy = atkP>=0 ? -4 : -3;
+      const sc = 21;
+      octx.save();
+      octx.translate(hx, hy);
+      octx.rotate(ang);
+      octx.imageSmoothingEnabled=false;
+      octx.drawImage(im, -0.13*sc, -0.83*sc, sc, sc);
+      octx.restore();
+    }
+  }
+
+  // 挥砍残影
+  if(atkP>=0){
+    const head = -1.2 + 2.5*Math.min(1, atkP*1.3);
+    for(let k=0;k<4;k++){
+      const aa = head - k*0.20;
+      if(aa < -1.2) break;
+      octx.strokeStyle='rgba(255,255,255,'+(0.60-k*0.14)+')';
+      octx.lineWidth = 3 - (k>1?1:0);
+      octx.lineCap='round';
+      octx.beginPath(); octx.arc(1, -4, 15 + k*1.6, -1.2, aa); octx.stroke();
+    }
+    octx.strokeStyle='rgba(255,255,255,.9)';
+    octx.lineWidth=1;
+    octx.beginPath(); octx.arc(1, -4, 15, head-0.10, head); octx.stroke();
+  }
+
   octx.restore();
 }
 
@@ -1208,6 +1282,7 @@ function render(){
 
 let fpsFrames=0, fpsLast=0, fpsVal=0;
 const keys={};
+function keysDown(){ return !!(keys['a']||keys['d']||keys['w']||keys['s']||keys['arrowleft']||keys['arrowright']||keys['arrowup']||keys['arrowdown']); }
 addEventListener('touchstart', resizeIfNeeded, {passive:true});
 addEventListener('mousedown', resizeIfNeeded);
 addEventListener('keydown', e=>{
@@ -1648,7 +1723,11 @@ function drawEquipHUD(){
   for(let i=0;i<3;i++){ const x=L.wx+L.pad+i*(L.WS+4), y=L.wy+L.labelH+L.pad;
     eqSlot(x,y,L.WS);
     if(EQUIP.weapons[i]) drawItemIcon(ITEMS[EQUIP.weapons[i]].ic, x, y, L.WS/16);
-    else drawText('?', x+(L.WS-6)/2, y+(L.WS-10)/2, '#7b8492', 2); }
+    else drawText('?', x+(L.WS-6)/2, y+(L.WS-10)/2, '#7b8492', 2);
+    if(i===heldSlot && EQUIP.weapons[i]){
+      px(x-1,y-1,L.WS+2,1,'#f5c542'); px(x-1,y+L.WS,L.WS+2,1,'#f5c542');
+      px(x-1,y-1,1,L.WS+2,'#f5c542'); px(x+L.WS,y-1,1,L.WS+2,'#f5c542');
+    } }
   // 饰品
   eqGroup(L.sx,L.sy,L.GS,L.GSH,'饰品');
   let xi=0;
@@ -2326,6 +2405,36 @@ document.getElementById('dlgBox').onclick=()=>{
   showChoices(dlgNode);
 };
 
+// ---------- 攻击 ----------
+const ATK_DUR=0.34;
+let attacking=0, heldSlot=0;
+function sfxSwing(){
+  if(!actx||!sfxOn||mutedAll||!noiseBuf) return;
+  const t=actx.currentTime;
+  const src=actx.createBufferSource(); src.buffer=noiseBuf;
+  const bp=actx.createBiquadFilter(); bp.type='bandpass';
+  bp.frequency.setValueAtTime(2400,t);
+  bp.frequency.exponentialRampToValueAtTime(480,t+0.2);
+  bp.Q.value=1.1;
+  const g=actx.createGain();
+  g.gain.setValueAtTime(0.0001,t);
+  g.gain.linearRampToValueAtTime(0.26,t+0.02);
+  g.gain.exponentialRampToValueAtTime(0.0001,t+0.22);
+  src.connect(bp); bp.connect(g); g.connect(sfxGain);
+  src.start(t); src.stop(t+0.24);
+}
+function doAttack(){
+  if(talking || state!=='city') return;
+  if(attacking>0) return;
+  attacking=ATK_DUR;
+  sfxSwing(); vibrate(2);
+}
+document.getElementById('atkBtn').onclick=()=>doAttack();
+addEventListener('keydown', e=>{
+  const k=e.key.toLowerCase();
+  if(k==='j'||k===' ') doAttack();
+});
+
 // ---------- 掉落物 ----------
 let drops=[];
 function spawnDrop(id){
@@ -2383,6 +2492,8 @@ function updateHudButtons(){
   const bag=document.getElementById('bagBtn'), eq=document.getElementById('eqToggle');
   if(bag) bag.style.display = hide ? 'none' : 'flex';
   if(eq) eq.style.display = (hide || equipOpen || bagOpen) ? 'none' : 'flex';
+  const ab=document.getElementById('atkBtn');
+  if(ab) ab.classList.toggle('hidden', hide || equipOpen || bagOpen || talking);
   const ib=document.getElementById('interactBtn');
   if(ib){
     ib.classList.toggle('hidden', hide || equipOpen || bagOpen || talking);
