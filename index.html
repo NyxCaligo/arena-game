@@ -165,7 +165,7 @@
 </head>
 <body>
 <canvas id="cv"></canvas>
-<button id="menuBtn">☰</button>
+<button id="menuBtn">⚙</button>
 <div id="menuWrap" class="hidden">
   <div class="modal-bg" id="menuWrapBg"></div>
   <div class="menu-box">
@@ -1251,10 +1251,7 @@ function goTitle(){
   updateHudButtons(); sfxBeep(); vibrate(2);
 }
 document.getElementById('menuBtn').onclick=()=>{
-  document.getElementById('menuWrap').classList.remove('hidden');
-  sfxBeep(); vibrate(2);
-  if(autoPause && state==='city'){ pausedAutoMenu=true; paused=true; }
-  updateHudButtons();
+  openSettings(true);
 };
 document.getElementById('menuWrapBg').onclick=()=>{
   document.getElementById('menuWrap').classList.add('hidden');
@@ -1903,7 +1900,7 @@ document.getElementById('interactBtn').onclick=()=>{
   toastMsg('……（她好像在等你说点什么）');
 };
 function drawMini(){
-  const S=50, mx=VW-58, my=48;
+  const S=46, mx=VW-54, my=60;
   px(mx-2,my-2,S+4,S+4,'#0b0f1a');
   px(mx-1,my-1,S+2,S+2,'#3a4250');
   const sc=Math.min(S/WCOLS, S/WROWS);
