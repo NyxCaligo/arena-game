@@ -266,22 +266,28 @@ for(let y=0;y<WROWS;y++){
 
 // ---------- 房屋 ----------
 const BUILDINGS = [
-  {x:440, y:280, w:88, h:76, v:0, c:0, ch:1},
-  {x:556, y:300, w:64, h:60, v:1, c:0},
-  {x:330, y:270, w:64, h:58, v:2, c:0},
-  {x:240, y:330, w:56, h:54, v:3, c:0},
-  {x:740, y:270, w:66, h:60, v:1, c:1},
-  {x:820, y:330, w:60, h:56, v:2, c:1, ch:1},
-  {x:530, y:170, w:70, h:64, v:0, c:2},
-  {x:400, y:170, w:58, h:52, v:3, c:1},
+  {x:440, y:280, w:88, h:76, v:0, c:0, ch:1, f:0},
+  {x:556, y:300, w:64, h:60, v:1, c:0, f:0},
+  {x:330, y:270, w:64, h:58, v:2, c:0, f:0},
+  {x:240, y:330, w:56, h:54, v:3, c:0, f:1},
+  {x:740, y:270, w:66, h:60, v:1, c:1, f:1},
+  {x:820, y:330, w:60, h:56, v:2, c:1, ch:1, f:1},
+  {x:530, y:170, w:70, h:64, v:0, c:2, f:1},
+  {x:400, y:170, w:58, h:52, v:3, c:1, f:2},
 ];
 
 // ---------- 道路（土黄路，宽窄不一） ----------
 const ROADS = [
   {x1:680, y1:-20, x2:680, y2:760, w:46},  // 主路（竖）
   {x1:60,  y1:440, x2:980, y2:440, w:40},  // 横路
-  {x1:484, y1:356, x2:484, y2:440, w:24},  // 通往大房子
-  {x1:588, y1:360, x2:588, y2:440, w:24},  // 通往小房子
+  {x1:484, y1:356, x2:484, y2:440, w:24},  // A 大房子
+  {x1:588, y1:360, x2:588, y2:440, w:24},  // B 小店
+  {x1:362, y1:328, x2:362, y2:440, w:22},  // C 石屋
+  {x1:268, y1:384, x2:268, y2:440, w:22},  // D 茅草屋
+  {x1:773, y1:330, x2:773, y2:440, w:22},  // E 东小店
+  {x1:850, y1:386, x2:850, y2:440, w:22},  // F 石屋
+  {x1:600, y1:205, x2:680, y2:205, w:22},  // G 北民居
+  {x1:429, y1:222, x2:429, y2:440, w:22},  // H 茅草屋
 ];
 
 // ---------- 路面遮罩（2 像素一格，边缘随机） ----------
@@ -400,11 +406,11 @@ function solidAt(px,py){
   for(const b of BUILDINGS){ if(px>=b.x&&px<=b.x+b.w&&py>=b.y&&py<=b.y+b.h) return true; }
   for(const p of PROPS){
     let x0,y0,x1,y1;
-    if(p.type==='well'){ x0=p.x-12; y0=p.y-7; x1=p.x+12; y1=p.y+1; }
-    else if(p.type==='flower'){ x0=p.x-11; y0=p.y-6; x1=p.x+11; y1=p.y; }
-    else if(p.type==='crate'){ x0=p.x-5; y0=p.y-9; x1=p.x+5; y1=p.y-1; }
-    else if(p.type==='lamp'){ x0=p.x-2; y0=p.y-24; x1=p.x+2; y1=p.y-2; }
-    else if(p.type==='fence'){ x0=p.x; y0=p.y-11; x1=p.x+(p.n||5)*6; y1=p.y-1; }
+    if(p.type==='well'){ x0=p.x-14; y0=p.y-8; x1=p.x+14; y1=p.y+1; }
+    else if(p.type==='flower'){ x0=p.x-13; y0=p.y-7; x1=p.x+13; y1=p.y+1; }
+    else if(p.type==='crate'){ x0=p.x-6; y0=p.y-10; x1=p.x+6; y1=p.y; }
+    else if(p.type==='lamp'){ x0=p.x-3; y0=p.y-24; x1=p.x+3; y1=p.y; }
+    else if(p.type==='fence'){ x0=p.x; y0=p.y-12; x1=p.x+(p.n||5)*6; y1=p.y; }
     else continue;
     if(px>=x0&&px<=x1&&py>=y0&&py<=y1) return true;
   }
@@ -651,6 +657,7 @@ function drawHouse(b){
   px(x+w/2-4, y-1, 8, 2, st.type==='thatched'?'#e0c070':'#d9a05a');
   px(x+2, wallTop-2, w-4, 2, 'rgba(0,0,0,.16)');
 
+  const fv=(b.f||0)%3;
   if(st.type==='shop'){
     const wy=wallTop+7, wh=12, wx=x+8, ww=w-16;
     px(wx-1, wy-1, ww+2, wh+2, pal.beam);
@@ -661,6 +668,10 @@ function drawHouse(b){
     px(wx+Math.floor(ww*3/4), wy+1, 1, wh-2, pal.beam);
     px(x+w/2-12, wallTop+2, 24, 3, pal.beam);
     px(x+w/2-10, wallTop+1, 20, 2, '#c9a96b');
+    if(fv===1){
+      for(let i=0;i<ww;i+=6) px(wx+i, wy-6, Math.min(6,ww-i), 4, (i/6)%2===0?'#c94f4f':'#f2e2c4');
+      px(wx-1, wy-7, ww+2, 1, pal.beam);
+    }
     const dw=16, dh=Math.min(20, h-roofH-8);
     const dx=x+w/2-dw/2, dy=y+h-dh;
     px(dx-1, dy-1, dw+2, dh+1, pal.beam);
@@ -677,7 +688,15 @@ function drawHouse(b){
       px(wx, wy, wh, wh, '#2b2b33');
       px(wx+1, wy+1, wh-2, wh-2, '#fcd34d');
     };
-    win(x+9); win(x+w-9-wh);
+    if(fv===1){
+      const rc=Math.round(x+w/2), ry=wallTop+Math.round((h-roofH)/2)-2;
+      px(rc-4, ry-4, 9, 8, '#5a5e64');
+      px(rc-3, ry-3, 7, 6, '#2b2b33');
+      px(rc-2, ry-2, 5, 4, '#fcd34d');
+      px(rc-1, ry, 1, 1, '#5a5e64');
+    } else {
+      win(x+9); win(x+w-9-wh);
+    }
     const dw=13, dh=Math.min(20, h-roofH-8);
     const dx=x+w/2-dw/2, dy=y+h-dh;
     px(dx-1, dy-2, dw+2, dh+2, '#5a5e64');
@@ -696,7 +715,27 @@ function drawHouse(b){
       px(wx+2, wy+wh+1, 2, 2, '#f472b6');
       px(wx+6, wy+wh+1, 2, 2, '#fde047');
     };
-    win(x+10); win(x+w-10-wh);
+    if(fv===1){
+      const ww2=Math.max(18, w-30), wx2=x+Math.round((w-ww2)/2), wy2=wallTop+6;
+      px(wx2-1, wy2-1, ww2+2, 12, pal.beam);
+      px(wx2, wy2, ww2, 10, '#3a2a1a');
+      px(wx2+1, wy2+1, ww2-2, 8, '#fcd34d');
+      px(wx2+Math.floor(ww2/2), wy2+1, 1, 8, pal.beam);
+      px(wx2+Math.floor(ww2/3), wy2+1, 1, 8, pal.beam);
+    } else if(fv===2){
+      const win2=(wx)=>{
+        px(wx-1, wy-1, wh+2, wh+2, pal.beam);
+        px(wx, wy, wh, wh, '#3a2a1a');
+        px(wx+1, wy+1, wh-2, wh-2, '#fcd34d');
+        px(wx+Math.floor(wh/2), wy+1, 1, wh-2, pal.beam);
+      };
+      win2(x+10); win2(x+w-10-wh);
+      px(x+3, wallTop+7, 1, 10, '#3a6a2c');
+      px(x+4, wallTop+9, 2, 1, '#4e8538');
+      px(x+4, wallTop+13, 2, 1, '#4e8538');
+    } else {
+      win(x+10); win(x+w-10-wh);
+    }
     const dw=14, dh=Math.min(22, h-roofH-8);
     const dx=x+w/2-dw/2, dy=y+h-dh;
     px(dx-1, dy-2, dw+2, dh+2, pal.beam);
@@ -714,10 +753,10 @@ const PROPS=[
   {type:'lamp', x:745, y:420},
   {type:'lamp', x:690, y:620},
   {type:'flower', x:600, y:382},
-  {type:'flower', x:370, y:408},
+  {type:'flower', x:396, y:412},
   {type:'crate', x:632, y:364},
   {type:'crate', x:648, y:360},
-  {type:'fence', x:396, y:330, n:5},
+  {type:'fence', x:384, y:332, n:4},
   {type:'fence', x:534, y:360, n:4},
 ];
 const NPC={x:520,y:382};
@@ -1199,10 +1238,10 @@ function armorIcon(x,y,sz,i){
     px(x+4,y+6,4,1,c2);
     px(x+4,y+9,4,1,c2);
   } else { // 护腿：两条分开的腿（与其它图标同尺寸）
-    px(x+2,y+3,3,3,c1); px(x+7,y+3,3,3,c1);
-    px(x+2,y+6,3,1,c2); px(x+7,y+6,3,1,c2);
-    px(x+2,y+7,3,2,c1); px(x+7,y+7,3,2,c1);
-    px(x+1,y+9,4,1,c2); px(x+7,y+9,4,1,c2);
+    px(x+2,y+2,3,3,c1); px(x+7,y+2,3,3,c1);
+    px(x+2,y+5,3,1,c2); px(x+7,y+5,3,1,c2);
+    px(x+2,y+6,3,2,c1); px(x+7,y+6,3,2,c1);
+    px(x+1,y+8,4,1,c2); px(x+7,y+8,4,1,c2);
   }
 }
 function eqGroup(x,y,w,h,label){
@@ -1244,7 +1283,7 @@ function fillSlots(el,n,labels){
 const ARMOR_SVG=[
   '<svg width="34" height="34" viewBox="0 0 12 12" shape-rendering="crispEdges"><rect x="4" y="1" width="4" height="1" fill="#9aa5b1"/><rect x="3" y="2" width="6" height="1" fill="#9aa5b1"/><rect x="2" y="3" width="8" height="2" fill="#9aa5b1"/><rect x="3" y="5" width="6" height="1" fill="#232c38"/><rect x="2" y="5" width="1" height="3" fill="#74808e"/><rect x="9" y="5" width="1" height="3" fill="#74808e"/><rect x="3" y="6" width="6" height="2" fill="#9aa5b1"/><rect x="3" y="8" width="6" height="1" fill="#74808e"/></svg>',
   '<svg width="34" height="34" viewBox="0 0 12 12" shape-rendering="crispEdges"><rect x="4" y="1" width="4" height="1" fill="#74808e"/><rect x="1" y="2" width="2" height="3" fill="#74808e"/><rect x="9" y="2" width="2" height="3" fill="#74808e"/><rect x="3" y="2" width="6" height="2" fill="#9aa5b1"/><rect x="5" y="2" width="2" height="2" fill="#232c38"/><rect x="3" y="4" width="6" height="4" fill="#9aa5b1"/><rect x="4" y="5" width="4" height="1" fill="#74808e"/><rect x="4" y="8" width="4" height="1" fill="#74808e"/></svg>',
-  '<svg width="34" height="34" viewBox="0 0 12 12" shape-rendering="crispEdges"><rect x="2" y="3" width="3" height="3" fill="#9aa5b1"/><rect x="7" y="3" width="3" height="3" fill="#9aa5b1"/><rect x="2" y="6" width="3" height="1" fill="#74808e"/><rect x="7" y="6" width="3" height="1" fill="#74808e"/><rect x="2" y="7" width="3" height="2" fill="#9aa5b1"/><rect x="7" y="7" width="3" height="2" fill="#9aa5b1"/><rect x="1" y="9" width="4" height="1" fill="#74808e"/><rect x="7" y="9" width="4" height="1" fill="#74808e"/></svg>'
+  '<svg width="34" height="34" viewBox="0 0 12 12" shape-rendering="crispEdges"><rect x="2" y="2" width="3" height="3" fill="#9aa5b1"/><rect x="7" y="2" width="3" height="3" fill="#9aa5b1"/><rect x="2" y="5" width="3" height="1" fill="#74808e"/><rect x="7" y="5" width="3" height="1" fill="#74808e"/><rect x="2" y="6" width="3" height="2" fill="#9aa5b1"/><rect x="7" y="6" width="3" height="2" fill="#9aa5b1"/><rect x="1" y="8" width="4" height="1" fill="#74808e"/><rect x="7" y="8" width="4" height="1" fill="#74808e"/></svg>'
 ];
 function makePixLabel(text, px, color){
   const c=document.createElement('canvas');
@@ -1263,7 +1302,7 @@ function makePixLabel(text, px, color){
     g.fillStyle=color; g.fillRect(0,0,w,h);
     g.globalCompositeOperation='source-over';
   }catch(e){}
-  c.style.width=(w*2)+'px'; c.style.height=(h*2)+'px';
+  c.style.width=w+'px'; c.style.height=h+'px';
   c.style.imageRendering='pixelated';
   return c;
 }
@@ -1272,12 +1311,12 @@ function setPixLabel(id, text, px, color){
   if(!el||el.childElementCount) return;
   el.appendChild(makePixLabel(text, px, color));
 }
-setPixLabel('bagTitle','背包',15,'#f8fafc');
-setPixLabel('bagCap','15|100 容量',12,'#94a3b8');
-setPixLabel('eqTitle','装备',15,'#f8fafc');
-setPixLabel('capW','武器',12,'#94a3b8');
-setPixLabel('capA','防具',12,'#94a3b8');
-setPixLabel('capAcc','饰品',12,'#94a3b8');
+setPixLabel('bagTitle','背包',18,'#f8fafc');
+setPixLabel('bagCap','15|100 容量',14,'#94a3b8');
+setPixLabel('eqTitle','装备',18,'#f8fafc');
+setPixLabel('capW','武器',14,'#94a3b8');
+setPixLabel('capA','防具',14,'#94a3b8');
+setPixLabel('capAcc','饰品',14,'#94a3b8');
 
 let equipOpenAt=0, bagOpenAt=0;
 function openEquip(){
