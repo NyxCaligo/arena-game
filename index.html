@@ -30,6 +30,15 @@
            font-size:13px; letter-spacing:1px; box-shadow:none;
            display:flex; align-items:center; justify-content:center; }
   #fsBtn:active { transform:translateY(2px); }
+  #musicBtn { position:fixed; z-index:6;
+           top:calc(10px + env(safe-area-inset-top, 0px));
+           right:calc(64px + env(safe-area-inset-right, 0px));
+           width:44px; height:44px; padding:0;
+           background:#9aa3ae; color:#1e293b; border:2px solid #4b5462; border-radius:6px;
+           font-size:18px; box-shadow:none;
+           display:flex; align-items:center; justify-content:center; }
+  #musicBtn.off { opacity:.45; }
+  #musicBtn:active { transform:translateY(2px); }
   #rotate { position:fixed; inset:0; z-index:20; display:flex; flex-direction:column; align-items:center;
             justify-content:center; gap:18px; background:#05070d; color:#e2e8f0; text-align:center; padding:24px; }
   #rotate.hidden { display:none; }
@@ -42,6 +51,7 @@
 <body>
 <canvas id="cv"></canvas>
 <button id="fsBtn">全屏</button>
+<button id="musicBtn">♪</button>
 
 <div id="menu" class="ov">
   <div class="title">阿尔法大陆</div>
@@ -379,6 +389,63 @@ function frame(now){
   requestAnimationFrame(frame);
 }
 
+// ---------- 背景音乐（舒缓合成） ----------
+let actx=null, master=null, noteBus=null, musicOn=true, schedStarted=false;
+let nextTime=0, beatIndex=0;
+const BPM=72, BEAT=60/BPM;
+
+function initAudio(){
+  if(actx) return;
+  const AC=window.AudioContext||window.webkitAudioContext;
+  if(!AC) return;
+  actx=new AC();
+  master=actx.createGain(); master.gain.value=0.7; master.connect(actx.destination);
+  const lp=actx.createBiquadFilter();
+  lp.type='lowpass'; lp.frequency.value=1500; lp.Q.value=0.2; lp.connect(master);
+  noteBus=actx.createGain(); noteBus.gain.value=0.5; noteBus.connect(lp);
+  const delay=actx.createDelay(1.0); delay.delayTime.value=0.36;
+  const fb=actx.createGain(); fb.gain.value=0.28;
+  const wet=actx.createGain(); wet.gain.value=0.22;
+  delay.connect(fb); fb.connect(delay); delay.connect(wet); wet.connect(master);
+  const send=actx.createGain(); send.gain.value=0.35;
+  noteBus.connect(send); send.connect(delay);
+}
+function note(freq, t, dur, type, vol, atk, rel){
+  const o=actx.createOscillator(), g=actx.createGain();
+  o.type=type; o.frequency.value=freq;
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.linearRampToValueAtTime(vol, t+atk);
+  g.gain.exponentialRampToValueAtTime(0.0001, t+dur+rel);
+  o.connect(g); g.connect(noteBus);
+  o.start(t); o.stop(t+dur+rel+0.05);
+}
+const BARS=[
+  {chord:[261.63,329.63,392.00,493.88], bass:130.81},
+  {chord:[220.00,261.63,329.63,392.00], bass:110.00},
+  {chord:[174.61,220.00,261.63,329.63], bass:87.31},
+  {chord:[196.00,246.94,293.66,392.00], bass:98.00},
+];
+const PENTA=[523.25,587.33,659.25,783.99,880.00];
+function scheduleBeat(bi, t){
+  const bar=Math.floor(bi/4)%BARS.length, b=bi%4;
+  if(b===0){
+    for(const f of BARS[bar].chord) note(f, t, BEAT*4*0.9, 'sine', 0.05, 0.8, 1.4);
+    note(BARS[bar].bass, t, BEAT*4*0.85, 'sine', 0.09, 0.5, 1.2);
+  }
+  if((b===2 && Math.random()<0.55) || (b===3 && Math.random()<0.22)){
+    note(PENTA[Math.floor(Math.random()*PENTA.length)], t, BEAT*1.1, 'triangle', 0.03, 0.15, 0.9);
+  }
+}
+function scheduler(){
+  if(!actx) return;
+  while(nextTime < actx.currentTime + 0.4){ scheduleBeat(beatIndex, nextTime); nextTime+=BEAT; beatIndex++; }
+}
+function startMusic(){
+  if(!actx) return;
+  if(actx.state==='suspended') actx.resume();
+  if(!schedStarted){ schedStarted=true; nextTime=actx.currentTime+0.1; beatIndex=0; setInterval(scheduler,120); }
+}
+
 // ---------- 全屏 ----------
 const fsBtn=document.getElementById('fsBtn');
 fsBtn.onclick=()=>{
@@ -394,6 +461,13 @@ fsBtn.onclick=()=>{
 };
 document.addEventListener('fullscreenchange', ()=>{ resize(); checkOrientation(); });
 
+const musicBtn=document.getElementById('musicBtn');
+musicBtn.onclick=()=>{
+  if(!actx){ initAudio(); startMusic(); musicOn=true; }
+  else { musicOn=!musicOn; master.gain.setTargetAtTime(musicOn?0.7:0, actx.currentTime, 0.12); }
+  musicBtn.classList.toggle('off', !musicOn);
+};
+
 // ---------- 横屏提示 ----------
 function checkOrientation(){
   const portrait = window.innerHeight > window.innerWidth;
@@ -405,6 +479,7 @@ checkOrientation();
 document.getElementById('startBtn').onclick=()=>{
   document.getElementById('menu').classList.add('hidden');
   resetGame();
+  initAudio(); startMusic();
   if(screen.orientation && screen.orientation.lock){
     try { const p=screen.orientation.lock('landscape'); if(p&&p.catch) p.catch(()=>{}); } catch(e){}
   }
