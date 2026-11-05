@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<title>竞技场 · 生存</title>
+<title>阿尔法大陆</title>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
   html,body { width:100%; height:100%; overflow:hidden; background:#05070d; }
@@ -11,44 +11,34 @@
          touch-action:none; user-select:none; -webkit-user-select:none; }
   #cv { position:fixed; inset:0; display:block; touch-action:none; }
   .ov { position:fixed; inset:0; display:flex; flex-direction:column; align-items:center;
-        justify-content:center; gap:16px; background:rgba(5,7,13,.92); text-align:center; padding:24px; z-index:5; }
+        justify-content:center; gap:18px; background:rgba(5,7,13,.94); text-align:center; padding:24px; z-index:5; }
   .ov.hidden { display:none; }
-  .ov h2 { font-size:22px; letter-spacing:2px; color:#f8fafc; }
-  .ov p { color:#94a3b8; font-size:13px; max-width:320px; line-height:1.8; }
-  button { font-family:"Courier New",monospace; font-weight:bold; font-size:16px;
+  #menu .title { font-size:34px; font-weight:bold; color:#f8fafc; letter-spacing:5px;
+                 text-shadow:3px 3px 0 #0284c7, 6px 6px 0 #000; }
+  #menu .sub { color:#475569; letter-spacing:7px; font-size:12px; margin-top:-8px; }
+  #subtitle .text { font-size:28px; font-weight:bold; color:#f8fafc; letter-spacing:4px;
+                    text-shadow:3px 3px 0 #000; }
+  button { font-family:"Courier New",monospace; font-weight:bold; font-size:17px;
            background:#4ade80; color:#052e16; border:2px solid #052e16; border-radius:0;
-           box-shadow:0 4px 0 #052e16; padding:13px 30px; cursor:pointer; }
+           box-shadow:0 4px 0 #052e16; padding:13px 34px; cursor:pointer; }
   button:active { transform:translateY(3px); box-shadow:0 1px 0 #052e16; }
-  #cards { position:fixed; left:0; right:0; bottom:0; z-index:6; display:flex; flex-direction:column;
-           gap:10px; padding:14px 14px calc(14px + env(safe-area-inset-bottom)); }
-  #cards .cap { text-align:center; color:#a5b4fc; font-size:15px; font-weight:bold; letter-spacing:1px; }
-  .card { width:100%; background:#131a2c; border:2px solid #0b0f1a; border-radius:0; box-shadow:0 4px 0 #0b0f1a;
-          padding:12px 16px; text-align:left; cursor:pointer; display:flex; flex-direction:column; gap:4px; }
-  .card:active { transform:translateY(3px); box-shadow:0 1px 0 #0b0f1a; border-color:#4ade80; }
-  .card .t { font-size:16px; font-weight:bold; color:#f8fafc; }
-  .card .d { font-size:12px; color:#94a3b8; }
-  .card .rarity { font-size:11px; letter-spacing:1px; }
-  .rarity.r1{color:#94a3b8}.rarity.r2{color:#38bdf8}.rarity.r3{color:#a855f7}.rarity.r4{color:#f59e0b}
 </style>
 </head>
 <body>
 <canvas id="cv"></canvas>
 
-<div id="start" class="ov">
-  <h2>⚔ 竞技场</h2>
-  <p>走位躲怪，武器自动攻击。<br>击杀怪物捡经验，升级三选一强化自己。活下来！</p>
-  <button id="startBtn">开始</button>
+<div id="menu" class="ov">
+  <div class="title">阿尔法大陆</div>
+  <div class="sub">ALPHA LAND</div>
+  <button id="startBtn">开始游戏</button>
 </div>
-<div id="over" class="ov hidden">
-  <h2>你倒下了</h2>
-  <p id="overTxt"></p>
-  <button id="againBtn">再来一局</button>
+<div id="subtitle" class="ov hidden">
+  <div class="text">到达主城</div>
 </div>
-<div id="cards" class="hidden"></div>
 
 <script>
 "use strict";
-const VW=180, VH=320;
+const VW=176, VH=320, TILE=16, COLS=11, ROWS=20;
 const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
 const off = document.createElement('canvas'); off.width=VW; off.height=VH;
 const octx = off.getContext('2d'); octx.imageSmoothingEnabled=false;
@@ -64,44 +54,41 @@ function resize(){
 resize();
 window.addEventListener('resize', resize);
 
-// ---------- 状态 ----------
-let state='menu', player, enemies, bullets, gems, parts;
-let time=0, kills=0, level=1, xp=0, xpNeed=30, spawnTimer=0, last=0, shake=0, muzzle=0;
-
-const UPGRADES = [
-  {t:'生命上限 +25%', d:'最大生命提升，并回复同样数值', r:1, f(){ player.maxHp*=1.25; player.hp+=player.maxHp*0.25; }},
-  {t:'伤害 +20%', d:'所有子弹伤害提升', r:2, f(){ player.dmg*=1.2; }},
-  {t:'攻击速度 +15%', d:'武器发射更快', r:2, f(){ player.interval/=1.15; }},
-  {t:'移动速度 +12%', d:'走位更灵活', r:1, f(){ player.speed*=1.12; }},
-  {t:'生命回复 +1/秒', d:'缓慢回复生命', r:2, f(){ player.regen+=1; }},
-  {t:'拾取范围 +30%', d:'经验宝石飞得更远', r:1, f(){ player.pickup*=1.3; }},
-  {t:'经验加成 +20%', d:'获得经验更多', r:2, f(){ player.xpMult*=1.2; }},
-  {t:'护甲 +2', d:'受到的伤害减少', r:2, f(){ player.armor+=2; }},
-  {t:'多重射击 +1', d:'每次多射一颗子弹', r:3, f(){ player.shots+=1; }},
-  {t:'子弹速度 +25%', d:'子弹飞得更快', r:1, f(){ player.bulletSpeed*=1.25; }},
-  {t:'立即回复 50 生命', d:'马上回一口血', r:1, f(){ player.hp=Math.min(player.maxHp, player.hp+50); }},
-  {t:'暴击 +15%', d:'概率造成 2 倍伤害', r:3, f(){ player.crit+=0.15; }},
+// ---------- 地图：主城（# = 墙，. = 可通行） ----------
+const MAP = [
+  "###########",
+  "#.........#",
+  "#.##...##.#",
+  "#.##...##.#",
+  "#.........#",
+  "#..#####..#",
+  "#..#####..#",
+  "#.........#",
+  "#....##...#",
+  "#....##...#",
+  "#.........#",
+  "#.##...##.#",
+  "#.##...##.#",
+  "#.........#",
+  "#..#####..#",
+  "#..#####..#",
+  "#.........#",
+  "#....##...#",
+  "#....##...#",
+  "###########",
 ];
 
-const TYPES = {
-  tri:  {sides:3, r:6,  hp:10, spd:36, dmg:5,  xp:4,  body:'#f87171', dark:'#991b1b', rot:0},
-  sq:   {sides:4, r:7,  hp:20, spd:21, dmg:8,  xp:6,  body:'#fb923c', dark:'#c2410c', rot:0.8},
-  pent: {sides:5, r:8,  hp:34, spd:18, dmg:11, xp:10, body:'#c084fc', dark:'#7e22ce', rot:1.2},
-  hex:  {sides:6, r:10, hp:55, spd:15, dmg:14, xp:22, body:'#f472b6', dark:'#be185d', rot:1.6},
-};
+// ---------- 状态 ----------
+let state='menu', last=0;
+let player = { x:88, y:168, hp:100, maxHp:100, r:7, speed:60 };
+let level=0, xp=0, xpNeed=10;
 
-function newPlayer(){
-  player = { x:VW/2, y:VH/2, r:9, hp:100, maxHp:100, speed:60,
-    dmg:10, interval:0.7, shots:1, bulletSpeed:170,
-    regen:0, armor:0, pickup:26, xpMult:1, crit:0, atkTimer:0, flash:0 };
-}
 function resetGame(){
-  enemies=[]; bullets=[]; gems=[]; parts=[];
-  time=0; kills=0; level=1; xp=0; xpNeed=30; spawnTimer=0.5; shake=0; muzzle=0;
-  newPlayer();
+  player = { x:88, y:168, hp:100, maxHp:100, r:7, speed:60 };
+  level=0; xp=0; xpNeed=10;
 }
 
-// ---------- 输入 ----------
+// ---------- 输入（浮动摇杆） ----------
 let joy={active:false, ox:0, oy:0, dx:0, dy:0};
 const R=24;
 function toV(x,y){ return [(x-oxCss)/cssScale, (y-oyCss)/cssScale]; }
@@ -110,7 +97,7 @@ function joyMove(x,y){
   joy.dx=dx*m; joy.dy=dy*m;
 }
 cv.addEventListener('touchstart', e=>{
-  if(state!=='playing') return;
+  if(state!=='city') return;
   const t=e.touches[0]; const [vx,vy]=toV(t.clientX,t.clientY);
   joy.active=true; joy.ox=vx; joy.oy=vy; joy.dx=joy.dy=0;
 }, {passive:true});
@@ -120,122 +107,29 @@ cv.addEventListener('touchmove', e=>{
   joyMove(vx,vy);
 }, {passive:true});
 cv.addEventListener('touchend', ()=>{ joy.active=false; joy.dx=joy.dy=0; }, {passive:true});
-cv.addEventListener('mousedown', e=>{ if(state!=='playing')return; const [vx,vy]=toV(e.clientX,e.clientY); joy.active=true; joy.ox=vx; joy.oy=vy; joy.dx=joy.dy=0; });
+cv.addEventListener('mousedown', e=>{ if(state!=='city')return; const [vx,vy]=toV(e.clientX,e.clientY); joy.active=true; joy.ox=vx; joy.oy=vy; joy.dx=joy.dy=0; });
 cv.addEventListener('mousemove', e=>{ if(!joy.active)return; const [vx,vy]=toV(e.clientX,e.clientY); joyMove(vx,vy); });
 cv.addEventListener('mouseup', ()=>{ joy.active=false; joy.dx=joy.dy=0; });
 
-// ---------- 逻辑 ----------
-function dist(a,b){ return Math.hypot(a.x-b.x, a.y-b.y); }
-function pickType(){
-  if(time<20) return 'tri';
-  if(time<50) return Math.random()<0.65?'tri':'sq';
-  if(time<90){ const r=Math.random(); return r<0.35?'tri':r<0.65?'sq':'pent'; }
-  const r=Math.random(); return r<0.25?'tri':r<0.5?'sq':r<0.8?'pent':'hex';
+// ---------- 碰撞 ----------
+function solidAt(px,py){
+  const tx=Math.floor(px/TILE), ty=Math.floor(py/TILE);
+  if(tx<0||ty<0||tx>=COLS||ty>=ROWS) return true;
+  return MAP[ty][tx]==='#';
 }
-function spawnEnemy(){
-  const type=pickType(), T=TYPES[type];
-  const side=Math.floor(Math.random()*4);
-  let x,y;
-  if(side===0){x=Math.random()*VW; y=-12;} else if(side===1){x=VW+12; y=Math.random()*VH;}
-  else if(side===2){x=Math.random()*VW; y=VH+12;} else {x=-12; y=Math.random()*VH;}
-  const df = 1 + time/55;
-  enemies.push({type, x, y, r:T.r, hp:T.hp*df, maxHp:T.hp*df,
-    spd:(T.spd+Math.random()*6)*Math.min(1.6, 1+time*0.004),
-    dmg:T.dmg*df, xp:T.xp, hitCd:0, flash:0, rot:Math.random()*7, rotSpeed:T.rot});
+function tryMove(dx,dy){
+  const half=6, nx=player.x+dx, ny=player.y+dy;
+  const ok=(x,y)=> !solidAt(x-half,y-half)&&!solidAt(x+half,y-half)&&!solidAt(x-half,y+half)&&!solidAt(x+half,y+half);
+  if(ok(nx,ny)){ player.x=nx; player.y=ny; return; }
+  if(ok(nx,player.y)) player.x=nx;
+  if(ok(player.x,ny)) player.y=ny;
 }
-function fire(){
-  let tgt=null, bd=1e9;
-  for(const e of enemies){ const d=dist(player,e); if(d<bd){bd=d; tgt=e;} }
-  if(!tgt) return;
-  const base=Math.atan2(tgt.y-player.y, tgt.x-player.x);
-  const n=player.shots;
-  for(let i=0;i<n;i++){
-    const a=base+(i-(n-1)/2)*0.16;
-    bullets.push({x:player.x+Math.cos(a)*(player.r+2), y:player.y+Math.sin(a)*(player.r+2),
-      vx:Math.cos(a)*player.bulletSpeed, vy:Math.sin(a)*player.bulletSpeed, r:2, life:1.4});
-  }
-  muzzle=0.08;
-}
-function addPart(x,y,c,big){
-  parts.push({x,y,vx:(Math.random()-0.5)*40, vy:(Math.random()-0.5)*40, r:(big?3:1.6)+Math.random()*2, life:big?0.5:0.35, c});
-}
-function hurtPlayer(raw){
-  const d=Math.max(1, Math.round(raw-player.armor));
-  player.hp-=d; player.flash=0.15; shake=Math.max(shake, 3);
-  addPart(player.x, player.y, '#f87171', true);
-  if(player.hp<=0){ player.hp=0; gameOver(); }
-}
-function gainXp(v){ xp+=v*player.xpMult; while(xp>=xpNeed){ xp-=xpNeed; level++; xpNeed=20+level*10; levelUp(); } }
-function levelUp(){
-  state='levelup';
-  const pool=[...UPGRADES].sort(()=>Math.random()-0.5).slice(0,3);
-  cardsEl.innerHTML='<div class="cap">升级！选择一个强化</div>';
-  pool.forEach(u=>{
-    const c=document.createElement('button'); c.className='card';
-    c.innerHTML=`<span class="rarity r${u.r}">${'★'.repeat(u.r)}</span>
-      <span class="t">${u.t}</span><span class="d">${u.d}</span>`;
-    c.onclick=()=>{ u.f(); cardsEl.classList.add('hidden'); state='playing'; };
-    cardsEl.appendChild(c);
-  });
-  cardsEl.classList.remove('hidden');
-}
-function gameOver(){
-  state='over';
-  document.getElementById('overTxt').innerHTML=
-    `存活 ${fmtTime(time)} · 击杀 ${kills} · 等级 ${level}`;
-  document.getElementById('over').classList.remove('hidden');
-}
-function fmtTime(t){ const m=Math.floor(t/60), s=Math.floor(t%60); return `${m}:${s.toString().padStart(2,'0')}`; }
 
 function update(dt){
-  time+=dt;
-  if(muzzle>0) muzzle-=dt; if(player.flash>0) player.flash-=dt; if(shake>0) shake-=dt*20;
-
   if(joy.active){
     const d=Math.hypot(joy.dx,joy.dy);
-    if(d>0){ player.x+=joy.dx/d*player.speed*dt; player.y+=joy.dy/d*player.speed*dt; }
+    if(d>0) tryMove(joy.dx/d*player.speed*dt, joy.dy/d*player.speed*dt);
   }
-  player.x=Math.max(player.r,Math.min(VW-player.r,player.x));
-  player.y=Math.max(player.r,Math.min(VH-player.r,player.y));
-  if(player.regen>0) player.hp=Math.min(player.maxHp, player.hp+player.regen*dt);
-
-  spawnTimer-=dt;
-  if(spawnTimer<=0){ spawnEnemy(); spawnTimer=Math.max(0.22,1.1-time*0.02)*(0.85+Math.random()*0.3); }
-
-  for(const e of enemies){
-    const d=dist(player,e); if(d<1) continue;
-    e.x+=(player.x-e.x)/d*e.spd*dt; e.y+=(player.y-e.y)/d*e.spd*dt;
-    if(e.flash>0) e.flash-=dt; e.hitCd-=dt;
-    e.rot += e.rotSpeed*dt;
-    if(d<player.r+e.r && e.hitCd<=0){ hurtPlayer(e.dmg); e.hitCd=0.6; }
-  }
-  player.atkTimer-=dt;
-  if(player.atkTimer<=0 && enemies.length){ fire(); player.atkTimer=player.interval; }
-
-  for(let i=bullets.length-1;i>=0;i--){
-    const b=bullets[i]; b.x+=b.vx*dt; b.y+=b.vy*dt; b.life-=dt;
-    let dead=b.life<=0||b.x<-15||b.x>VW+15||b.y<-15||b.y>VH+15;
-    if(!dead){
-      for(let j=enemies.length-1;j>=0;j--){
-        const e=enemies[j];
-        if(dist(b,e)<b.r+e.r){
-          const crit=Math.random()<player.crit, dmg=b.dmg*(crit?2:1);
-          e.hp-=dmg; e.flash=0.1; addPart(e.x,e.y, crit?'#fbbf24':'#fca5a5');
-          if(e.hp<=0){ enemies.splice(j,1); kills++; gems.push({x:e.x,y:e.y,r:2.5,v:e.xp,life:30}); addPart(e.x,e.y,'#f87171',true); }
-          dead=true; break;
-        }
-      }
-    }
-    if(dead) bullets.splice(i,1);
-  }
-  for(let i=gems.length-1;i>=0;i--){
-    const g=gems[i]; g.life-=dt;
-    const d=dist(player,g);
-    if(d<player.pickup){ g.x+=(player.x-g.x)/d*120*dt; g.y+=(player.y-g.y)/d*120*dt; }
-    if(d<player.r+g.r){ gems.splice(i,1); gainXp(g.v); }
-    else if(g.life<=0) gems.splice(i,1);
-  }
-  for(let i=parts.length-1;i>=0;i--){ const p=parts[i]; p.x+=p.vx*dt; p.y+=p.vy*dt; p.life-=dt; if(p.life<=0) parts.splice(i,1); }
 }
 
 // ---------- 像素字体 / 图标 ----------
@@ -245,20 +139,14 @@ const FONT = {
   '4':["101","101","111","001","001"], '5':["111","100","111","001","111"],
   '6':["111","100","111","101","111"], '7':["111","001","010","010","010"],
   '8':["111","101","111","101","111"], '9':["111","101","111","001","111"],
-  ':':["0","1","0","1","0"], 'L':["100","100","100","100","111"],
-  'V':["101","101","101","101","010"], ' ':["000","000","000","000","000"],
+  'L':["100","100","100","100","111"], 'V':["101","101","101","101","010"],
 };
-const IC = {
-  heart: [".1.1.","11111","11111",".111.","..1.."],
-  clock: [".111.","1...1","1.1.1","1...1",".111."],
-  x:     ["1...1",".1.1.","..1..",".1.1.","1...1"],
-};
-function textW(str, s=1){ return str.length*4*s; }
+const IC = { heart:[".1.1.","11111","11111",".111.","..1.."] };
 function drawText(str, x, y, color, s=1){
   octx.fillStyle=color;
   let cx=x;
   for(let i=0;i<str.length;i++){
-    const g=FONT[str[i]]||FONT[' '];
+    const g=FONT[str[i]]||FONT['0'];
     for(let ry=0;ry<5;ry++) for(let rx=0;rx<3;rx++)
       if(g[ry][rx]==='1') octx.fillRect(cx+rx*s, y+ry*s, s, s);
     cx+=4*s;
@@ -280,112 +168,48 @@ function drawBar(x,y,w,h,frac,color){
   }
 }
 
-// ---------- 主角像素小人 ----------
-const HERO = [
-  "....kkkk....",
-  "...khhhhk...",
-  "...khhhhk...",
-  "...kssssk...",
-  "..kssssssk..",
-  "..ksesssek..",
-  "..kssssssk..",
-  "...kssssk...",
-  "...kwwwwk...",
-  "..kwwwwwwk..",
-  "..kswwwwsk..",
-  "..kswwwwsk..",
-  "...kwwwwk...",
-  "...kppppk...",
-  "...kp..pk...",
-  "...kf..fk...",
-];
-const HERO_PAL = { k:'#1e293b', h:'#475569', s:'#fcd7b6', e:'#1e293b', w:'#f8fafc', p:'#64748b', f:'#1e293b' };
-function buildSprite(rows, pal){
-  const c=document.createElement('canvas'); c.width=rows[0].length; c.height=rows.length;
-  const g=c.getContext('2d');
-  for(let y=0;y<rows.length;y++) for(let x=0;x<rows[y].length;x++){
-    const ch=rows[y][x]; if(ch==='.'||!pal[ch]) continue;
-    g.fillStyle=pal[ch]; g.fillRect(x,y,1,1);
-  }
-  return c;
-}
-const heroImg = buildSprite(HERO, HERO_PAL);
-
 // ---------- 渲染 ----------
-const specks = (()=>{ const a=[]; for(let i=0;i<120;i++) a.push({x:Math.random()*VW,y:Math.random()*VH,c:Math.random()<0.5}); return a; })();
-const deco = (()=>{
-  const a=[];
-  const add=(kind,x,y)=>a.push({kind,x,y});
-  for(let x=10;x<VW-4;x+=15){ if(Math.random()<0.75) add('tree',x,9); if(Math.random()<0.75) add('tree',x,VH-9); }
-  for(let y=24;y<VH-12;y+=16){ if(Math.random()<0.75) add('tree',9,y); if(Math.random()<0.75) add('tree',VW-9,y); }
-  for(let i=0;i<9;i++) add('stone', 12+Math.random()*(VW-24), 14+Math.random()*(VH-28));
-  for(let i=0;i<14;i++) add('grass', Math.random()*VW, Math.random()*VH);
-  return a;
-})();
-
+const specks = (()=>{ const a=[]; for(let i=0;i<130;i++) a.push({x:Math.random()*VW,y:Math.random()*VH,c:Math.random()<0.5}); return a; })();
 function px(x,y,w,h,c){ octx.fillStyle=c; octx.fillRect(Math.round(x),Math.round(y),Math.round(w),Math.round(h)); }
 function oc(x,y,r){ octx.beginPath(); octx.arc(x,y,r,0,7); octx.fill(); }
-function poly(x,y,r,sides,rot){
-  octx.beginPath();
-  for(let i=0;i<sides;i++){
-    const a=rot + i*Math.PI*2/sides;
-    const vx=x+Math.cos(a)*r, vy=y+Math.sin(a)*r;
-    i?octx.lineTo(vx,vy):octx.moveTo(vx,vy);
-  }
-  octx.closePath();
-}
 
 function drawGround(){
   octx.fillStyle='#3a552a'; octx.fillRect(0,0,VW,VH);
   for(const s of specks){ octx.fillStyle = s.c?'#334c26':'#425f30'; px(s.x,s.y,1,1); }
-  for(const d of deco){
-    if(d.kind==='tree'){
-      octx.fillStyle='rgba(0,0,0,.25)'; octx.beginPath(); octx.ellipse(d.x, d.y+9, 5, 2, 0, 0, 7); octx.fill();
-      px(d.x-1, d.y+5, 3, 4, '#5b3a1e');
-      px(d.x-2, d.y+3, 5, 3, '#2f4a26');
-      px(d.x-4, d.y, 9, 4, '#3a5c2e');
-      px(d.x-3, d.y-2, 7, 3, '#446e34');
-    } else if(d.kind==='stone'){
-      octx.fillStyle='rgba(0,0,0,.25)'; octx.beginPath(); octx.ellipse(d.x, d.y+3, 4, 1.5, 0, 0, 7); octx.fill();
-      px(d.x-3, d.y, 6, 4, '#6b6b6b'); px(d.x-2, d.y-2, 4, 3, '#7d7d7d'); px(d.x-1, d.y-1, 2, 1, '#8f8f8f');
-    } else {
-      px(d.x, d.y-2, 1, 3, '#5f8f46'); px(d.x-1, d.y-1, 1, 2, '#54803d'); px(d.x+1, d.y-1, 1, 2, '#54803d');
-    }
+}
+function drawWalls(){
+  for(let ty=0;ty<ROWS;ty++) for(let tx=0;tx<COLS;tx++){
+    if(MAP[ty][tx]!=='#') continue;
+    const x=tx*TILE, y=ty*TILE;
+    px(x, y, TILE, TILE, '#4b5462');                 // 石基
+    px(x, y, TILE, 3, '#68727f');                    // 顶面高光
+    px(x, y+TILE-3, TILE, 3, '#39404b');             // 底部阴影
+    octx.fillStyle='#39404b';                        // 砖缝
+    octx.fillRect(x, y+8, TILE, 1);
+    octx.fillRect(x+7, y+3, 1, 5);
+    octx.fillRect(x+3, y+9, 1, 4);
+    octx.fillRect(x+11, y+9, 1, 4);
   }
 }
 
-function drawPlayer(){
-  let tgt=null, bd=1e9;
-  for(const e of enemies){ const d=dist(player,e); if(d<bd){bd=d; tgt=e;} }
-  const ang = tgt?Math.atan2(tgt.y-player.y,tgt.x-player.x):0;
-  const face = Math.cos(ang)>=0?1:-1;
-  const bob = Math.sin(time*9)*0.6;
-  const y = player.y+bob;
-
-  octx.fillStyle='rgba(0,0,0,.3)'; octx.beginPath(); octx.ellipse(player.x, player.y+9, 6, 2, 0, 0, 7); octx.fill();
-  // 枪管
-  octx.save(); octx.translate(player.x, y-1); octx.rotate(ang);
-  px(2, -1, 8, 2, '#475569');
-  if(muzzle>0){ octx.fillStyle='#fde047'; octx.beginPath(); octx.arc(11, 0, 1.8, 0, 7); octx.fill(); }
-  octx.restore();
-  // 小人
-  octx.save(); octx.translate(player.x, y); if(face<0) octx.scale(-1,1);
-  const s=1.3;
-  octx.drawImage(heroImg, -6*s, -8*s, 12*s, 16*s);
-  octx.restore();
-  if(player.flash>0){ octx.fillStyle='rgba(255,255,255,.35)'; octx.beginPath(); octx.arc(player.x, y, 9, 0, 7); octx.fill(); }
-}
-
-function drawEnemy(e){
-  const T=TYPES[e.type];
-  const x=e.x, y=e.y, r=e.r;
-  octx.fillStyle='rgba(0,0,0,.28)'; octx.beginPath(); octx.ellipse(x, y+r+1, r*0.8, 2, 0, 0, 7); octx.fill();
-  poly(x,y,r+1,T.sides,e.rot); octx.fillStyle='#0b0f1a'; octx.fill();
-  poly(x,y,r-1,T.sides,e.rot); octx.fillStyle = e.flash>0?'#ffffff':T.body; octx.fill();
-  octx.fillStyle='#0b0f1a';
-  if(T.sides>=6){ px(x-1, y-1.5, 2, 4); }
-  else if(T.sides===5){ px(x-3, y-1, 2, 3); px(x+1, y-1, 2, 3); }
-  else { px(x-3, y-1.5, 2, 3); px(x+1, y-1.5, 2, 3); }
+// 通体白色 + 脚 + 背后小包
+function drawHero(){
+  const cx=player.x, cy=player.y + Math.sin(performance.now()/180)*0.5;
+  // 影子
+  octx.fillStyle='rgba(0,0,0,.3)'; octx.beginPath(); octx.ellipse(cx, player.y+9, 6, 2, 0, 0, 7); octx.fill();
+  // 背包（在身后，从头顶冒出）
+  px(cx-5, cy-10, 10, 6, '#5b3a1e');
+  px(cx-4, cy-9, 8, 5, '#8a5a2b');
+  px(cx-1, cy-8, 2, 1, '#a9713d');
+  // 身体（白色）
+  oc(cx, cy, 7.5); octx.fillStyle='#94a3b8'; octx.fill();
+  oc(cx, cy, 6.5); octx.fillStyle='#ffffff'; octx.fill();
+  // 背带
+  px(cx-3, cy-6, 1, 6, '#92400e');
+  px(cx+2, cy-6, 1, 6, '#92400e');
+  // 脚
+  px(cx-4, cy+7, 3, 3, '#64748b');
+  px(cx+1, cy+7, 3, 3, '#64748b');
 }
 
 function drawHUD(){
@@ -396,30 +220,13 @@ function drawHUD(){
   drawBar(4, 23, 71, 5, xp/xpNeed, '#38bdf8');
   drawText('LV', 4, 30, '#a5b4fc');
   drawText(String(level), 13, 30, '#f8fafc');
-
-  const ts=fmtTime(time), tw=textW(ts), tx=VW-4-(5+2+tw);
-  drawIcon(IC.clock, tx, 4, '#94a3b8');
-  drawText(ts, tx+7, 4, '#f8fafc');
-
-  const ks=String(kills), kw=textW(ks), kx=VW-4-(5+2+kw);
-  drawIcon(IC.x, kx, 14, '#f87171');
-  drawText(ks, kx+7, 14, '#f8fafc');
 }
 
 function render(){
   octx.clearRect(0,0,VW,VH);
   drawGround();
-
-  for(const g of gems){
-    octx.fillStyle='rgba(103,232,249,.35)'; octx.beginPath(); octx.arc(g.x,g.y,g.r*2.4,0,7); octx.fill();
-    octx.fillStyle='#67e8f9';
-    octx.beginPath(); octx.moveTo(g.x,g.y-g.r*1.6); octx.lineTo(g.x+g.r*1.6,g.y); octx.lineTo(g.x,g.y+g.r*1.6); octx.lineTo(g.x-g.r*1.6,g.y); octx.closePath(); octx.fill();
-  }
-  for(const e of enemies) drawEnemy(e);
-  for(const b of bullets){ octx.fillStyle='#fde047'; oc(b.x,b.y,b.r); }
-  for(const p of parts){ octx.globalAlpha=Math.max(0,p.life/(p.life>0.35?0.5:0.35)); octx.fillStyle=p.c; oc(p.x,p.y,p.r); octx.globalAlpha=1; }
-
-  drawPlayer();
+  drawWalls();
+  drawHero();
   drawHUD();
 
   if(joy.active){
@@ -429,21 +236,25 @@ function render(){
   }
 
   ctx.fillStyle='#05070d'; ctx.fillRect(0,0,cv.width,cv.height);
-  ctx.save();
-  if(shake>0) ctx.translate((Math.random()-0.5)*shake, (Math.random()-0.5)*shake);
   ctx.drawImage(off, oxCss, oyCss, VW*cssScale, VH*cssScale);
-  ctx.restore();
 }
 
 function frame(now){
   const dt=Math.min((now-last)/1000,0.05); last=now;
-  if(state==='playing') update(dt);
+  if(state==='city') update(dt);
   render();
   requestAnimationFrame(frame);
 }
-const cardsEl = document.getElementById('cards');
-document.getElementById('startBtn').onclick=()=>{ document.getElementById('start').classList.add('hidden'); resetGame(); state='playing'; last=performance.now(); };
-document.getElementById('againBtn').onclick=()=>{ document.getElementById('over').classList.add('hidden'); resetGame(); state='playing'; };
+
+document.getElementById('startBtn').onclick=()=>{
+  document.getElementById('menu').classList.add('hidden');
+  resetGame();
+  state='arrive';
+  const sub=document.getElementById('subtitle');
+  sub.classList.remove('hidden');
+  setTimeout(()=>{ sub.classList.add('hidden'); state='city'; }, 1600);
+};
+
 resetGame(); last=performance.now(); requestAnimationFrame(frame);
 </script>
 </body>
