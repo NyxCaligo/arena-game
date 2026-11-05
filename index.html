@@ -30,6 +30,14 @@
            font-size:20px; box-shadow:none;
            display:flex; align-items:center; justify-content:center; }
   #settingsBtn:active { transform:translateY(2px); }
+  #fps { position:fixed; z-index:6;
+         top:calc(10px + env(safe-area-inset-top, 0px));
+         right:calc(64px + env(safe-area-inset-right, 0px));
+         height:44px; padding:0 9px;
+         display:flex; align-items:center; justify-content:center;
+         background:rgba(15,23,42,.72); color:#4ade80; border:2px solid #0b0f1a;
+         border-radius:6px; font-size:12px; font-weight:bold; letter-spacing:.5px;
+         font-variant-numeric:tabular-nums; }
   #settingsBackdrop { position:fixed; inset:0; z-index:7; background:rgba(0,0,0,.45); }
   #settingsBackdrop.hidden, #settingsPanel.hidden { display:none; }
   #settingsPanel { position:fixed; z-index:8; top:0; right:0; bottom:0;
@@ -59,6 +67,7 @@
 <body>
 <canvas id="cv"></canvas>
 <button id="settingsBtn">⚙</button>
+<div id="fps">-- FPS</div>
 <div id="settingsBackdrop" class="hidden"></div>
 <div id="settingsPanel" class="hidden">
   <div class="sp-title">设置<button id="settingsClose" class="sp-close">×</button></div>
@@ -672,10 +681,16 @@ function render(){
   ctx.drawImage(off, oxCss, oyCss, VW*cssScale, VH*cssScale);
 }
 
+let fpsFrames=0, fpsLast=0;
 function frame(now){
   const dt=Math.min((now-last)/1000,0.05); last=now;
   if(state==='city') update(dt);
   render();
+  fpsFrames++;
+  if(now-fpsLast>=500){
+    document.getElementById('fps').textContent = Math.round(fpsFrames*1000/(now-fpsLast))+' FPS';
+    fpsFrames=0; fpsLast=now;
+  }
   requestAnimationFrame(frame);
 }
 
@@ -825,7 +840,7 @@ document.getElementById('startBtn').onclick=()=>{
   setTimeout(()=>{ sub.classList.add('hidden'); state='city'; }, 1600);
 };
 
-buildGround(); resetGame(); last=performance.now(); requestAnimationFrame(frame);
+buildGround(); resetGame(); last=performance.now(); fpsLast=performance.now(); requestAnimationFrame(frame);
 </script>
 </body>
 </html>
