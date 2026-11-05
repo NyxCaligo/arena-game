@@ -180,14 +180,14 @@ for(let y=0;y<WROWS;y++){
 
 // ---------- 房屋 ----------
 const BUILDINGS = [
-  {x:440, y:280, w:88, h:76, v:0},   // 大民居
-  {x:556, y:300, w:64, h:60, v:1},   // 小店
-  {x:330, y:270, w:64, h:58, v:2},   // 石屋
-  {x:240, y:330, w:56, h:54, v:3},   // 茅草屋
-  {x:740, y:270, w:66, h:60, v:1},   // 东边小店
-  {x:820, y:330, w:60, h:56, v:2},   // 石屋
-  {x:530, y:170, w:70, h:64, v:0},   // 北边民居
-  {x:400, y:170, w:58, h:52, v:3},   // 茅草屋
+  {x:440, y:280, w:88, h:76, v:0, c:0},
+  {x:556, y:300, w:64, h:60, v:1, c:0},
+  {x:330, y:270, w:64, h:58, v:2, c:0},
+  {x:240, y:330, w:56, h:54, v:3, c:0},
+  {x:740, y:270, w:66, h:60, v:1, c:1},
+  {x:820, y:330, w:60, h:56, v:2, c:1},
+  {x:530, y:170, w:70, h:64, v:0, c:2},
+  {x:400, y:170, w:58, h:52, v:3, c:1},
 ];
 
 // ---------- 道路（土黄路，宽窄不一） ----------
@@ -464,15 +464,32 @@ function drawBridge(){
   for(let yy=y+6; yy<y+h; yy+=16){ px(x, yy, 3, 3, '#5a3a1f'); px(x+w-3, yy, 3, 3, '#5a3a1f'); }
 }
 const HSTYLES=[
-  {roofA:'#b8452e', roofB:'#95321f', wallA:'#f1e3c2', wallB:'#ddcb9f', beam:'#5a3a1f', type:'home'},
-  {roofA:'#6f4530', roofB:'#54301f', wallA:'#ecd9b4', wallB:'#d6c094', beam:'#4a2f19', type:'shop'},
-  {roofA:'#6b6f76', roofB:'#52565c', wallA:'#cfd2d6', wallB:'#b6b9be', beam:'#5a5e64', type:'stone'},
-  {roofA:'#c9a24a', roofB:'#a8853a', wallA:'#efe1c0', wallB:'#dccfa8', beam:'#6b4a2e', type:'thatched'},
+  {type:'home', palettes:[
+    {roofA:'#b8452e', roofB:'#95321f', wallA:'#f1e3c2', wallB:'#ddcb9f', beam:'#5a3a1f'},
+    {roofA:'#8a5a3c', roofB:'#6b422a', wallA:'#eee0c0', wallB:'#d9c99e', beam:'#4e3420'},
+    {roofA:'#6e7f8c', roofB:'#55646f', wallA:'#ece6da', wallB:'#d6cebf', beam:'#4a4a44'},
+  ]},
+  {type:'shop', palettes:[
+    {roofA:'#6f4530', roofB:'#54301f', wallA:'#ecd9b4', wallB:'#d6c094', beam:'#4a2f19'},
+    {roofA:'#7a5a3a', roofB:'#5c4026', wallA:'#ece0c8', wallB:'#d8c8a6', beam:'#4e3a22'},
+    {roofA:'#5f4a6b', roofB:'#46354f', wallA:'#e9dfd0', wallB:'#d2c6b2', beam:'#40303f'},
+  ]},
+  {type:'stone', palettes:[
+    {roofA:'#6b6f76', roofB:'#52565c', wallA:'#cfd2d6', wallB:'#b6b9be', beam:'#5a5e64'},
+    {roofA:'#7a7266', roofB:'#5f584e', wallA:'#d6d0c4', wallB:'#bfb8aa', beam:'#5c554a'},
+    {roofA:'#5f6b72', roofB:'#47525a', wallA:'#c9d0d4', wallB:'#b0b8bd', beam:'#4a545a'},
+  ]},
+  {type:'thatched', palettes:[
+    {roofA:'#c9a24a', roofB:'#a8853a', wallA:'#efe1c0', wallB:'#dccfa8', beam:'#6b4a2e'},
+    {roofA:'#b88a3e', roofB:'#96702e', wallA:'#eee0bc', wallB:'#d9c9a0', beam:'#6a4a2a'},
+    {roofA:'#a98446', roofB:'#86652f', wallA:'#e9dcc0', wallB:'#d3c39a', beam:'#5f4526'},
+  ]},
 ];
 function drawHouse(b){
   const x=Math.round((b.x-camX)*RES)/RES, y=Math.round((b.y-camY)*RES)/RES, w=b.w, h=b.h;
   if(x+w<-20||x>VW+20||y+h<-20||y>VH+20) return;
   const st=HSTYLES[(b.v||0)%HSTYLES.length];
+  const pal=st.palettes[(b.c||0)%st.palettes.length];
   const roofH=Math.round(h*0.46);
   const wallTop=y+roofH;
   const baseY=y+h-8;
@@ -480,8 +497,8 @@ function drawHouse(b){
   px(x+6, y+h+1, w-12, 3, 'rgba(0,0,0,.16)');
   px(x+2, y+h+3, w-4, 2, 'rgba(0,0,0,.12)');
 
-  px(x+4, wallTop-2, w-8, h-roofH+2, st.wallA);
-  px(x+4, wallTop+Math.round((h-roofH)*0.55), w-8, Math.round((h-roofH)*0.45)+2, st.wallB);
+  px(x+4, wallTop-2, w-8, h-roofH+2, pal.wallA);
+  px(x+4, wallTop+Math.round((h-roofH)*0.55), w-8, Math.round((h-roofH)*0.45)+2, pal.wallB);
 
   px(x+4, baseY, w-8, 8, '#8d8a80');
   for(let i=0;i<w-8;i+=7) px(x+4+i, baseY, 1, 8, '#6f6c63');
@@ -491,12 +508,21 @@ function drawHouse(b){
     for(let yy=wallTop+5; yy<baseY-2; yy+=6) px(x+4, yy, w-8, 1, '#939aa0');
     px(x+4, wallTop-2, w-8, 2, '#9aa0a6');
   } else {
-    px(x+4, wallTop-2, 3, h-roofH+2, st.beam);
-    px(x+w-7, wallTop-2, 3, h-roofH+2, st.beam);
-    px(x+4, wallTop-2, w-8, 2, st.beam);
-    px(x+4, baseY-2, w-8, 2, st.beam);
-    if(st.type==='shop'){ for(let i=0;i<3;i++) px(x+9+i, wallTop+3+i*5, 2, 5, st.beam); }
+    px(x+4, wallTop-2, 3, h-roofH+2, pal.beam);
+    px(x+w-7, wallTop-2, 3, h-roofH+2, pal.beam);
+    px(x+4, wallTop-2, w-8, 2, pal.beam);
+    px(x+4, baseY-2, w-8, 2, pal.beam);
+    if(st.type==='shop'){ for(let i=0;i<3;i++) px(x+9+i, wallTop+3+i*5, 2, 5, pal.beam); }
   }
+
+  // 烟囱：先画，底部伸进屋顶里被屋顶盖住，不再悬空
+  const chDx=w*(st.type==='shop'?-0.24:0.22);
+  const chT=Math.min(0.85, Math.max(0,(Math.abs(chDx)-3)/(w/2+2)));
+  const chSurf=y+chT*roofH;
+  const chCx=x+w/2+chDx;
+  px(chCx-5, chSurf-13, 10, 22, '#8d8a80');
+  for(let i=0;i<4;i++) px(chCx-5, chSurf-13+i*5, 10, 1, '#6f6c63');
+  px(chCx-6, chSurf-14, 12, 2, '#a6a298');
 
   const steps=Math.ceil(roofH/4);
   for(let s2=0;s2<steps;s2++){
@@ -505,34 +531,26 @@ function drawHouse(b){
     const top=y+s2*4;
     const hgt=Math.min(4, roofH-s2*4);
     const l=x+w/2-halfW, r=x+w/2+halfW;
-    const col=(s2%2===0)?st.roofA:st.roofB;
+    const col=(s2%2===0)?pal.roofA:pal.roofB;
     px(l, top, r-l, hgt, col);
-    px(l, top, r-l, 1, s2%2===0?'rgba(255,255,255,.14)':st.roofA);
+    px(l, top, r-l, 1, s2%2===0?'rgba(255,255,255,.14)':pal.roofA);
   }
   px(x+w/2-4, y-1, 8, 2, st.type==='thatched'?'#e0c070':'#d9a05a');
   px(x+2, wallTop-2, w-4, 2, 'rgba(0,0,0,.16)');
 
-  const chDx=w*(st.type==='shop'?-0.26:0.24);
-  const chT=Math.min(0.95, Math.max(0,(Math.abs(chDx)-3)/(w/2+2)));
-  const chBaseY=y+chT*roofH;
-  const chx=x+w/2+chDx-4;
-  px(chx, chBaseY-10, 9, 14, st.type==='stone'?'#7a7a72':'#8d8a80');
-  for(let i=0;i<3;i++) px(chx, chBaseY-10+i*4, 9, 1, '#6f6c63');
-  px(chx, chBaseY-10, 9, 2, '#a6a298');
-
   if(st.type==='shop'){
     const wy=wallTop+7, wh=12, wx=x+8, ww=w-16;
-    px(wx-1, wy-1, ww+2, wh+2, st.beam);
+    px(wx-1, wy-1, ww+2, wh+2, pal.beam);
     px(wx, wy, ww, wh, '#3a2a1a');
     px(wx+1, wy+1, ww-2, wh-2, '#fcd34d');
-    px(wx+Math.floor(ww/2), wy+1, 1, wh-2, st.beam);
-    px(wx+Math.floor(ww/4), wy+1, 1, wh-2, st.beam);
-    px(wx+Math.floor(ww*3/4), wy+1, 1, wh-2, st.beam);
-    px(x+w/2-12, wallTop+2, 24, 3, st.beam);
+    px(wx+Math.floor(ww/2), wy+1, 1, wh-2, pal.beam);
+    px(wx+Math.floor(ww/4), wy+1, 1, wh-2, pal.beam);
+    px(wx+Math.floor(ww*3/4), wy+1, 1, wh-2, pal.beam);
+    px(x+w/2-12, wallTop+2, 24, 3, pal.beam);
     px(x+w/2-10, wallTop+1, 20, 2, '#c9a96b');
     const dw=16, dh=Math.min(20, h-roofH-8);
     const dx=x+w/2-dw/2, dy=y+h-dh;
-    px(dx-1, dy-1, dw+2, dh+1, st.beam);
+    px(dx-1, dy-1, dw+2, dh+1, pal.beam);
     px(dx, dy, dw, dh, '#6b4423');
     px(dx+2, dy+2, dw-4, dh-4, '#7d5230');
     px(dx+dw-5, dy+Math.floor(dh/2), 2, 2, '#d4b24a');
@@ -556,11 +574,11 @@ function drawHouse(b){
   } else {
     const wy=wallTop+6, wh=10;
     const win=(wx)=>{
-      px(wx-1, wy-1, wh+2, wh+2, st.beam);
+      px(wx-1, wy-1, wh+2, wh+2, pal.beam);
       px(wx, wy, wh, wh, '#3a2a1a');
       px(wx+1, wy+1, wh-2, wh-2, '#fcd34d');
-      px(wx+Math.floor(wh/2), wy+1, 1, wh-2, st.beam);
-      px(wx+1, wy+Math.floor(wh/2), wh-2, 1, st.beam);
+      px(wx+Math.floor(wh/2), wy+1, 1, wh-2, pal.beam);
+      px(wx+1, wy+Math.floor(wh/2), wh-2, 1, pal.beam);
       px(wx-1, wy+wh+1, wh+2, 3, '#7a5a33');
       px(wx+2, wy+wh+1, 2, 2, '#f472b6');
       px(wx+6, wy+wh+1, 2, 2, '#fde047');
@@ -568,7 +586,7 @@ function drawHouse(b){
     win(x+10); win(x+w-10-wh);
     const dw=14, dh=Math.min(22, h-roofH-8);
     const dx=x+w/2-dw/2, dy=y+h-dh;
-    px(dx-1, dy-2, dw+2, dh+2, st.beam);
+    px(dx-1, dy-2, dw+2, dh+2, pal.beam);
     px(dx, dy+2, dw, dh-2, '#6b4423');
     px(dx+2, dy, dw-4, 3, '#6b4423');
     px(dx+2, dy+3, dw-4, dh-5, '#7d5230');
@@ -629,22 +647,31 @@ function drawProp(p){
 }
 function drawNPC(){
   const x=Math.round((NPC.x-camX)*RES)/RES, y=Math.round((NPC.y-camY)*RES)/RES;
-  px(x-5,y+8,10,2,'rgba(0,0,0,.16)');
-  px(x-4,y+6,3,3,'#5a3a24'); px(x+1,y+6,3,3,'#5a3a24');
-  px(x-3,y+3,2,3,'#f0c9a0'); px(x+1,y+3,2,3,'#f0c9a0');
-  px(x-5,y,10,4,'#2b2b33');
-  px(x-4,y-7,8,7,'#2b2b33');
-  px(x-2,y-7,4,6,'#f8fafc');
-  px(x-2,y-7,4,2,'#b91c1c');
-  px(x-3,y-12,7,5,'#f0c9a0');
-  px(x-2,y-10,1,1,'#1e293b'); px(x+1,y-10,1,1,'#1e293b');
-  px(x-4,y-14,9,3,'#8b4a2b');
-  px(x-4,y-12,2,5,'#8b4a2b');
-  px(x+3,y-12,2,5,'#8b4a2b');
-  px(x+4,y-2,4,5,'#7a4a2e');
-  px(x+5,y-1,2,3,'#a87c50');
+  px(x-5, y+8, 10, 2, 'rgba(0,0,0,.16)');
+  px(x-4, y+5, 3, 4, '#5a3a24'); px(x+1, y+5, 3, 4, '#5a3a24');
+  px(x-3, y+2, 2, 4, '#f0c9a0'); px(x+1, y+2, 2, 4, '#f0c9a0');
+  px(x-4, y-1, 8, 3, '#2b2b33');
+  px(x-5, y+1, 10, 2, '#232329');
+  px(x-4, y-8, 8, 8, '#2b2b33');
+  px(x-2, y-8, 4, 7, '#f8fafc');
+  px(x-2, y-8, 4, 2, '#b91c1c');
+  px(x-1, y-9, 2, 1, '#b91c1c');
+  px(x-5, y-6, 2, 5, '#2b2b33'); px(x+3, y-6, 2, 5, '#2b2b33');
+  // 圆润的头
+  px(x-2, y-13, 5, 5, '#f0c9a0');
+  px(x-3, y-12, 7, 3, '#f0c9a0');
+  px(x-2, y-11, 1, 1, '#1e293b'); px(x+1, y-11, 1, 1, '#1e293b');
+  px(x-1, y-10, 2, 1, '#d98a8a');
+  // 棕发
+  px(x-3, y-15, 7, 3, '#8b4a2b');
+  px(x-4, y-13, 2, 5, '#8b4a2b');
+  px(x+3, y-13, 2, 5, '#8b4a2b');
+  px(x-2, y-16, 4, 2, '#8b4a2b');
+  // 挎包 + 背带
+  px(x+4, y-4, 4, 5, '#7a4a2e');
+  px(x+5, y-3, 2, 3, '#a87c50');
+  px(x+1, y-8, 1, 5, '#5a3a24');
 }
-
 function drawBoundaryBase(sx,sy,tx,ty){
   const h=hash(tx*3+1,ty*7+5);
   octx.fillStyle = h<0.5 ? '#8a919c' : '#828994';
