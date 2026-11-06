@@ -698,6 +698,7 @@
       <button id="vibToggle" class="sp-full sp-alt">振动：开</button>
       <div class="sp-row"><span class="sp-cap">强度</span><input type="range" id="vibPower" min="0" max="100" value="100"></div>
       <button id="autoPauseToggle" class="sp-full sp-alt">打开菜单自动暂停：关</button>
+      <button id="hudTapToggle" class="sp-full sp-alt">点击状态栏查看角色：开</button>
     </div>
     <div class="sp-label" id="devLabel" style="display:none">开发者</div>
     <div class="sp-group" id="devGroup" style="display:none">
@@ -961,7 +962,7 @@ cv.addEventListener('touchstart', e=>{
   if(state!=='city') return;
   if(anyModalOpen()) return;
   const t=e.touches[0]; const [vx,vy]=toV(t.clientX,t.clientY);
-  if(vx<96 && vy<36){ try{ openChar(); }catch(err){} return; }
+  if(hudTapEnabled && vx<112 && vy<42){ try{ openChar(); }catch(err){} return; }
   const L=equipLayout(), H=L.hudBox;
   if(equipHudOn && vx>=L.swx&&vx<=L.swx+L.swordW&&vy>=L.swy&&vy<=L.swy+L.swordH){ openEquip(); return; }
   if(equipHudOn){
@@ -1563,6 +1564,7 @@ function drawHUD(){
   drawText('LV', 4, 27, '#a5b4fc');
   drawText(String(level), 13, 27, '#f8fafc');
   drawBar(26, 28, 49, 4, xp/xpNeed, '#38bdf8');
+  drawText(String(xp)+'/'+String(Math.max(0,xpNeed-xp)), 26, 33, '#7dd3fc');
 }
 
 function drawJoystick(){
@@ -1984,7 +1986,7 @@ musicVolEl.oninput=()=>{ musicVol=musicVolEl.value/100; applyMusic(); saveCfg();
 sfxVolEl.oninput=()=>{ sfxVol=sfxVolEl.value/100; applySfx(); saveCfg(); };
 
 const CFG_KEY='xingchen_cfg_v1';
-function collectCfg(){ return { musicOn, sfxOn, musicVol, sfxVol, vibOn, vibPower, autoPause, showFps, showMini, mutedAll, devMode }; }
+function collectCfg(){ return { musicOn, sfxOn, musicVol, sfxVol, vibOn, vibPower, autoPause, showFps, showMini, mutedAll, devMode, hudTapEnabled }; }
 function saveCfg(){ try{ localStorage.setItem(CFG_KEY, JSON.stringify(collectCfg())); }catch(e){} }
 function syncSettingsUI(){
   if(musicToggle){ musicToggle.classList.toggle('on', musicOn); musicToggle.textContent=musicOn?'开':'关'; }
@@ -2017,6 +2019,9 @@ function loadCfg(){
     if(typeof c.showMini==='boolean') showMini=c.showMini;
     if(typeof c.mutedAll==='boolean') mutedAll=c.mutedAll;
     if(typeof c.devMode==='boolean') devMode=c.devMode;
+    if(typeof c.hudTapEnabled==='boolean') hudTapEnabled=c.hudTapEnabled;
+    { const ht=document.getElementById('hudTapToggle');
+      if(ht){ ht.textContent='点击状态栏查看角色：'+(hudTapEnabled?'开':'关'); ht.classList.toggle('on', hudTapEnabled); } }
     syncSettingsUI();
     try{ syncDevUI(); }catch(e){}
   }catch(e){}
@@ -2898,13 +2903,7 @@ function drawCharPortrait(){
     g.translate(64,64+bob);
     g.drawImage(portImg,-64,-64,128,128);
     g.restore();
-    // 眨眼（眼睑线覆盖双眼位置）
-    const bt=(performance.now()/1000)%4.4;
-    if(bt>4.18 && bt<4.32){
-      g.fillStyle='rgba(44,30,20,.92)';
-      g.fillRect(38,59+bob,17,3);
-      g.fillRect(68,59+bob,17,3);
-    }
+
   }
 }
 let charOpenAt=0;
@@ -3489,6 +3488,13 @@ document.getElementById('pauseGameBtn').onclick=()=>{
   syncPauseIcon(); updateHudButtons();
 };
 document.getElementById('titleBtn').onclick=()=>{ openSettings(false); goTitle(); };
+document.getElementById('hudTapToggle').onclick=()=>{
+  hudTapEnabled=!hudTapEnabled;
+  const b=document.getElementById('hudTapToggle');
+  b.textContent='点击状态栏查看角色：'+(hudTapEnabled?'开':'关');
+  b.classList.toggle('on', hudTapEnabled);
+  sfxBeep(); vibrate(2); saveCfg();
+};
 document.getElementById('autoPauseToggle').onclick=()=>{
   autoPause=!autoPause;
   const b=document.getElementById('autoPauseToggle');
@@ -3985,7 +3991,7 @@ function drawDrops(){
 }
 
 // ---------- 横屏提示 ----------
-let nearNpc=false, autoPause=false, pausedAuto=false;
+let nearNpc=false, autoPause=false, pausedAuto=false, hudTapEnabled=true;
 const ICON_MENU='<svg width="24" height="24" viewBox="0 0 8 8" shape-rendering="crispEdges"><rect x="1" y="2" width="6" height="1" fill="#e2e8f0"/><rect x="1" y="4" width="6" height="1" fill="#e2e8f0"/><rect x="1" y="6" width="6" height="1" fill="#e2e8f0"/></svg>';
 const ICON_GEAR='<svg width="24" height="24" viewBox="0 0 8 8" shape-rendering="crispEdges"><rect x="3" y="1" width="2" height="1" fill="#e2e8f0"/><rect x="1" y="3" width="1" height="2" fill="#e2e8f0"/><rect x="6" y="3" width="1" height="2" fill="#e2e8f0"/><rect x="3" y="6" width="2" height="1" fill="#e2e8f0"/><rect x="2" y="2" width="4" height="4" fill="#e2e8f0"/><rect x="3" y="3" width="2" height="2" fill="#4b5462"/></svg>';
 const ICON_PAUSE='<svg width="26" height="26" viewBox="0 0 8 8" shape-rendering="crispEdges"><rect x="2" y="1" width="1" height="6" fill="#e2e8f0"/><rect x="5" y="1" width="1" height="6" fill="#e2e8f0"/></svg>';
