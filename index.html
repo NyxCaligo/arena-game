@@ -201,7 +201,7 @@
                 right:calc(64px + env(safe-area-inset-right, 0px)); width:44px; height:44px; padding:0;
                 display:flex; align-items:center; justify-content:center; }
   #exitBtnHud.hidden { display:none; }
-  #devBtn { position:fixed; z-index:12; top:calc(62px + env(safe-area-inset-top, 0px));
+  #devBtn { position:fixed; z-index:12; top:calc(102px + env(safe-area-inset-top, 0px));
             right:calc(12px + env(safe-area-inset-right, 0px)); width:44px; height:44px; padding:0;
             background:linear-gradient(180deg,#7a4a12,#4a2a08); border:2px solid #2a1604; border-radius:0;
             box-shadow:0 3px 0 #2a1604; color:#ffe0a0; font-size:20px; font-weight:bold;
@@ -2892,12 +2892,10 @@ function drawCharPortrait(){
   g.fillStyle='#0b1626'; g.fillRect(0,0,128,128);
   if(portImg && portImg.complete && portImg.naturalWidth>0){
     const t=performance.now()/1000;
-    const bob=Math.sin(t*1.6)*1.6;
-    const br=1+Math.sin(t*1.6)*0.012;
+    const bob=Math.sin(t*1.1)*0.9;
     g.imageSmoothingEnabled=false;
     g.save();
     g.translate(64,64+bob);
-    g.scale(br,br);
     g.drawImage(portImg,-64,-64,128,128);
     g.restore();
     // 眨眼
@@ -2909,7 +2907,9 @@ function drawCharPortrait(){
     }
   }
 }
+let charOpenAt=0;
 function openChar(){
+  charOpenAt=performance.now();
   document.getElementById('charWrap').classList.remove('hidden');
   renderChar(); updateHudButtons(); sfxBeep();
 }
@@ -2962,7 +2962,10 @@ document.getElementById('charBtn').onclick=()=>{
   openChar();
 };
 document.getElementById('charClose').onclick=()=>{ document.getElementById('charWrap').classList.add('hidden'); updateHudButtons(); };
-document.getElementById('charBg').onclick=()=>{ document.getElementById('charWrap').classList.add('hidden'); updateHudButtons(); };
+document.getElementById('charBg').onclick=(e)=>{
+  if(performance.now()-charOpenAt<380) return;
+  document.getElementById('charWrap').classList.add('hidden'); updateHudButtons();
+};
 function fitCollection(){
   const box=document.querySelector('#colWrap .modal-box');
   const view=document.getElementById('colView');
