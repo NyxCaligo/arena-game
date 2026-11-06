@@ -528,6 +528,16 @@
     <button id="splitCancel" class="sp-full sp-alt">取消</button>
   </div>
 </div>
+<div id="noticeWrap" class="modal hidden" style="z-index:18; align-items:flex-start; padding-top:8vh;">
+  <div class="modal-bg" id="noticeBg"></div>
+  <div class="modal-box" style="width:min(330px,86vw); padding:16px">
+    <div class="panel-head">
+      <span class="pixlabel" id="noticeTitle"></span>
+      <button class="xBtn" id="noticeClose">✕</button>
+    </div>
+    <div id="noticeBody" style="font-size:13px; line-height:1.9; color:#cfe3f8; width:100%;"></div>
+  </div>
+</div>
 <div id="devWrap" class="modal hidden" style="z-index:17">
   <div class="modal-bg" id="devBg"></div>
   <div class="modal-box" style="width:min(300px,80vw)">
@@ -676,6 +686,10 @@
 <div id="settingsPanel" class="hidden">
   <div class="sp-title">设置<button id="settingsClose" class="sp-close">×</button></div>
   <div id="spMain" class="sp-page">
+    <div class="sp-label">公告</div>
+    <div class="sp-group">
+      <button id="openNotice" class="sp-full">📢 内测公告 / 反馈群</button>
+    </div>
     <div class="sp-label" id="gameLabel">游戏</div>
     <div class="sp-group" id="gameGroup">
       <button id="pauseGameBtn" class="sp-full sp-alt">暂停游戏</button>
@@ -3225,6 +3239,29 @@ function syncDevUI(){
   if(g) g.style.display = devMode?'':'none';
   if(devMode) renderDevItems();
 }
+document.getElementById('openNotice').onclick=()=>{
+  document.getElementById('noticeTitle').textContent='内测公告';
+  const body=document.getElementById('noticeBody');
+  body.innerHTML='';
+  const lines=[
+    '本游戏当前处于【内测中】，仍在积极优化与制作。',
+    '欢迎加入 QQ 群讨论、提供意见和指导，以及反馈 BUG。',
+    '',
+    '反馈群号：1126343933',
+    '',
+    '本游戏仍在积极开发制作中，欢迎大家加入！'
+  ];
+  for(const t of lines){
+    const d=document.createElement('div');
+    if(t) d.textContent=t; else d.style.height='6px';
+    if(t.indexOf('群号')===0){ d.style.color='#f5c542'; d.style.fontSize='16px'; d.style.textAlign='center'; d.style.margin='4px 0'; }
+    body.appendChild(d);
+  }
+  document.getElementById('noticeWrap').classList.remove('hidden');
+  sfxBeep();
+};
+document.getElementById('noticeClose').onclick=()=>document.getElementById('noticeWrap').classList.add('hidden');
+document.getElementById('noticeBg').onclick=()=>document.getElementById('noticeWrap').classList.add('hidden');
 document.getElementById('openRedeem').onclick=()=>{
   document.getElementById('redeemInput').value='';
   document.getElementById('redeemWrap').classList.remove('hidden');
