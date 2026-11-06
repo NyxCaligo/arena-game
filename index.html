@@ -282,6 +282,12 @@
   #bagWrap .modal-bg { background:transparent; }
   #bagWrap .modal-box { width:min(330px,56vw); margin-left:96px; max-height:90vh; overflow:visible; }
   .bag-scrollwrap { position:relative; width:100%; margin-bottom:4px; }
+  #bagMultiBar { position:absolute; right:18px; bottom:8px; z-index:6; display:flex;
+                 border:2px solid #0b2545; box-shadow:0 3px 0 rgba(0,0,0,.4); }
+  #bagMultiBar button { width:64px; height:32px; padding:0; border:0; border-radius:0;
+                        font-size:12px; font-weight:bold; }
+  #bagDelSel { background:#b91c1c; color:#fff; }
+  #bagDropSel { background:#4b5462; color:#e2e8f0; border-left:2px solid #0b2545 !important; }
   #colWrap .bag-view { border-color:#2f5a8a; }
   .bag-view { width:100%; height:280px; overflow-y:auto; overflow-x:hidden;
               background:#0a1018; border:1px solid #1e293b; touch-action:none;
@@ -502,11 +508,12 @@
         <div class="bag-content" id="bagContent"><div class="bag-grid" id="bagGrid"></div></div>
       </div>
       <div class="bag-track" id="bagTrack"><div class="bag-thumb" id="bagThumb"></div></div>
+      <div id="bagMultiBar" class="hidden">
+        <button id="bagDelSel">删除</button>
+        <button id="bagDropSel">丢弃</button>
+      </div>
     </div>
-    <div id="bagMultiBar" class="hidden" style="display:flex; gap:8px; width:100%; margin-top:8px;">
-      <button id="bagDelSel" class="sp-full" style="flex:1; background:#b91c1c; border-color:#7f1d1d;">删除(0)</button>
-      <button id="bagDropSel" class="sp-full sp-alt" style="flex:1">丢弃(0)</button>
-    </div>
+
   </div>
 </div>
 <div id="settingsBackdrop" class="hidden"></div>
@@ -2146,8 +2153,8 @@ function updateMultiBar(){
   bar.classList.toggle('hidden', !multiMode);
   const n=multiSel.size;
   const d1=document.getElementById('bagDelSel'), d2=document.getElementById('bagDropSel');
-  if(d1) d1.textContent='删除('+n+')';
-  if(d2) d2.textContent='丢弃('+n+')';
+  if(d1) d1.textContent='删'+n;
+  if(d2) d2.textContent='丢'+n;
 }
 function fitSlots(grid, sel, gap, target){
   if(!grid) return;
@@ -2198,12 +2205,11 @@ function renderBag(){
         del.innerHTML='<svg width="9" height="9" viewBox="0 0 10 10"><rect x="4.2" y="0.4" width="1.6" height="9.2" fill="#ffffff" transform="rotate(45 5 5)"/><rect x="4.2" y="0.4" width="1.6" height="9.2" fill="#ffffff" transform="rotate(-45 5 5)"/></svg>';
         const act=(ev)=>{
           if(ev){ ev.stopPropagation(); if(ev.cancelable) ev.preventDefault(); }
-          sfxBeep();
-          askConfirm('删除「'+ITEMS[id].n+'」？', ()=>{
-            const k=bagItems.indexOf(id);
-            if(k>=0) bagItems.splice(k,1);
-            renderBag(); saveGame();
-          });
+          sfxBeep(); vibrate(2);
+          const k=bagItems.indexOf(id);
+          if(k>=0) bagItems.splice(k,1);
+          renderBag(); saveGame();
+          toastMsg('已删除 '+ITEMS[id].n);
         };
         del.addEventListener('touchstart', act, {passive:false});
         del.addEventListener('click', act);
