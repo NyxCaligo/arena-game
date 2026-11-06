@@ -19,9 +19,32 @@
         justify-content:center; gap:18px; background:#05070d; text-align:center; padding:24px; z-index:5; }
   .hidden { display:none !important; }
   .ov.hidden { display:none; }
-  #menu .title { font-size:34px; font-weight:bold; color:#f8fafc; letter-spacing:5px;
-                 text-shadow:3px 3px 0 #0284c7, 6px 6px 0 #000; }
-  #menu .sub { color:#475569; letter-spacing:7px; font-size:12px; margin-top:-8px; }
+  #menu { background:radial-gradient(ellipse at 50% 28%, #17325e 0%, #0a1730 46%, #04070f 100%); overflow:hidden; }
+  #menu::before {
+    content:''; position:absolute; inset:0; pointer-events:none; opacity:.9;
+    background-image:
+      radial-gradient(1.5px 1.5px at 12% 18%, #dbeafe, transparent),
+      radial-gradient(1.5px 1.5px at 28% 72%, #bfdbfe, transparent),
+      radial-gradient(2px 2px at 44% 26%, #eff6ff, transparent),
+      radial-gradient(1.5px 1.5px at 62% 82%, #dbeafe, transparent),
+      radial-gradient(1.5px 1.5px at 74% 34%, #bfdbfe, transparent),
+      radial-gradient(2px 2px at 86% 64%, #eff6ff, transparent),
+      radial-gradient(1.5px 1.5px at 52% 12%, #dbeafe, transparent),
+      radial-gradient(1.5px 1.5px at 18% 46%, #bfdbfe, transparent);
+  }
+  #menu .title { position:relative; font-size:40px; font-weight:bold; color:#f0f7ff; letter-spacing:8px;
+    text-shadow:0 0 10px rgba(147,197,253,.95), 0 0 28px rgba(59,130,246,.65), 3px 4px 0 #0a1e3a; }
+  #menu .sub { position:relative; color:#7dd3fc; letter-spacing:9px; font-size:12px; margin-top:-10px;
+    text-shadow:0 0 8px rgba(56,189,248,.6); }
+  #menu .deco { width:190px; height:2px; margin:2px 0 4px;
+    background:linear-gradient(90deg, transparent, #60a5fa, #bae6fd, #60a5fa, transparent);
+    box-shadow:0 0 10px rgba(96,165,250,.7); }
+  #startBtn { font-size:19px; padding:14px 46px; background:linear-gradient(180deg,#7cc0ff,#3b82f6);
+    color:#04142c; border:2px solid #0b2545; box-shadow:0 4px 0 #0b2545, 0 0 22px rgba(59,130,246,.5); }
+  #startBtn:active { transform:translateY(3px); box-shadow:0 1px 0 #0b2545; }
+  #titleLoadBtn { background:linear-gradient(180deg,#2b4a72,#1c3350) !important; color:#dbeafe !important;
+    border-color:#0b2545 !important; box-shadow:0 3px 0 #0b2545 !important; }
+  #menuNotice { color:#7f9dc0 !important; }
   #subtitle .text { font-size:28px; font-weight:bold; color:#f8fafc; letter-spacing:4px;
                     text-shadow:3px 3px 0 #000; }
   button { font-family:inherit; font-weight:bold; font-size:17px;
@@ -114,6 +137,11 @@
   .col-slot .qmark { font-size:22px; color:#5b6472; font-weight:bold; }
   .col-slot .cname { position:absolute; left:0; right:0; bottom:1px; font-size:9px; text-align:center;
                      color:#cbd5e1; background:rgba(11,15,26,.6); overflow:hidden; white-space:nowrap; }
+  .mcheck { position:absolute; right:2px; bottom:2px; width:16px; height:16px; background:#0b0f1a;
+            border:2px solid #64748b; color:#4ade80; font-size:11px; line-height:12px;
+            text-align:center; }
+  .mcheck.on { border-color:#4ade80; background:#0f2417; }
+  .miniBtn.on { background:#4ade80; color:#052e16; border-color:#052e16; }
   .miniBtn { font-size:11px; padding:3px 9px; background:#4b5462; color:#cbd5e1;
              border:2px solid #0b0f1a; border-radius:0; box-shadow:none; flex:none; }
   .del-btn { position:absolute; top:-1px; right:-1px; width:20px; height:20px; padding:0;
@@ -205,6 +233,8 @@
   .eq-cap { font-size:12px; color:#94a3b8; letter-spacing:2px; text-align:left; width:100%; }
   .eq-row { display:flex; gap:8px; }
   .eq-box .eq-slot { width:52px; height:52px; }
+  #bagWrap .modal-bg { background:transparent; }
+  #bagWrap .modal-box { width:min(340px,58vw); margin-left:10px; max-height:90vh; overflow:visible; }
   .bag-scrollwrap { position:relative; width:100%; }
   .bag-view { width:100%; height:280px; overflow-y:auto; overflow-x:hidden;
               background:#0a1018; border:1px solid #1e293b; touch-action:none;
@@ -306,6 +336,15 @@
     <div class="col-grid" id="colGrid" style="margin-top:8px"></div>
   </div>
 </div>
+<div id="redeemWrap" class="modal hidden" style="z-index:16">
+  <div class="modal-bg" id="redeemBg"></div>
+  <div class="modal-box" style="width:min(330px,86vw)">
+    <div class="eq-title" style="font-size:20px">兑换码</div>
+    <input id="redeemInput" type="text" placeholder="输入兑换码" style="width:100%; padding:10px; background:#0a1018; border:2px solid #1e293b; color:#e2e8f0; font-family:inherit; font-size:14px; text-align:center;">
+    <button id="redeemOk" class="sp-full">确认</button>
+    <button id="redeemCancel" class="sp-full sp-alt">取消</button>
+  </div>
+</div>
 <div id="confirmWrap" class="modal hidden" style="z-index:15">
   <div class="modal-bg" id="confirmBg"></div>
   <div class="modal-box" style="width:min(320px,84vw)">
@@ -382,13 +421,14 @@
     <div id="detailRows"></div>
   </div>
 </div>
-<div id="bagWrap" class="modal hidden" style="z-index:10">
+<div id="bagWrap" class="modal hidden" style="z-index:10; align-items:center; justify-content:flex-start;">
   <div class="modal-bg" id="bagBg"></div>
   <div class="modal-box">
     <div class="panel-head">
       <span class="pixlabel" id="bagTitle"></span>
       <span class="pixlabel" id="bagCap"></span>
       <span id="bagDbg" style="font-size:9px;color:#64748b;margin-left:auto;margin-right:6px;"></span>
+      <button id="bagMultiBtn" class="miniBtn">多选</button>
       <button id="bagSort" class="miniBtn">整理</button>
       <button class="xBtn" id="bagClose">✕</button>
     </div>
@@ -403,6 +443,10 @@
         <div class="bag-content" id="bagContent"><div class="bag-grid" id="bagGrid"></div></div>
       </div>
       <div class="bag-track" id="bagTrack"><div class="bag-thumb" id="bagThumb"></div></div>
+    </div>
+    <div id="bagMultiBar" class="hidden" style="display:flex; gap:8px; width:100%; margin-top:8px;">
+      <button id="bagDelSel" class="sp-full" style="flex:1; background:#b91c1c; border-color:#7f1d1d;">删除(0)</button>
+      <button id="bagDropSel" class="sp-full sp-alt" style="flex:1">丢弃(0)</button>
     </div>
   </div>
 </div>
@@ -433,8 +477,15 @@
       <div class="sp-row"><span class="sp-cap">强度</span><input type="range" id="vibPower" min="0" max="100" value="100"></div>
       <button id="autoPauseToggle" class="sp-full sp-alt">打开菜单自动暂停：关</button>
     </div>
+    <div class="sp-label" id="devLabel" style="display:none">开发者</div>
+    <div class="sp-group" id="devGroup" style="display:none">
+      <div id="devItems" style="display:flex; flex-wrap:wrap; gap:6px; width:100%"></div>
+      <button id="devAll" class="sp-full sp-alt">全部物品各 +1</button>
+      <button id="devClear" class="sp-full sp-alt">清空背包</button>
+    </div>
     <div class="sp-label">数据</div>
     <div class="sp-group">
+      <button id="openRedeem" class="sp-full sp-alt">兑换码</button>
       <button id="openSave" class="sp-full sp-alt">存档</button>
     </div>
   </div>
@@ -456,6 +507,7 @@
 <div id="menu" class="ov">
   <div class="title">星辰回响</div>
   <div class="sub">STELLAR ECHO</div>
+  <div class="deco"></div>
   <button id="startBtn">开始游戏</button>
   <button id="titleLoadBtn" style="background:#4b5462;color:#e2e8f0;border-color:#0b0f1a;box-shadow:0 3px 0 #0b0f1a;font-size:14px;padding:9px 20px">导入存档 / 存档码</button>
   <div id="menuNotice">⚠ 清除浏览器缓存会导致存档丢失，建议在「设置 → 存档」里导出备份或保存存档码</div>
@@ -1574,6 +1626,7 @@ function openSettings(open){
     if(gl) gl.style.display = inGame ? '' : 'none';
     if(gg) gg.style.display = inGame ? '' : 'none';
     if(autoPause && state==='city'){ pausedAuto=true; paused=true; }
+    try{ syncDevUI(); }catch(e){}
   }
   else if(pausedAuto){ paused=false; pausedAuto=false; }
   updateHudButtons();
@@ -1632,7 +1685,7 @@ musicVolEl.oninput=()=>{ musicVol=musicVolEl.value/100; applyMusic(); saveCfg();
 sfxVolEl.oninput=()=>{ sfxVol=sfxVolEl.value/100; applySfx(); saveCfg(); };
 
 const CFG_KEY='xingchen_cfg_v1';
-function collectCfg(){ return { musicOn, sfxOn, musicVol, sfxVol, vibOn, vibPower, autoPause, showFps, showMini, mutedAll }; }
+function collectCfg(){ return { musicOn, sfxOn, musicVol, sfxVol, vibOn, vibPower, autoPause, showFps, showMini, mutedAll, devMode }; }
 function saveCfg(){ try{ localStorage.setItem(CFG_KEY, JSON.stringify(collectCfg())); }catch(e){} }
 function syncSettingsUI(){
   if(musicToggle){ musicToggle.classList.toggle('on', musicOn); musicToggle.textContent=musicOn?'开':'关'; }
@@ -1664,7 +1717,9 @@ function loadCfg(){
     if(typeof c.showFps==='boolean') showFps=c.showFps;
     if(typeof c.showMini==='boolean') showMini=c.showMini;
     if(typeof c.mutedAll==='boolean') mutedAll=c.mutedAll;
+    if(typeof c.devMode==='boolean') devMode=c.devMode;
     syncSettingsUI();
+    try{ syncDevUI(); }catch(e){}
   }catch(e){}
 }
 
@@ -1966,13 +2021,22 @@ function unequip(t,i){
   const arr=equipArr(t); const id=arr[i]; if(!id) return;
   arr[i]=null; bagItems.push(id);
 }
+function updateMultiBar(){
+  const bar=document.getElementById('bagMultiBar');
+  if(!bar) return;
+  bar.classList.toggle('hidden', !multiMode);
+  const n=multiSel.size;
+  const d1=document.getElementById('bagDelSel'), d2=document.getElementById('bagDropSel');
+  if(d1) d1.textContent='删除('+n+')';
+  if(d2) d2.textContent='丢弃('+n+')';
+}
 function updateBagCap(){
   const el=document.getElementById('bagCap');
   if(!el) return;
   el.innerHTML='';
   el.appendChild(makePixLabel(bagItems.length+'|100 容量', 14, '#94a3b8'));
 }
-let bagFilter='all', bagSel=-1;
+let bagFilter='all', bagSel=-1, multiMode=false, multiSel=new Set();
 function bagDisplay(){
   const idxs=bagItems.map((_,i)=>i);
   if(bagFilter==='all') return {idxs, hl:new Set()};
@@ -1991,6 +2055,12 @@ function renderBag(){
     if(id!==undefined){
       if(dis.hl.has(idx)) d.classList.add('hl');
       if(bagSel===idx) d.classList.add('sel');
+      if(multiMode){
+        const ck=document.createElement('span');
+        ck.className='mcheck'+(multiSel.has(idx)?' on':'');
+        ck.textContent=multiSel.has(idx)?'✓':'';
+        d.appendChild(ck);
+      }
       {
         const del=document.createElement('button');
         del.className='del-btn';
@@ -2016,6 +2086,11 @@ function renderBag(){
       d.title=ITEMS[id].n;
       bindItemSlot(d,
         ()=>{
+          if(multiMode){
+            if(multiSel.has(idx)) multiSel.delete(idx); else multiSel.add(idx);
+            renderBag(); sfxBeep();
+            return;
+          }
           bagSel=idx;
           document.querySelectorAll('#bagGrid .eq-slot.sel').forEach(x=>x.classList.remove('sel'));
           d.classList.add('sel');
@@ -2024,12 +2099,13 @@ function renderBag(){
             {label:'装配', fn:()=>{ vibrate(3); if(equipItem(id)){ sfxEquip(); renderBag(); renderEquipPanel(); saveGame(); } }}
           ], d);
         },
-        ()=>openItemDetail(id, d)
+        ()=>{ if(!multiMode) openItemDetail(id, d); }
       );
     }
     g.appendChild(d);
   }
   updateBagCap();
+  updateMultiBar();
   setTimeout(updateBagScroll, 0);
 }
 function renderEquipPanel(){
@@ -2253,6 +2329,50 @@ document.querySelectorAll('#colSub button').forEach(b=>{
   b.onclick=()=>{ colSub=b.dataset.s; document.querySelectorAll('#colSub button').forEach(x=>x.classList.toggle('on',x===b)); renderCollection(); };
 });
 
+const DEV_CODE='XINGCHEN';
+let devMode=false;
+function renderDevItems(){
+  const box=document.getElementById('devItems'); if(!box) return;
+  box.innerHTML='';
+  for(const id in ITEMS){
+    const b=document.createElement('button');
+    b.className='miniBtn';
+    b.textContent=ITEMS[id].n;
+    b.onclick=()=>{ bagItems.push(id); renderBag(); saveGame(); toastMsg('获得 '+ITEMS[id].n); sfxEquip(); };
+    box.appendChild(b);
+  }
+}
+function syncDevUI(){
+  const l=document.getElementById('devLabel'), g=document.getElementById('devGroup');
+  if(l) l.style.display = devMode?'':'none';
+  if(g) g.style.display = devMode?'':'none';
+  if(devMode) renderDevItems();
+}
+document.getElementById('openRedeem').onclick=()=>{
+  document.getElementById('redeemInput').value='';
+  document.getElementById('redeemWrap').classList.remove('hidden');
+  setTimeout(()=>{ try{ document.getElementById('redeemInput').focus(); }catch(e){} }, 50);
+};
+document.getElementById('redeemCancel').onclick=()=>document.getElementById('redeemWrap').classList.add('hidden');
+document.getElementById('redeemBg').onclick=()=>document.getElementById('redeemWrap').classList.add('hidden');
+document.getElementById('redeemOk').onclick=()=>{
+  const v=(document.getElementById('redeemInput').value||'').trim().toUpperCase();
+  document.getElementById('redeemWrap').classList.add('hidden');
+  if(v===DEV_CODE){
+    devMode=true; saveCfg(); syncDevUI();
+    toastMsg('开发者模式已开启'); sfxEquip(); vibrate(3);
+  } else {
+    toastMsg('兑换码无效');
+  }
+};
+document.getElementById('devAll').onclick=()=>{
+  for(const id in ITEMS) bagItems.push(id);
+  renderBag(); saveGame(); toastMsg('已加入全部物品');
+};
+document.getElementById('devClear').onclick=()=>{
+  bagItems=[]; renderBag(); saveGame(); toastMsg('背包已清空');
+};
+
 let confirmCb=null;
 function askConfirm(msg, cb){
   confirmCb=cb;
@@ -2282,8 +2402,8 @@ function updateBagScroll(){
   if(max<=2){ track.style.display='none'; return; }
   track.style.display='block';
   const th=track.clientHeight||vh;
-  const thH=Math.max(16, Math.min(th-4, Math.round(th*vh/sh)));
-  const travel=Math.max(1, th-thH);
+  const thH=Math.max(16, Math.min(th-8, Math.round(th*vh/sh)));
+  const travel=Math.max(1, th-thH-3);
   thumb.style.height=thH+'px';
   thumb.style.top=Math.max(0, Math.min(travel, Math.round(travel*(v.scrollTop/max))))+'px';
 }
@@ -2344,6 +2464,36 @@ function bindScrollbar(){
     if(e.cancelable) e.preventDefault();
   }, {passive:false});
 }
+function bindMulti(){
+  const btn=document.getElementById('bagMultiBtn');
+  if(btn) btn.onclick=()=>{
+    multiMode=!multiMode; multiSel.clear();
+    btn.classList.toggle('on', multiMode);
+    btn.textContent = multiMode ? '完成' : '多选';
+    renderBag(); sfxBeep();
+  };
+  const del=document.getElementById('bagDelSel');
+  if(del) del.onclick=()=>{
+    if(!multiSel.size){ toastMsg('没有选中物品'); return; }
+    askConfirm('删除选中的 '+multiSel.size+' 件物品？', ()=>{
+      const idxs=[...multiSel].sort((a,b)=>b-a);
+      for(const i of idxs) bagItems.splice(i,1);
+      multiSel.clear(); renderBag(); saveGame();
+    });
+  };
+  const drop=document.getElementById('bagDropSel');
+  if(drop) drop.onclick=()=>{
+    if(!multiSel.size){ toastMsg('没有选中物品'); return; }
+    const idxs=[...multiSel].sort((a,b)=>b-a);
+    for(const i of idxs){
+      const id=bagItems[i];
+      if(id) drops.push({ id, x:player.x+(Math.random()*30-15), y:player.y+12 });
+      bagItems.splice(i,1);
+    }
+    multiSel.clear(); renderBag(); saveGame();
+    toastMsg('已丢弃到地上');
+  };
+}
 function bindSort(){
   const b=document.getElementById('bagSort'); if(!b) return;
   b.onclick=()=>{
@@ -2359,7 +2509,7 @@ function openBag(){
   const bv=document.getElementById('bagView');
   bv.style.height=vh+'px';
   bv.scrollTop=0;
-  bindCatBtns(); bindSort(); bindScrollbar();
+  bindCatBtns(); bindSort(); bindScrollbar(); bindMulti();
   renderBag();
   requestAnimationFrame(()=>{ updateBagScroll(); requestAnimationFrame(updateBagScroll); });
 }
@@ -2510,15 +2660,22 @@ function drawAmbient(){
 
 }
 let toastTimer=null, interactTarget=null;
+function facingTarget(tx,ty){
+  const dx=tx-player.x;
+  if(player.face>=0) return dx>-6;
+  return dx<6;
+}
 function updateInteract(){
   let best=null, bd=1e9;
+  // 掉落物优先，范围 32，且需朝向
   for(const d of drops){
     const dist=Math.hypot(player.x-d.x, player.y-d.y);
-    if(dist<38 && dist<bd){ bd=dist; best={k:'drop', d}; }
+    if(dist<32 && facingTarget(d.x,d.y) && dist<bd){ bd=dist; best={k:'drop', d}; }
   }
+  // NPC 其次，范围 40
   if(!best){
     const dist=Math.hypot(player.x-NPC.x, player.y-NPC.y);
-    if(dist<54) best={k:'npc'};
+    if(dist<40 && facingTarget(NPC.x,NPC.y)) best={k:'npc', d:dist};
   }
   interactTarget=best;
   nearNpc=!!best;
