@@ -73,7 +73,7 @@
   #topRight { position:fixed; z-index:7; top:calc(10px + env(safe-area-inset-top, 0px));
               right:calc(12px + env(safe-area-inset-right, 0px));
               display:flex; align-items:center; gap:8px; }
-  #miniMap { width:40px; height:40px; image-rendering:pixelated; background:#0a1424;
+  #miniMap { width:80px; height:80px; image-rendering:pixelated; background:#0a1424;
              border:2px solid #0b2545; box-shadow:0 0 10px rgba(59,130,246,.45); }
   #menuBtn { position:static; z-index:7; top:calc(10px + env(safe-area-inset-top, 0px));
              right:calc(12px + env(safe-area-inset-right, 0px)); width:44px; height:44px; padding:0;
@@ -377,7 +377,7 @@
 <body>
 <canvas id="cv"></canvas>
 <div id="topRight">
-  <canvas id="miniMap" width="80" height="80" class="hidden"></canvas>
+  <canvas id="miniMap" width="160" height="160" class="hidden"></canvas>
   <button id="menuBtn">⚙</button>
 </div>
 
@@ -498,6 +498,9 @@
     <div class="panel-head">
       <span class="pixlabel" id="charTitle"></span>
       <button class="xBtn" id="charClose">✕</button>
+    </div>
+    <div style="display:flex; justify-content:center; margin-bottom:6px;">
+      <canvas id="charPortrait" width="128" height="128" style="width:128px;height:128px;image-rendering:pixelated;border:2px solid #0b2545;box-shadow:0 0 14px rgba(59,130,246,.4)"></canvas>
     </div>
     <div id="charBody" style="width:100%"></div>
   </div>
@@ -958,6 +961,7 @@ cv.addEventListener('touchstart', e=>{
   if(state!=='city') return;
   if(anyModalOpen()) return;
   const t=e.touches[0]; const [vx,vy]=toV(t.clientX,t.clientY);
+  if(vx<96 && vy<36){ try{ openChar(); }catch(err){} return; }
   const L=equipLayout(), H=L.hudBox;
   if(equipHudOn && vx>=L.swx&&vx<=L.swx+L.swordW&&vy>=L.swy&&vy<=L.swy+L.swordH){ openEquip(); return; }
   if(equipHudOn){
@@ -1727,6 +1731,7 @@ function render(){
     octx.globalAlpha = 1;
   }
   drawMini();
+  drawCharPortrait();
   if(paused){
     octx.font='8px Zpix, monospace'; octx.textBaseline='top';
     octx.fillStyle='rgba(0,0,0,.55)';
@@ -2872,6 +2877,38 @@ function renderChar(){
     body.appendChild(r);
   }
 }
+let portImg=null;
+function drawCharPortrait(){
+  const cv=document.getElementById('charPortrait');
+  if(!cv) return;
+  if(document.getElementById('charWrap').classList.contains('hidden')) return;
+  const g=cv.getContext('2d');
+  if(!g) return;
+  if(!portImg){
+    portImg=new Image();
+    portImg.src=(typeof PORTRAIT!=='undefined' && PORTRAIT.hero) ? PORTRAIT.hero : '';
+  }
+  g.clearRect(0,0,128,128);
+  g.fillStyle='#0b1626'; g.fillRect(0,0,128,128);
+  if(portImg && portImg.complete && portImg.naturalWidth>0){
+    const t=performance.now()/1000;
+    const bob=Math.sin(t*1.6)*1.6;
+    const br=1+Math.sin(t*1.6)*0.012;
+    g.imageSmoothingEnabled=false;
+    g.save();
+    g.translate(64,64+bob);
+    g.scale(br,br);
+    g.drawImage(portImg,-64,-64,128,128);
+    g.restore();
+    // 眨眼
+    const bt=(performance.now()/1000)%4.4;
+    if(bt>4.22 && bt<4.34){
+      g.fillStyle='rgba(40,26,18,.85)';
+      g.fillRect(42,52,20,2);
+      g.fillRect(70,52,20,2);
+    }
+  }
+}
 function openChar(){
   document.getElementById('charWrap').classList.remove('hidden');
   renderChar(); updateHudButtons(); sfxBeep();
@@ -3624,11 +3661,11 @@ function drawMini(){
   const g=cv.getContext('2d');
   if(!g) return;
   g.imageSmoothingEnabled=false;
-  g.clearRect(0,0,80,80);
-  g.drawImage(miniCanvas, 0,0,WCOLS,WROWS, 0,0,80,80);
-  const sx=Math.round((player.x/WORLD_W)*80), sy=Math.round((player.y/WORLD_H)*80);
-  g.fillStyle='rgba(245,197,66,.35)'; g.fillRect(sx-4,sy-4,9,9);
-  g.fillStyle='#f5c542'; g.fillRect(sx-2,sy-2,5,5);
+  g.clearRect(0,0,160,160);
+  g.drawImage(miniCanvas, 0,0,WCOLS,WROWS, 0,0,160,160);
+  const sx=Math.round((player.x/WORLD_W)*160), sy=Math.round((player.y/WORLD_H)*160);
+  g.fillStyle='rgba(245,197,66,.35)'; g.fillRect(sx-7,sy-7,15,15);
+  g.fillStyle='#f5c542'; g.fillRect(sx-3,sy-3,7,7);
 }
 
 // ---------- 标题界面导入存档 ----------
