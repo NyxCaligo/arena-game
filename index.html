@@ -817,7 +817,7 @@ function resize(){
   oxCss = Math.floor((cv.width - VW*P)/2);
   oyCss = Math.floor((cv.height - VH*P)/2);
   ctx.imageSmoothingEnabled = false;
-  JBX = VW*0.19; JBY = VH*0.77;
+  JBX = VW*0.165; JBY = VH*0.76;
 }
 resize();
 window.addEventListener('resize', ()=>{ resize(); checkOrientation(); });
@@ -1564,7 +1564,14 @@ function drawHUD(){
   drawText('LV', 4, 27, '#a5b4fc');
   drawText(String(level), 13, 27, '#f8fafc');
   drawBar(26, 28, 49, 4, xp/xpNeed, '#38bdf8');
-  drawText(String(xp)+'/'+String(Math.max(0,xpNeed-xp)), 26, 33, '#7dd3fc');
+  {
+    const s1=String(Math.max(0,Math.floor(xp)));
+    const s2=String(Math.max(0,Math.ceil(xpNeed-xp)));
+    drawText(s1, 26, 33, '#7dd3fc');
+    const wx=s1.length*4;
+    px(26+wx+2, 33, 1, 5, '#475569');
+    drawText(s2, 26+wx+5, 33, '#94a3b8');
+  }
 }
 
 function drawJoystick(){
