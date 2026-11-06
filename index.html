@@ -405,7 +405,7 @@
     <button id="redeemCancel" class="sp-full sp-alt">取消</button>
   </div>
 </div>
-<div id="confirmWrap" class="modal hidden" style="z-index:15; align-items:flex-start; padding-top:14vh;">
+<div id="confirmWrap" class="modal hidden" style="z-index:15; align-items:flex-start; padding-top:9vh;">
   <div class="modal-bg" id="confirmBg"></div>
   <div class="modal-box" style="width:min(260px,72vw); padding:14px; gap:10px">
     <div class="eq-title" id="confirmMsg" style="font-size:15px; line-height:1.5"></div>
@@ -2643,7 +2643,12 @@ document.getElementById('devClear').onclick=()=>{
   bagItems=[]; renderBag(); saveGame(); toastMsg('背包已清空');
 };
 
-let confirmCb=null;
+let confirmCb=null, confirmTimer=null;
+function closeConfirm(){
+  confirmCb=null;
+  clearTimeout(confirmTimer); confirmTimer=null;
+  document.getElementById('confirmWrap').classList.add('hidden');
+}
 function askConfirm(msg, cb, yesLabel, noLabel){
   confirmCb=cb;
   document.getElementById('confirmMsg').textContent=msg;
@@ -2651,13 +2656,20 @@ function askConfirm(msg, cb, yesLabel, noLabel){
   if(y) y.textContent=yesLabel||'确定';
   if(n) n.textContent=noLabel||'取消';
   document.getElementById('confirmWrap').classList.remove('hidden');
+  clearTimeout(confirmTimer);
+  confirmTimer=setTimeout(closeConfirm, 4200);
 }
-document.getElementById('confirmYes').onclick=()=>{
-  document.getElementById('confirmWrap').classList.add('hidden');
-  if(confirmCb){ const f=confirmCb; confirmCb=null; f(); }
+document.getElementById('confirmYes').onclick=(e)=>{
+  e.stopPropagation();
+  const f=confirmCb; closeConfirm();
+  if(f) f();
 };
-document.getElementById('confirmNo').onclick=()=>{ confirmCb=null; document.getElementById('confirmWrap').classList.add('hidden'); };
-document.getElementById('confirmBg').onclick=()=>{ confirmCb=null; document.getElementById('confirmWrap').classList.add('hidden'); };
+document.getElementById('confirmNo').onclick=(e)=>{ e.stopPropagation(); closeConfirm(); };
+document.getElementById('confirmBg').onclick=closeConfirm;
+document.getElementById('confirmWrap').onclick=(e)=>{
+  if(e.target.id==='confirmYes' || e.target.id==='confirmNo') return;
+  closeConfirm();
+};
 
 let bagDragV=null, bagDragT=null;
 function bagViewEl(){ return document.getElementById('bagView'); }
