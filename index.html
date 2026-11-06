@@ -155,6 +155,12 @@
               align-items:center; justify-content:center; gap:18px; background:rgba(5,7,13,.92); }
   .pause-ov.hidden { display:none; }
   .pause-ov h2 { font-size:26px; color:#f8fafc; letter-spacing:6px; }
+  #bagBtn, #colBtn, #menuBtn {
+    background:linear-gradient(180deg,#2b4a72,#1c3350) !important;
+    border:2px solid #0b2545 !important;
+    box-shadow:0 3px 0 #0b2545, 0 0 10px rgba(59,130,246,.35) !important;
+    color:#dbeafe !important;
+  }
   #bagBtn { position:fixed; z-index:11; left:calc(10px + env(safe-area-inset-left, 0px));
             bottom:calc(10px + env(safe-area-inset-bottom, 0px)); width:46px; height:46px; padding:0;
             background:#4b5462; border:2px solid #0b0f1a; border-radius:0;
@@ -234,7 +240,7 @@
   .eq-row { display:flex; gap:8px; }
   .eq-box .eq-slot { width:52px; height:52px; }
   #bagWrap .modal-bg { background:transparent; }
-  #bagWrap .modal-box { width:min(340px,58vw); margin-left:10px; max-height:90vh; overflow:visible; }
+  #bagWrap .modal-box { width:min(330px,56vw); margin-left:30px; max-height:90vh; overflow:visible; }
   .bag-scrollwrap { position:relative; width:100%; }
   .bag-view { width:100%; height:280px; overflow-y:auto; overflow-x:hidden;
               background:#0a1018; border:1px solid #1e293b; touch-action:none;
@@ -245,7 +251,7 @@
                border:1px solid #1e293b; }
   .bag-thumb { position:absolute; left:2px; right:2px; top:0; height:30px; background:#5b6472;
                border:2px solid #9aa5b1; }
-  .bag-grid .eq-slot { width:74px; height:74px; flex:0 0 74px; position:relative; padding:0;
+  .bag-grid .eq-slot { width:62px; height:62px; flex:0 0 62px; position:relative; padding:0;
                        display:flex; align-items:center; justify-content:center; touch-action:manipulation; }
   .bag-grid .item-name { position:absolute; left:0; right:0; bottom:1px; font-size:9px; text-align:center;
                          color:#e2e8f0; background:rgba(11,15,26,.6); line-height:1.25;
@@ -289,6 +295,12 @@
         <rect x="2" y="1" width="1" height="6" fill="#e2e8f0"/>
         <rect x="5" y="1" width="1" height="6" fill="#e2e8f0"/>
       </svg><span>暂停</span>
+    </button>
+    <button class="menu-sq" id="exitBtn">
+      <svg width="26" height="26" viewBox="0 0 8 8" shape-rendering="crispEdges">
+        <rect x="4" y="1" width="1" height="6" fill="#e2e8f0"/>
+        <rect x="1" y="3" width="3" height="2" fill="#e2e8f0"/>
+      </svg><span>退出</span>
     </button>
   </div>
 </div>
@@ -427,7 +439,6 @@
     <div class="panel-head">
       <span class="pixlabel" id="bagTitle"></span>
       <span class="pixlabel" id="bagCap"></span>
-      <span id="bagDbg" style="font-size:9px;color:#64748b;margin-left:auto;margin-right:6px;"></span>
       <button id="bagMultiBtn" class="miniBtn">多选</button>
       <button id="bagSort" class="miniBtn">整理</button>
       <button class="xBtn" id="bagClose">✕</button>
@@ -734,6 +745,7 @@ function joyMove(vx,vy){
 }
 cv.addEventListener('touchstart', e=>{
   if(state!=='city') return;
+  if(anyModalOpen()) return;
   const t=e.touches[0]; const [vx,vy]=toV(t.clientX,t.clientY);
   const L=equipLayout(), H=L.hudBox;
   if(vx>=L.swx&&vx<=L.swx+L.swordS&&vy>=L.swy&&vy<=L.swy+L.swordS){ openEquip(); return; }
@@ -1381,6 +1393,19 @@ function buildGround(){
   }
 }
 
+function anyModalOpen(){
+  try{
+    return !document.getElementById('bagWrap').classList.contains('hidden')
+        || !document.getElementById('equipWrap').classList.contains('hidden')
+        || !document.getElementById('colWrap').classList.contains('hidden')
+        || !document.getElementById('settingsPanel').classList.contains('hidden')
+        || !document.getElementById('menuWrap').classList.contains('hidden')
+        || !document.getElementById('pauseWrap').classList.contains('hidden')
+        || !document.getElementById('itemDetail').classList.contains('hidden')
+        || !document.getElementById('itemMenu').classList.contains('hidden')
+        || !document.getElementById('confirmWrap').classList.contains('hidden');
+  }catch(e){ return false; }
+}
 const CHUNK=256;
 const chunkCache=new Map();
 function buildChunk(cx,cy){
@@ -1658,7 +1683,10 @@ document.getElementById('menuWrapBg').onclick=()=>{
   paused=false; pausedAutoMenu=false;
   syncPauseIcon(); updateHudButtons();
 };
-document.getElementById('mTitle').onclick=goTitle;
+document.getElementById('mTitle').onclick=()=>{
+  document.getElementById('menuWrap').classList.add('hidden');
+  askConfirm('保存并回到标题界面？', ()=>{ goTitle(); }, '确认', '取消');
+};
 settingsBtn.onclick=()=>{ document.getElementById('menuWrap').classList.add('hidden'); if(pausedAutoMenu){ paused=false; pausedAutoMenu=false; } openSettings(true); };
 document.getElementById('settingsClose').onclick=()=>openSettings(false);
 settingsBackdrop.onclick=()=>openSettings(false);
@@ -2374,9 +2402,12 @@ document.getElementById('devClear').onclick=()=>{
 };
 
 let confirmCb=null;
-function askConfirm(msg, cb){
+function askConfirm(msg, cb, yesLabel, noLabel){
   confirmCb=cb;
   document.getElementById('confirmMsg').textContent=msg;
+  const y=document.getElementById('confirmYes'), n=document.getElementById('confirmNo');
+  if(y) y.textContent=yesLabel||'删除';
+  if(n) n.textContent=noLabel||'取消';
   document.getElementById('confirmWrap').classList.remove('hidden');
 }
 document.getElementById('confirmYes').onclick=()=>{
@@ -2579,6 +2610,13 @@ document.getElementById('muteAll').onclick=()=>{
 
 // ---------- 暂停 / 折叠 / 存档提示 / 小地图 / 环境 ----------
 let paused=false, equipHudOn=true, gtime=0, saveMsgT=-99, showFps=false, showMini=false;
+document.getElementById('exitBtn').onclick=()=>{
+  document.getElementById('menuWrap').classList.add('hidden');
+  askConfirm('确定要退出游戏网页吗？', ()=>{
+    try{ window.close(); }catch(e){}
+    setTimeout(()=>{ try{ location.href='about:blank'; }catch(e){} }, 150);
+  }, '是', '否');
+};
 document.getElementById('pauseBtn').onclick=()=>{
   paused=!paused;
   pausedAutoMenu=false;
@@ -2995,8 +3033,9 @@ function updateHudButtons(){
   if(eq) eq.style.display = (hide || equipOpen || bagOpen) ? 'none' : 'flex';
   const colOpen=!document.getElementById('colWrap').classList.contains('hidden');
   const cb=document.getElementById('colBtn');
-  if(cb) cb.classList.toggle('hidden', hide || bagOpen || equipOpen || colOpen);
-  if(bag) bag.style.display = (hide || colOpen) ? 'none' : 'flex';
+  const anyPanel=(settingsOpen||pauseOpen||menuOpen||equipOpen||bagOpen||colOpen||detailOpen||menuPanelOpen);
+  if(cb) cb.classList.toggle('hidden', hide || anyPanel);
+  if(bag) bag.style.display = (hide || anyPanel) ? 'none' : 'flex';
   const ab=document.getElementById('atkBtn');
   if(ab) ab.classList.toggle('hidden', hide || equipOpen || bagOpen || talking);
   const ib=document.getElementById('interactBtn');
