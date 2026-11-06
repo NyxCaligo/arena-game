@@ -70,7 +70,12 @@
            background:#4ade80; color:#052e16; border:2px solid #052e16; border-radius:0;
            box-shadow:0 4px 0 #052e16; padding:13px 34px; cursor:pointer; }
   button:active { transform:translateY(3px); box-shadow:0 1px 0 #052e16; }
-  #menuBtn { position:fixed; z-index:7; top:calc(10px + env(safe-area-inset-top, 0px));
+  #topRight { position:fixed; z-index:7; top:calc(10px + env(safe-area-inset-top, 0px));
+              right:calc(12px + env(safe-area-inset-right, 0px));
+              display:flex; align-items:center; gap:8px; }
+  #miniMap { width:40px; height:40px; image-rendering:pixelated; background:#0a1424;
+             border:2px solid #0b2545; box-shadow:0 0 10px rgba(59,130,246,.45); }
+  #menuBtn { position:static; z-index:7; top:calc(10px + env(safe-area-inset-top, 0px));
              right:calc(12px + env(safe-area-inset-right, 0px)); width:44px; height:44px; padding:0;
              background:#4b5462; color:#e2e8f0; border:2px solid #0b0f1a; border-radius:0;
              box-shadow:inset 0 1px 0 #5b6472; font-size:18px;
@@ -80,8 +85,9 @@
   #menuWrap.hidden { display:none; }
   .menu-box { position:relative; display:flex; gap:16px; animation:popIn .16s ease-out; }
   .menu-sq { width:78px; height:78px; padding:0; display:flex; flex-direction:column; align-items:center;
-             justify-content:center; gap:4px; background:#4b5462; color:#e2e8f0; border:2px solid #0b0f1a;
-             border-radius:0; box-shadow:inset 0 1px 0 #5b6472, 0 3px 0 rgba(0,0,0,.35); font-size:22px; }
+             justify-content:center; gap:4px; background:linear-gradient(180deg,#2b4a72,#1c3350);
+             color:#dbeafe; border:2px solid #0b2545;
+             border-radius:0; box-shadow:inset 0 1px 0 #4a7ab5, 0 4px 0 #0b2545, 0 0 18px rgba(37,99,235,.28); font-size:22px; }
   .menu-sq span { font-size:11px; letter-spacing:1px; color:#cbd5e1; }
   .menu-sq:active { transform:translateY(2px); }
   #settingsBackdrop { position:fixed; inset:0; z-index:7; background:rgba(0,0,0,.45); }
@@ -115,20 +121,20 @@
 
   #eqToggle { position:fixed; z-index:11; right:calc(10px + env(safe-area-inset-right, 0px));
               bottom:calc(10px + env(safe-area-inset-bottom, 0px)); width:74px; height:34px; padding:0;
-              background:#4b5462; color:#e2e8f0; border:2px solid #0b0f1a; border-radius:0;
-              box-shadow:inset 0 1px 0 #5b6472; font-size:12px; gap:5px;
+              background:linear-gradient(180deg,#2b4a72,#1c3350); color:#dbeafe; border:2px solid #0b2545; border-radius:0;
+              box-shadow:inset 0 1px 0 #4a7ab5, 0 3px 0 #0b2545; font-size:12px; gap:5px;
               display:flex; align-items:center; justify-content:center; }
   #eqLabel { font-size:12px; letter-spacing:1px; }
   #atkBtn { position:fixed; z-index:11; right:8%; bottom:22%; width:76px; height:76px; padding:0;
-            background:rgba(75,84,98,.92); border:3px solid #0b0f1a; border-radius:50%;
-            box-shadow:inset 0 2px 0 #6b7484, 0 4px 0 rgba(0,0,0,.4);
+            background:linear-gradient(180deg,#4a8ad4,#1e4f80); border:3px solid #0b2545; border-radius:50%;
+            box-shadow:inset 0 3px 0 #6aa5e0, 0 4px 0 #0b2545, 0 0 18px rgba(59,130,246,.45);
             display:flex; align-items:center; justify-content:center; touch-action:none; }
   #atkBtn:active { transform:translateY(2px); box-shadow:inset 0 2px 0 #6b7484, 0 1px 0 rgba(0,0,0,.4); }
   #atkBtn.hidden { display:none; }
   #interactBtn { position:fixed; z-index:11; right:calc(8% + 84px); bottom:calc(22% - 12px);
                  width:38px; height:38px; padding:0;
-                 background:rgba(75,84,98,.9); border:2px solid #0b0f1a; border-radius:50%;
-                 box-shadow:inset 0 1px 0 #5b6472, 0 3px 0 rgba(0,0,0,.35);
+                 background:linear-gradient(180deg,#2b4a72,#1c3350); border:2px solid #0b2545; border-radius:50%;
+                 box-shadow:inset 0 1px 0 #4a7ab5, 0 3px 0 #0b2545;
                  display:flex; align-items:center; justify-content:center; }
   #interactBtn.near { border-color:#f5c542; box-shadow:inset 0 1px 0 #5b6472, 0 0 10px #f5c542; }
   #interactBtn.dim { opacity:.4; }
@@ -180,6 +186,7 @@
                 right:calc(64px + env(safe-area-inset-right, 0px)); width:44px; height:44px; padding:0;
                 display:flex; align-items:center; justify-content:center; }
   #exitBtnHud.hidden { display:none; }
+  #bagBtn, #colBtn { z-index:12 !important; }
   #bagBtn, #colBtn, #menuBtn, #exitBtnHud {
     background:linear-gradient(180deg,#2b4a72,#1c3350) !important;
     border:2px solid #0b2545 !important;
@@ -238,7 +245,9 @@
   .modal { position:fixed; inset:0; z-index:9; display:flex; align-items:center; justify-content:center; }
   .modal.hidden { display:none; }
   .modal-bg { position:absolute; inset:0; background:rgba(110,116,128,.45); }
-  .modal-box { position:relative; background:#0d1524; border:2px solid #1e293b; padding:16px;
+  .modal-box { position:relative; background:linear-gradient(180deg,#12233c,#0b1626);
+               border:2px solid #1e3a5f;
+               box-shadow:0 0 0 2px #0b2545, 0 6px 0 rgba(0,0,0,.35), 0 0 26px rgba(37,99,235,.25); padding:16px;
                touch-action:pan-y;
                width:min(470px, 94vw); max-height:82vh; overflow-y:auto;
                display:flex; flex-direction:column; gap:10px; align-items:center; }
@@ -292,7 +301,10 @@
 </head>
 <body>
 <canvas id="cv"></canvas>
-<button id="menuBtn">⚙</button>
+<div id="topRight">
+  <canvas id="miniMap" width="80" height="80" class="hidden"></canvas>
+  <button id="menuBtn">⚙</button>
+</div>
 
 <div id="menuWrap" class="hidden">
   <div class="modal-bg" id="menuWrapBg"></div>
@@ -2421,7 +2433,8 @@ function makeScroller(viewId, trackId, thumbId){
     const vh=v.clientHeight, sh=v.scrollHeight, mx=sh-vh;
     if(mx<=2){ tr.style.display='none'; return; }
     tr.style.display='block';
-    const t=tr.clientHeight||vh;
+    const t=tr.clientHeight;
+    if(!t) return;
     const h=Math.max(16, Math.min(t-8, Math.round(t*vh/sh)));
     const travel=Math.max(1, t-h-3);
     th.style.height=h+'px';
@@ -2861,26 +2874,18 @@ document.getElementById('interactBtn').onclick=()=>{
   else if(interactTarget.k==='drop'){ pickupDrop(interactTarget.d); }
 };
 function drawMini(){
-  const S=46, mx=6, my=56;
-  // 外发光
-  px(mx-4,my-4,S+8,S+8,'rgba(59,130,246,.18)');
-  px(mx-3,my-3,S+6,S+6,'rgba(96,165,250,.30)');
-  // 蓝色边框
-  px(mx-2,my-2,S+4,S+4,'#0b2545');
-  px(mx-1,my-1,S+2,S+2,'#2563eb');
-  // 地图底
-  px(mx,my,S,S,'#0a1424');
-  const sc=Math.min(S/WCOLS, S/WROWS);
-  const dw=WCOLS*sc, dh=WROWS*sc;
-  const ox=mx+(S-dw)/2, oy=my+(S-dh)/2;
-  octx.drawImage(miniCanvas, ox, oy, dw, dh);
-  // 顶部高光 + 四角
-  px(mx-1,my-1,S+2,1,'#93c5fd');
-  px(mx-1,my-1,1,S+2,'rgba(147,197,253,.75)');
-  px(mx+S-1,my-2,2,2,'#bfdbfe'); px(mx-2,my+S-2,2,2,'#bfdbfe');
-  const pxp=ox+(player.x/TILE)*sc, pyp=oy+(player.y/TILE)*sc;
-  px(pxp-2,pyp-2,5,5,'rgba(245,197,66,.35)');
-  px(pxp-1,pyp-1,3,3,'#f5c542');
+  const cv=document.getElementById('miniMap');
+  if(!cv) return;
+  cv.classList.toggle('hidden', !showMini);
+  if(!showMini) return;
+  const g=cv.getContext('2d');
+  if(!g) return;
+  g.imageSmoothingEnabled=false;
+  g.clearRect(0,0,80,80);
+  g.drawImage(miniCanvas, 0,0,WCOLS,WROWS, 0,0,80,80);
+  const sx=Math.round((player.x/WORLD_W)*80), sy=Math.round((player.y/WORLD_H)*80);
+  g.fillStyle='rgba(245,197,66,.35)'; g.fillRect(sx-4,sy-4,9,9);
+  g.fillStyle='#f5c542'; g.fillRect(sx-2,sy-2,5,5);
 }
 
 // ---------- 标题界面导入存档 ----------
