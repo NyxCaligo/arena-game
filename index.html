@@ -126,15 +126,15 @@
               display:flex; align-items:center; justify-content:center; }
   #eqLabel { font-size:12px; letter-spacing:1px; }
   #atkBtn { position:fixed; z-index:11; right:8%; bottom:22%; width:76px; height:76px; padding:0;
-            background:linear-gradient(180deg,#4a8ad4,#1e4f80); border:3px solid #0b2545; border-radius:50%;
-            box-shadow:inset 0 3px 0 #6aa5e0, 0 4px 0 #0b2545, 0 0 18px rgba(59,130,246,.45);
+            background:#2b4a72; border:3px solid #0b2545; border-radius:0;
+            box-shadow:inset 0 3px 0 #4a7ab5, inset 0 -3px 0 #16283f, 0 4px 0 #0b2545;
             display:flex; align-items:center; justify-content:center; touch-action:none; }
   #atkBtn:active { transform:translateY(2px); box-shadow:inset 0 2px 0 #6b7484, 0 1px 0 rgba(0,0,0,.4); }
   #atkBtn.hidden { display:none; }
   #interactBtn { position:fixed; z-index:11; right:calc(8% + 84px); bottom:calc(22% - 12px);
                  width:38px; height:38px; padding:0;
-                 background:linear-gradient(180deg,#2b4a72,#1c3350); border:2px solid #0b2545; border-radius:50%;
-                 box-shadow:inset 0 1px 0 #4a7ab5, 0 3px 0 #0b2545;
+                 background:#2b4a72; border:2px solid #0b2545; border-radius:0;
+                 box-shadow:inset 0 2px 0 #4a7ab5, inset 0 -2px 0 #16283f, 0 3px 0 #0b2545;
                  display:flex; align-items:center; justify-content:center; }
   #interactBtn.near { border-color:#f5c542; box-shadow:inset 0 1px 0 #5b6472, 0 0 10px #f5c542; }
   #interactBtn.dim { opacity:.4; }
@@ -2142,6 +2142,18 @@ function updateMultiBar(){
   if(d1) d1.textContent='删除('+n+')';
   if(d2) d2.textContent='丢弃('+n+')';
 }
+function fitSlots(grid, sel, gap, target){
+  if(!grid) return;
+  const w=grid.clientWidth;
+  if(!w) return;
+  let cols=Math.max(2, Math.floor((w+gap)/(target+gap)));
+  const size=Math.floor((w-gap*(cols-1))/cols);
+  grid.querySelectorAll(sel).forEach(el=>{
+    el.style.width=size+'px';
+    el.style.height=size+'px';
+    el.style.flex='0 0 '+size+'px';
+  });
+}
 function updateBagCap(){
   const el=document.getElementById('bagCap');
   if(!el) return;
@@ -2218,6 +2230,7 @@ function renderBag(){
   }
   updateBagCap();
   updateMultiBar();
+  fitSlots(g, '.eq-slot', 6, 62);
   setTimeout(updateBagScroll, 0);
 }
 function renderEquipPanel(){
@@ -2424,6 +2437,7 @@ function renderCollection(){
     }
     g.appendChild(d);
   }
+  fitSlots(g, '.col-slot', 6, 62);
 }
 let colScroller=null;
 function makeScroller(viewId, trackId, thumbId){
@@ -2695,6 +2709,7 @@ document.getElementById('bagWrap').addEventListener('click', (e)=>{
 document.getElementById('bagBtn').onclick=()=>{
   const bw=document.getElementById('bagWrap');
   if(!bw.classList.contains('hidden')){ closeBag(); return; }
+  document.getElementById('colWrap').classList.add('hidden');
   openBag();
 };
 document.getElementById('chkFps').onclick=()=>{
@@ -3177,8 +3192,8 @@ function updateHudButtons(){
   if(eq) eq.style.display = (hide || equipOpen || bagOpen) ? 'none' : 'flex';
   const colOpen=!document.getElementById('colWrap').classList.contains('hidden');
   const cb=document.getElementById('colBtn');
-  if(bag) bag.style.display = (hide || colOpen) ? 'none' : 'flex';
-  if(cb) cb.classList.toggle('hidden', hide || colOpen);
+  if(bag) bag.style.display = hide ? 'none' : 'flex';
+  if(cb) cb.classList.toggle('hidden', hide);
 
   const ab=document.getElementById('atkBtn');
   if(ab) ab.classList.toggle('hidden', hide || equipOpen || bagOpen || talking);
