@@ -2206,10 +2206,12 @@ function renderBag(){
         const act=(ev)=>{
           if(ev){ ev.stopPropagation(); if(ev.cancelable) ev.preventDefault(); }
           sfxBeep(); vibrate(2);
-          const k=bagItems.indexOf(id);
-          if(k>=0) bagItems.splice(k,1);
-          renderBag(); saveGame();
-          toastMsg('已删除 '+ITEMS[id].n);
+          askConfirm('删除「'+ITEMS[id].n+'」？', ()=>{
+            const k=bagItems.indexOf(id);
+            if(k>=0) bagItems.splice(k,1);
+            renderBag(); saveGame();
+            toastMsg('已删除 '+ITEMS[id].n);
+          }, '删除', '取消');
         };
         del.addEventListener('touchstart', act, {passive:false});
         del.addEventListener('click', act);
@@ -2770,7 +2772,8 @@ function bindMulti(){
       const idxs=[...multiSel].sort((a,b)=>b-a);
       for(const i of idxs) bagItems.splice(i,1);
       multiSel.clear(); renderBag(); saveGame();
-    });
+      toastMsg('已删除');
+    }, '删除', '取消');
   };
   const drop=document.getElementById('bagDropSel');
   if(drop) drop.onclick=()=>{
