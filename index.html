@@ -214,6 +214,26 @@
     box-shadow:0 3px 0 #0b2545, 0 0 10px rgba(59,130,246,.35) !important;
     color:#dbeafe !important;
   }
+  #bagBtn, #craftBtn, #colBtn, #charBtn { display:none !important; }
+  #quadWrap { position:fixed; z-index:12; left:calc(10px + env(safe-area-inset-left, 0px));
+              bottom:calc(10px + env(safe-area-inset-bottom, 0px)); width:56px; height:56px; }
+  #quadWrap.hidden { display:none; }
+  #quadBtn { position:absolute; left:0; bottom:0; width:56px; height:56px; padding:0;
+             display:flex; align-items:center; justify-content:center;
+             background:linear-gradient(180deg,#2b4a72,#1c3350); border:2px solid #0b2545; border-radius:0;
+             box-shadow:inset 0 2px 0 #4a7ab5, 0 3px 0 #0b2545, 0 0 14px rgba(59,130,246,.4); }
+  #quadItems { position:absolute; left:5px; bottom:64px; display:flex; flex-direction:column-reverse; gap:6px; }
+  #quadItems button { width:46px; height:46px; padding:0; display:flex; align-items:center; justify-content:center;
+                      background:linear-gradient(180deg,#2b4a72,#1c3350); border:2px solid #0b2545; border-radius:0;
+                      box-shadow:inset 0 1px 0 #4a7ab5, 0 3px 0 #0b2545;
+                      transform:scale(.35); opacity:0; transform-origin:bottom left;
+                      transition:transform .18s cubic-bezier(.2,1.3,.4,1), opacity .16s ease-out; }
+  #quadItems.open button { transform:scale(1); opacity:1; }
+  #quadItems.open button:nth-child(1){ transition-delay:0ms; }
+  #quadItems.open button:nth-child(2){ transition-delay:45ms; }
+  #quadItems.open button:nth-child(3){ transition-delay:90ms; }
+  #quadItems.open button:nth-child(4){ transition-delay:135ms; }
+  #quadItems:not(.open) button { pointer-events:none; }
   #charBtn { position:fixed; z-index:12; left:calc(10px + env(safe-area-inset-left, 0px));
              bottom:calc(172px + env(safe-area-inset-bottom, 0px)); width:46px; height:46px; padding:0;
              display:flex; align-items:center; justify-content:center; }
@@ -541,12 +561,29 @@
   <h2>已暂停</h2>
   <button id="resumeBtn" class="sp-full" style="width:auto;padding:12px 30px">继续游戏</button>
 </div>
+<div id="quadWrap" class="hidden">
+  <div id="quadItems">
+    <button data-p="bag" title="背包"><svg width="24" height="24" viewBox="0 0 12 12" shape-rendering="crispEdges"><rect x="4" y="1" width="4" height="1" fill="#dbeafe"/><rect x="3" y="2" width="1" height="2" fill="#dbeafe"/><rect x="8" y="2" width="1" height="2" fill="#dbeafe"/><rect x="2" y="4" width="8" height="7" fill="#dbeafe"/><rect x="4" y="7" width="4" height="3" fill="#2b4a72"/></svg></button>
+    <button data-p="craft" title="合成"><svg width="24" height="24" viewBox="0 0 12 12" shape-rendering="crispEdges"><rect x="3" y="1" width="6" height="2" fill="#dbeafe"/><rect x="5" y="3" width="2" height="8" fill="#dbeafe"/></svg></button>
+    <button data-p="col" title="图鉴"><svg width="24" height="24" viewBox="0 0 12 12" shape-rendering="crispEdges"><rect x="2" y="1" width="8" height="10" fill="#dbeafe"/><rect x="3" y="1" width="1" height="10" fill="#2b4a72"/><rect x="5" y="3" width="4" height="1" fill="#2b4a72"/><rect x="5" y="5" width="4" height="1" fill="#2b4a72"/></svg></button>
+    <button data-p="char" title="角色"><svg width="24" height="24" viewBox="0 0 12 12" shape-rendering="crispEdges"><rect x="2" y="1" width="8" height="10" fill="#dbeafe"/><rect x="3" y="3" width="6" height="1" fill="#2b4a72"/><rect x="3" y="5" width="6" height="1" fill="#2b4a72"/><rect x="3" y="7" width="4" height="1" fill="#2b4a72"/></svg></button>
+  </div>
+  <button id="quadBtn">
+    <svg width="26" height="26" viewBox="0 0 12 12" shape-rendering="crispEdges">
+      <rect x="1" y="1" width="4" height="4" fill="#dbeafe"/>
+      <rect x="7" y="1" width="4" height="4" fill="#dbeafe"/>
+      <rect x="1" y="7" width="4" height="4" fill="#dbeafe"/>
+      <rect x="7" y="7" width="4" height="4" fill="#dbeafe"/>
+    </svg>
+  </button>
+</div>
 <button id="charBtn">
   <svg width="24" height="24" viewBox="0 0 12 12" shape-rendering="crispEdges">
-    <rect x="4" y="1" width="4" height="4" fill="#dbeafe"/>
-    <rect x="3" y="5" width="6" height="2" fill="#dbeafe"/>
-    <rect x="2" y="7" width="8" height="4" fill="#dbeafe"/>
-    <rect x="5" y="8" width="2" height="3" fill="#4b5462"/>
+    <rect x="2" y="1" width="8" height="10" fill="#dbeafe"/>
+    <rect x="3" y="3" width="6" height="1" fill="#2b4a72"/>
+    <rect x="3" y="5" width="6" height="1" fill="#2b4a72"/>
+    <rect x="3" y="7" width="4" height="1" fill="#2b4a72"/>
+    <rect x="3" y="9" width="5" height="1" fill="#2b4a72"/>
   </svg>
 </button>
 <button id="bagBtn">
@@ -896,12 +933,13 @@ const borderDeco = [];
 // ---------- 状态 ----------
 let state='menu', last=0;
 let camX=0, camY=0, camXs=0, camYs=0, walkPhase=0;
-let player = { x:680, y:448, hp:100, maxHp:100, r:6, speed:80, face:1 };
-let level=0, xp=0, xpNeed=10;
+let player = { x:680, y:448, hp:100, maxHp:100, r:6, speed:120, face:1 };
+let level=0, xp=0, xpNeed=100;
+function nextXpNeed(cur){ return Math.max(1, Math.round((cur||100)*1.07)); }
 
 function resetGame(){
-  player = { x:680, y:448, hp:100, maxHp:100, r:6, speed:80, face:1 };
-  level=0; xp=0; xpNeed=10; walkPhase=0; lastStep=-1;
+  player = { x:680, y:448, hp:100, maxHp:100, r:6, speed:120, face:1 };
+  level=0; xp=0; xpNeed=100; walkPhase=0; lastStep=-1;
 
   camX=Math.max(0,Math.min(WORLD_W-VW, player.x-VW/2));
   camY=Math.max(0,Math.min(WORLD_H-VH, player.y-VH/2));
@@ -2002,7 +2040,7 @@ function applySave(s){
   const p=player;
   if(s.p){ p.x=s.p.x; p.y=s.p.y; p.hp=s.p.hp; p.maxHp=s.p.maxHp; p.speed=s.p.speed||80; }
   if(!isFinite(p.x)||!isFinite(p.y)||solidAt(p.x,p.y)){ p.x=680; p.y=448; }
-  level=s.lv||0; xp=s.xp||0; xpNeed=s.need||10;
+  level=s.lv||0; xp=s.xp||0; xpNeed=s.need||100;
   if(Array.isArray(s.bag)){
     bagItems=[];
     for(const it of s.bag){
@@ -2800,17 +2838,12 @@ function renderChar(){
   body.innerHTML='';
   document.getElementById('charTitle').textContent='角色信息';
   const sb=setBonusInfo();
-  const wid=EQUIP.weapons[heldSlot];
-  const atk=wid&&ITEMS[wid]?(ITEMS[wid].dmg||0):0;
   const rows=[
     ['生命值', player.hp+' / '+player.maxHp],
     ['等级', 'Lv '+level],
     ['经验', xp+' / '+xpNeed+'（还需 '+(xpNeed-xp>0?xpNeed-xp:0)+' 点升级）'],
     ['移动速度', String(Math.round(player.speed))],
     ['护甲值', sb.armor+(sb.bonus?' + '+sb.bonus+'（套装）':'')+' = '+sb.total],
-    ['攻击力', String(atk)],
-    ['暴击率', wid&&ITEMS[wid]?(ITEMS[wid].crit||0)+'%':'0%'],
-    ['暴击伤害', (CRIT_MULT*100).toFixed(0)+'%'],
   ];
   for(const [k,v] of rows){
     const r=document.createElement('div');
@@ -2823,6 +2856,38 @@ function openChar(){
   document.getElementById('charWrap').classList.remove('hidden');
   renderChar(); updateHudButtons(); sfxBeep();
 }
+let quadOpen=false, quadTimer=null;
+function setQuad(open){
+  quadOpen=!!open;
+  const it=document.getElementById('quadItems');
+  if(it) it.classList.toggle('open', quadOpen);
+  clearTimeout(quadTimer);
+  if(quadOpen){
+    const qb=document.getElementById('quadBtn');
+    const r=qb?qb.getBoundingClientRect():null;
+    if(r){
+      // 根据下方空间决定展开方向
+      const it2=document.getElementById('quadItems');
+      if(it2) it2.style.bottom = (r.height+8)+'px';
+    }
+    quadTimer=setTimeout(()=>setQuad(false), 3800);
+  }
+}
+document.getElementById('quadBtn').onclick=()=>{
+  setQuad(!quadOpen);
+  sfxBeep(); vibrate(2);
+  if(quadOpen && typeof updateHudButtons==='function') updateHudButtons();
+};
+document.querySelectorAll('#quadItems button').forEach(b=>{
+  b.onclick=(e)=>{
+    e.stopPropagation();
+    setQuad(false);
+    const t=document.getElementById(b.dataset.p+'Btn');
+    if(t && typeof t.onclick==='function') t.onclick();
+    sfxBeep();
+  };
+  b.addEventListener('touchstart', (e)=>{ e.stopPropagation(); clearTimeout(quadTimer); quadTimer=setTimeout(()=>setQuad(false),3800); }, {passive:true});
+});
 document.getElementById('charBtn').onclick=()=>{
   const cw=document.getElementById('charWrap');
   if(!cw.classList.contains('hidden')){ cw.classList.add('hidden'); updateHudButtons(); return; }
@@ -2996,6 +3061,7 @@ document.getElementById('splitOk').onclick=()=>{
   toastMsg('已分堆');
 };
 function openCraft(){
+  try{ closeChar(); }catch(e){}
   document.getElementById('craftWrap').classList.remove('hidden');
   document.getElementById('craftTitle').textContent='合成';
   const vs=viewSize();
@@ -3020,6 +3086,7 @@ document.getElementById('craftClose').onclick=()=>{ document.getElementById('cra
 document.getElementById('craftBg').onclick=()=>{ document.getElementById('craftWrap').classList.add('hidden'); updateHudButtons(); };
 
 function openCollection(){
+  try{ closeChar(); }catch(e){}
   document.getElementById('craftWrap').classList.add('hidden');
   document.getElementById('colWrap').classList.remove('hidden');
   bindColScroll();
@@ -3033,6 +3100,7 @@ function openCollection(){
 }
 document.getElementById('colBtn').onclick=()=>{
   document.getElementById('craftWrap').classList.add('hidden');
+  try{ closeChar(); }catch(e){}
   const cw=document.getElementById('colWrap');
   if(!cw.classList.contains('hidden')){
     cw.classList.add('hidden'); updateHudButtons(); sfxBeep();
@@ -3284,6 +3352,7 @@ function bindSort(){
     sfxBeep(); vibrate(2); renderBag();
   };
 }
+function closeChar(){ document.getElementById('charWrap').classList.add('hidden'); }
 function openBag(){
   bagOpenAt=performance.now();
   document.getElementById('bagWrap').classList.remove('hidden');
@@ -3818,6 +3887,9 @@ function updateHudButtons(){
       !document.getElementById('equipWrap').classList.contains('hidden') ||
       !document.getElementById('colWrap').classList.contains('hidden') ||
       !document.getElementById('craftWrap').classList.contains('hidden'));
+  const qw=document.getElementById('quadWrap');
+  if(qw) qw.classList.toggle('hidden', hide);
+  if(hide) setQuad(false);
   const db=document.getElementById('devBtn');
   if(db) db.classList.toggle('hidden', hide || !devMode);
 
