@@ -770,7 +770,7 @@ let VW=352, VH=176;
 const TILE=16, WCOLS=64, WROWS=44;
 const RES=2;   // 内部渲染精度：2 倍，像素视觉大小不变，但镜头可半格移动
 const WORLD_W=WCOLS*TILE, WORLD_H=WROWS*TILE;
-let JBX=70, JBY=140; const JR=26;   // 常驻摇杆位置（左下，随屏幕）
+let JBX=70, JBY=140; const JR=30;   // 常驻摇杆位置（左下，随屏幕）
 const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
 const off = document.createElement('canvas'); off.width=VW*RES; off.height=VH*RES;
 let octx = off.getContext('2d'); octx.imageSmoothingEnabled=false; octx.setTransform(RES,0,0,RES,0,0);
@@ -813,7 +813,7 @@ function resize(){
   oxCss = Math.floor((cv.width - VW*P)/2);
   oyCss = Math.floor((cv.height - VH*P)/2);
   ctx.imageSmoothingEnabled = false;
-  JBX = VW*0.15; JBY = VH*0.82;
+  JBX = VW*0.19; JBY = VH*0.77;
 }
 resize();
 window.addEventListener('resize', ()=>{ resize(); checkOrientation(); });
@@ -959,7 +959,7 @@ cv.addEventListener('touchstart', e=>{
   if(anyModalOpen()) return;
   const t=e.touches[0]; const [vx,vy]=toV(t.clientX,t.clientY);
   const L=equipLayout(), H=L.hudBox;
-  if(vx>=L.swx&&vx<=L.swx+L.swordW&&vy>=L.swy&&vy<=L.swy+L.swordH){ openEquip(); return; }
+  if(equipHudOn && vx>=L.swx&&vx<=L.swx+L.swordW&&vy>=L.swy&&vy<=L.swy+L.swordH){ openEquip(); return; }
   if(equipHudOn){
     const El=equipLayout();
     for(let i=0;i<3;i++){
@@ -983,7 +983,7 @@ cv.addEventListener('touchcancel', ()=>{ joy.active=false; joy.dx=joy.dy=0; }, {
 cv.addEventListener('mousedown', e=>{
   if(state!=='city')return; const [vx,vy]=toV(e.clientX,e.clientY);
   const L=equipLayout(), H=L.hudBox;
-  if(vx>=L.swx&&vx<=L.swx+L.swordW&&vy>=L.swy&&vy<=L.swy+L.swordH){ openEquip(); return; }
+  if(equipHudOn && vx>=L.swx&&vx<=L.swx+L.swordW&&vy>=L.swy&&vy<=L.swy+L.swordH){ openEquip(); return; }
   if(equipHudOn && vx>=H.x0&&vx<=H.x1&&vy>=H.y0&&vy<=H.y1){ openEquip(); return; }
   if(vx<VW*0.5 && vy>VH*0.5){ joy.active=true; joyMove(vx,vy); vibrate(1); }
 });
