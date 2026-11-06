@@ -476,6 +476,16 @@
     </div>
   </div>
 </div>
+<div id="splitWrap" class="modal hidden" style="z-index:14; align-items:flex-start; padding-top:12vh;">
+  <div class="modal-bg" id="splitBg"></div>
+  <div class="modal-box" style="width:min(280px,80vw); padding:14px">
+    <div class="eq-title" id="splitTitle" style="font-size:16px">分堆</div>
+    <div id="splitNum" style="font-size:26px;text-align:center;color:#f5c542;margin:4px 0">1</div>
+    <input type="range" id="splitRange" min="1" max="2" value="1" style="width:100%">
+    <button id="splitOk" class="sp-full">分堆</button>
+    <button id="splitCancel" class="sp-full sp-alt">取消</button>
+  </div>
+</div>
 <div id="devWrap" class="modal hidden" style="z-index:17">
   <div class="modal-bg" id="devBg"></div>
   <div class="modal-box" style="width:min(300px,80vw)">
@@ -1543,6 +1553,25 @@ function anyModalOpen(){
 }
 const CHUNK=256;
 const chunkCache=new Map();
+const probeCv=document.createElement('canvas'); probeCv.width=1; probeCv.height=1;
+const probeCtx=probeCv.getContext('2d');
+let chunkCheckTick=0;
+function chunkAlive(ch){
+  try{
+    if(!ch||!ch.cv) return false;
+    probeCtx.clearRect(0,0,1,1);
+    probeCtx.drawImage(ch.cv, 8, 8, 1, 1, 0, 0, 1, 1);
+    const d=probeCtx.getImageData(0,0,1,1).data;
+    return d[3] > 0;
+  }catch(e){ return true; }
+}
+function validateChunks(cx0,cx1,cy0,cy1){
+  for(let cy=cy0; cy<=cy1; cy++) for(let cx=cx0; cx<=cx1; cx++){
+    const key=cx*1000+cy;
+    const ch=chunkCache.get(key);
+    if(ch && !chunkAlive(ch)) chunkCache.delete(key);
+  }
+}
 function buildChunk(cx,cy){
   const key=cx*1000+cy;
   if(chunkCache.has(key)) return chunkCache.get(key);
@@ -1577,6 +1606,8 @@ function render(){
   {
     const cx0=Math.floor(camX/CHUNK), cx1=Math.floor((camX+VW-0.01)/CHUNK);
     const cy0=Math.floor(camY/CHUNK), cy1=Math.floor((camY+VH-0.01)/CHUNK);
+    chunkCheckTick++;
+    if(chunkCheckTick%45===0) validateChunks(cx0,cx1,cy0,cy1);
     for(let cy=cy0; cy<=cy1; cy++) for(let cx=cx0; cx<=cx1; cx++){
       const ch=buildChunk(cx,cy);
       if(ch){
@@ -1931,7 +1962,7 @@ function collectSave(){
   return { sig:SAVE_SIG, ver:SAVE_VER, at:Date.now(),
     p:{ x:player.x, y:player.y, hp:player.hp, maxHp:player.maxHp, speed:player.speed },
     lv:level, xp:xp, need:xpNeed,
-    bag:bagItems.slice(),
+    bag:bagItems.map(e=>[e.id,e.n]),
     story:{ talked: storyTalked },
     seen:[...seenItems],
     eq:{ weapons:EQUIP.weapons.slice(), armors:EQUIP.armors.slice(), accessories:EQUIP.accessories.slice() } };
@@ -1942,7 +1973,14 @@ function applySave(s){
   if(s.p){ p.x=s.p.x; p.y=s.p.y; p.hp=s.p.hp; p.maxHp=s.p.maxHp; p.speed=s.p.speed||80; }
   if(!isFinite(p.x)||!isFinite(p.y)||solidAt(p.x,p.y)){ p.x=680; p.y=448; }
   level=s.lv||0; xp=s.xp||0; xpNeed=s.need||10;
-  if(Array.isArray(s.bag)) bagItems=s.bag.filter(id=>ITEMS[id]);
+  if(Array.isArray(s.bag)){
+    bagItems=[];
+    for(const it of s.bag){
+      if(typeof it==='string'){ if(ITEMS[it]) addItem(it,1); }
+      else if(Array.isArray(it)){ if(ITEMS[it[0]]) addItem(it[0], it[1]||1); }
+      else if(it && ITEMS[it.id]) addItem(it.id, it.n||1);
+    }
+  }
   if(s.story) storyTalked=!!s.story.talked;
   if(Array.isArray(s.seen)) seenItems=new Set(s.seen.filter(id=>ITEMS[id]));
   if(s.eq){
@@ -2169,7 +2207,7 @@ const RECIPES=[
   {out:'woodlegs', need:{wood:16}},
   {out:'woodhelm', need:{wood:12}}
 ];
-let bagItems=[];
+let bagItems=[];   // [{id, n}] 堆叠
 
 const ITEM_ICONS={ wood:'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAADm0lEQVR4nO2WvW8bdRjHP3cmF8svl8jFqeui1jGmqJGRC6KlqqJSRaJIDFYIrsPAxJ/QIShTh2zIysjAUIkJubEiKxMDVKIDEtkaWQ6VGidQpU0JPfldZ0e+Y7jc5RyfnYjSAZTvdH7u8X2e5/k9z3MHJzrR/0HZVJy1hUmW8AGwhA8lP8PawiTZVPzVwpX8zMDfr1RmxplklLWFSTLJKADpWIj8XFzPz8X1xamIFZjpb9dr/xSeTcW5lStw58p5bl4O636vhFjXWFuYxO+VGImOAnD9GvpExENgellQ8jMwvfxyAWRTcT764gKB/Qe9e8Ove1wa3373G8FTkuVXKZXpqCqNWptKVSSTjBKYXmYJH7eoW37CcaBL+BiaizD9dcGyzSfCfPBxQE+ExnhU2KFSFRmRNQBisVEatTbPnjcBCI8H8Lg0Vn58yu37W0I2FWc2VzheAHbnw2CAjqoC4HK7retGre34rGfPm9x9oAj3Hu9YlTjyCGZzBdKxEJ9dep2LiVH9jXfGrHuVUpnARIhKqWzZDsPNKgBUqiJvekUAtFQEcoX+AWSSUVaLTa6ec+vR931cv3bB0a9SKlNrtNGbqiPUBG8rxrlLw0MAPGkbPo4BmGXPJKP6pzcidFSVJ7/+gRyUGYmOdkE3OyrjLrcjvLh1cH024GNbqdNu7QGwWjTu9fSAeTbziTCffxLW5aBMdbeK4HHjcWk0OyKlWrkLagfbs+2qQl2n3dpjo6EN7oHfk2OwUid4SkLwGI3l9UuAAQcwO79fmSt1HcDKFg5Kb4eDwxHcvByGlRJnAz7d75WcO9trzHtxq4nmExHrmpXhYZngffVU/MgpMMFev0SzI+JxGbN+5rTHynr3Re/Y2cHt1p6w0dC499iomn0R9QSw/rAMwLZSFzqqrJtg0IxO9xvZy0GZ4k+7A7NeV1qCCQV6tiAcsYh++HJCfzsesjre6z9Ytc2OyPe5kuP/zEYD2Fyc4qtvitgDsUt0Mprv8ErVuG2W3QS73G6ebipsNDSk4SGk4SE2GobPpbcCXD3n1uFD5hNhxm/f7wvvG8D+DmA2VxBWf/kTl9uNHJS7gin8pVpbbV1pCexX82AEf+a9h9W+YFPHehllU3F9RNY4c9qDHJR5VNjh7gMFQDicXToWGpjxS+nOlfMsTkVIx0KWLZOMdn2KmbZ/VU7fdXawXU62QTrWEZhKx0JcDAwTX33RM04nOtF/Vn8DHrSlRnBH6coAAAAASUVORK5CYII=',
   helm:'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAEvklEQVR4nO2XzWtUVxjGf7eZj8z0zpdOJ0YzkSYxxkpNYnGakgbjomQhCgGDu0qLtZsiIkUKRbqYTclfoKHbrowollDaVaGIRiktglRNjJgYp46JM5m5jpncGU4X13Pm3pmJTr9w02czH9zzPs/7nPe8573wP14xtH8aYGqsk8WSm0c/32f3vs3sP3f339DVGPHEaA9oWs3/yajvvyOuJk34PSSjPvWpoGmMD7S9NF7DW5Dwe7j2zAQhAGRwkTgYV8/cuZ4hmzKYvJHWrhXWlJDkxmZOLz37+wKmxjrZf24OEIwPtCnSrljECrKUYiFVBmD54VMAFktusilDO3X1AQDJqK+uiJcKsMjvkoz6GDrZJ/oHe8nPzFcCLKX47Zcc8XY/G99wsZAqUzTWiITdZLImt5/ANz/MadcKa5aL0plGBNjJP/p6nwhsa8e4Mo2Itiry2ZlnxDZZe2+ulnA3u0j/YWVq5EzlhhRR7cRrLySfnKtLHtjWDsBCqkwk7CYYqKwzV0tEwm4A9KCbxZL1/ehIh0j4PZxeXnUUa10ByaiP9z/7gITPzdDJvrrkEht2WPUQDIC72UWhVDHVyJlscZlkU4YSgRAcP3/kxQKOnz9CaO8Zjo50iP7BXh7+WLFdYjadoe1t5zEzV0sUjTUyWVO5ABBu1ZWI8YE2QnvPqCNaI2BqrJPQ8FmSUR+HTwyrgtOWUgDkZ+bJz8zT8nRVrbGLi23y4dU9gLUFAFtcpl2MADg1vVhfQO/IdhCClqGtAuDJ7wsEA5DL20TcS2GulhzrcnlrCyQyWZNq2F1ACMYH2nBVP9T2yfck/B6690TIz8yTyZqOwNpSihWjTEh3kb9nCQoGUILsNbAenrughVt1pwNTY50gBAf8TXTFIuTvpfDqHlaMsiPTaiw/LlEoaQ2R23Hs4u1aByZGewAE4CCuB3nuJXHRqDQZ2QMAbi4Ua9ZaTcl0OvB6f4xjF26p3/aAUD97af165NWQdXDA3wSIigMToz0Mf3mVZNRH956ICiQrWpIVShpFYw3T5a6beTWsRlTrgIRy4PCJYRBC9fu7V+bQg26KxppFWFX1Ukg1qrOXGVejZWirSPg9loCpsU7VHPoHewEQnZGaYJLUyJmK/EXZ19t7qPSFQ7tiloDeke0AJA7GBcD9S5fpH+xV/xs5k0zWxO8SSpS90zWKnXEvO+NedT+EW3XhOAV3rmfoillnn0uX2bAjTt+HVjecTWcoPKrc9cwX6pI8nwMkAds3oK7m6ZtyO4qqPWtQGRYSfg9f7Y+Lju6gKriQ3kTgzUqrDWxrV+15Np2pK0K26RWjrLbMvh2SfPJGujLcTYz2cOzCLZJRHy1DW8XQW5UrUxagu9nluHrtyOWdp8ReP3ZXJOTY5mhdUkTC7+HQrpjYGffS0R10kNp7gSSE2mI0ciZ60F2TPeAY02p6p31ikULkXnp1DyG9qSZ76ZD9AjJypiPz4uyy9l2hrEYyyVO3eSejPj7+vIctX/xqF04y2oy3ayOACLfqjjXVFktCwDEHrjec1kUy6rMuKE2reQH5q1jvZaXhqDLA7n2b6XsniP7eu4SGz9Y8t/LTpxhXpvn24mMmb6Q54G9qPONXgT8BG6puInilirMAAAAASUVORK5CYII=',
@@ -2229,18 +2267,34 @@ function itemCanvas(id, css){
   return c;
 }
 function equipArr(t){ return t==='weapon'?EQUIP.weapons : t==='armor'?EQUIP.armors : EQUIP.accessories; }
+function addItem(id,n){
+  if(!ITEMS[id]) return;
+  n=n||1;
+  const st=bagItems.find(e=>e.id===id);
+  if(st) st.n+=n; else bagItems.push({id,n});
+  try{ markSeen(id); }catch(e){}
+}
+function removeItem(id,n){
+  n=n||1;
+  const st=bagItems.find(e=>e.id===id);
+  if(!st) return false;
+  if(st.n<=n) bagItems=bagItems.filter(e=>e!==st);
+  else st.n-=n;
+  return true;
+}
+function matCount(id){ return bagItems.filter(e=>e.id===id).reduce((a,e)=>a+e.n,0); }
 function equipItem(id){
   const it=ITEMS[id]; if(!it) return false;
   const t=it.t, arr=equipArr(t);
   const i=arr.indexOf(null);
   if(i<0) return false;
   arr[i]=id;
-  const bi=bagItems.indexOf(id); if(bi>=0) bagItems.splice(bi,1);
+  removeItem(id,1);
   return true;
 }
 function unequip(t,i){
   const arr=equipArr(t); const id=arr[i]; if(!id) return;
-  arr[i]=null; bagItems.push(id);
+  arr[i]=null; addItem(id,1);
 }
 function updateMultiBar(){
   const bar=document.getElementById('bagMultiBar');
@@ -2267,23 +2321,18 @@ function updateBagCap(){
   const el=document.getElementById('bagCap');
   if(!el) return;
   el.innerHTML='';
-  el.appendChild(makePixLabel(bagItems.length+'|100 容量', 14, '#94a3b8'));
+  const total=bagItems.reduce((a,e)=>a+e.n,0);
+  el.appendChild(makePixLabel(total+'|100 容量', 12, '#94a3b8'));
 }
 let bagFilter='all', bagSel=-1, multiMode=false, manageMode=false, multiSel=new Set();
 let bagOpsAt=0;
 function bagDisplay(){
-  const map=new Map();
-  bagItems.forEach((id,i)=>{
-    if(!ITEMS[id]) return;
-    if(!map.has(id)) map.set(id,{id, idx:i, count:0});
-    map.get(id).count++;
-  });
-  let arr=[...map.values()];
+  let arr=bagItems.filter(e=>ITEMS[e.id]);
   const hl=new Set();
   if(bagFilter!=='all'){
     const match=arr.filter(e=>ITEMS[e.id].t===bagFilter);
     const rest=arr.filter(e=>ITEMS[e.id].t!==bagFilter);
-    match.forEach(e=>hl.add(e.id));
+    match.forEach(e=>hl.add(e));
     arr=match.concat(rest);
   }
   return {list:arr, hl};
@@ -2296,11 +2345,10 @@ function renderBag(){
     const d=document.createElement('div'); d.className='eq-slot';
     const ent=dis.list[i];
     const id=ent ? ent.id : undefined;
-    const idx=ent ? ent.idx : -1;
-    const cnt=ent ? ent.count : 0;
+    const cnt=ent ? ent.n : 0;
     if(id!==undefined){
-      if(dis.hl.has(id)) d.classList.add('hl');
-      if(bagSel===id) d.classList.add('sel');
+      if(dis.hl.has(ent)) d.classList.add('hl');
+      if(bagSel===ent) d.classList.add('sel');
       if(cnt>1){
         const cb=document.createElement('span');
         cb.className='stack-n';
@@ -2314,9 +2362,8 @@ function renderBag(){
         const act=(ev)=>{
           if(ev){ ev.stopPropagation(); if(ev.cancelable) ev.preventDefault(); }
           sfxBeep(); vibrate(2);
-          askConfirm('删除「'+ITEMS[id].n+'」？', ()=>{
-            const k=bagItems.indexOf(id);
-            if(k>=0) bagItems.splice(k,1);
+          askConfirm('删除「'+ITEMS[id].n+'」×'+cnt+'？', ()=>{
+            bagItems=bagItems.filter(x=>x!==ent);
             renderBag(); saveGame();
             toastMsg('已删除 '+ITEMS[id].n);
           }, '删除', '取消');
@@ -2327,8 +2374,8 @@ function renderBag(){
       }
       if(multiMode){
         const ck=document.createElement('span');
-        ck.className='mcheck'+(multiSel.has(id)?' on':'');
-        ck.textContent=multiSel.has(id)?'✓':'';
+        ck.className='mcheck'+(multiSel.has(ent)?' on':'');
+        ck.textContent=multiSel.has(ent)?'✓':'';
         d.appendChild(ck);
       }
       const icv=itemCanvas(id,38); icv.style.imageRendering='pixelated';
@@ -2340,11 +2387,11 @@ function renderBag(){
       bindItemSlot(d,
         ()=>{
           if(multiMode){
-            if(multiSel.has(id)) multiSel.delete(id); else multiSel.add(id);
+            if(multiSel.has(ent)) multiSel.delete(ent); else multiSel.add(ent);
             renderBag(); sfxBeep();
             return;
           }
-          bagSel=id;
+          bagSel=ent;
           document.querySelectorAll('#bagGrid .eq-slot.sel').forEach(x=>x.classList.remove('sel'));
           d.classList.add('sel');
           showItemMenu(id, [
@@ -2352,7 +2399,11 @@ function renderBag(){
             {label:'装配', fn:()=>{ vibrate(3); if(equipItem(id)){ sfxEquip(); renderBag(); renderEquipPanel(); saveGame(); } }}
           ], d);
         },
-        ()=>{ if(!multiMode) openItemDetail(id, d); }
+        ()=>{
+          if(multiMode) return;
+          if(ent && ent.n>1) openSplit(ent);
+          else openItemDetail(id, d);
+        }
       );
     }
     g.appendChild(d);
@@ -2544,7 +2595,7 @@ let colTab='mob', colSub='weapon';
 function itemUnlocked(id){
   if(!id) return false;
   if(EQUIP.weapons.includes(id)||EQUIP.armors.includes(id)||EQUIP.accessories.includes(id)) return true;
-  return bagItems.includes(id);
+  return bagItems.some(e=>e.id===id);
 }
 function renderCollection(){
   const g=document.getElementById('colGrid'); if(!g) return;
@@ -2744,7 +2795,7 @@ function bindCraftScroll(){
     craftSet(rel/travel*mx);
     if(e.cancelable) e.preventDefault(); },{passive:false});
 }
-function matCount(id){ return bagItems.filter(x=>x===id).length; }
+
 let seenItems=new Set();
 function markSeen(id){ if(ITEMS[id]) seenItems.add(id); }
 function recipeUnlocked(r){
@@ -2784,8 +2835,8 @@ document.getElementById('recipeCraft').onclick=(e)=>{
   if(!recipeCur) return;
   const r=recipeCur;
   if(!Object.keys(r.need).every(k=>matCount(k)>=r.need[k])){ toastMsg('材料不足'); return; }
-  for(const k in r.need){ for(let n=0;n<r.need[k];n++){ const i2=bagItems.indexOf(k); if(i2>=0) bagItems.splice(i2,1); } }
-  bagItems.push(r.out); markSeen(r.out);
+  for(const k in r.need) removeItem(k, r.need[k]);
+  addItem(r.out,1);
   sfxEquip(); vibrate(3);
   toastMsg('合成成功：'+ITEMS[r.out].n);
   closeRecipe();
@@ -2816,6 +2867,32 @@ function renderCrafting(){
   fitSlots(g, '.col-slot', 6, 62);
   setTimeout(updateCraftScroll, 0);
 }
+let splitEnt=null;
+function openSplit(ent){
+  if(!ent || ent.n<2) return;
+  splitEnt=ent;
+  document.getElementById('splitTitle').textContent='分堆：'+ITEMS[ent.id].n+'（共 '+ent.n+'）';
+  const r=document.getElementById('splitRange');
+  r.min=1; r.max=ent.n-1; r.value=Math.floor(ent.n/2);
+  document.getElementById('splitNum').textContent=r.value;
+  document.getElementById('splitWrap').classList.remove('hidden');
+  sfxBeep();
+}
+document.getElementById('splitRange').oninput=(e)=>{
+  document.getElementById('splitNum').textContent=e.target.value;
+};
+document.getElementById('splitCancel').onclick=()=>{ document.getElementById('splitWrap').classList.add('hidden'); splitEnt=null; };
+document.getElementById('splitBg').onclick=()=>{ document.getElementById('splitWrap').classList.add('hidden'); splitEnt=null; };
+document.getElementById('splitOk').onclick=()=>{
+  if(!splitEnt){ document.getElementById('splitWrap').classList.add('hidden'); return; }
+  const k=Math.max(1, Math.min(splitEnt.n-1, parseInt(document.getElementById('splitRange').value)||1));
+  splitEnt.n -= k;
+  bagItems.push({ id: splitEnt.id, n: k });
+  document.getElementById('splitWrap').classList.add('hidden');
+  splitEnt=null;
+  renderBag(); saveGame(); sfxEquip(); vibrate(2);
+  toastMsg('已分堆');
+};
 function openCraft(){
   document.getElementById('craftWrap').classList.remove('hidden');
   document.getElementById('craftTitle').textContent='合成';
@@ -2882,7 +2959,7 @@ function renderDevItems(){
       const b=document.createElement('button');
       b.className='miniBtn';
       b.textContent=ITEMS[id].n;
-      b.onclick=()=>{ bagItems.push(id); markSeen(id); renderBag(); saveGame(); toastMsg('获得 '+ITEMS[id].n); sfxEquip(); };
+      b.onclick=()=>{ addItem(id,1); renderBag(); saveGame(); toastMsg('获得 '+ITEMS[id].n); sfxEquip(); };
       box.appendChild(b);
     }
   }
@@ -2894,7 +2971,7 @@ document.getElementById('devBtn').onclick=()=>{
 };
 document.getElementById('devClose').onclick=()=>document.getElementById('devWrap').classList.add('hidden');
 document.getElementById('devBg').onclick=()=>document.getElementById('devWrap').classList.add('hidden');
-document.getElementById('devAll2').onclick=()=>{ for(const id in ITEMS){ bagItems.push(id); markSeen(id); } renderBag(); saveGame(); toastMsg('已加入全部物品'); };
+document.getElementById('devAll2').onclick=()=>{ for(const id in ITEMS) addItem(id,1); renderBag(); saveGame(); toastMsg('已加入全部物品'); };
 document.getElementById('devClear2').onclick=()=>{ bagItems=[]; renderBag(); saveGame(); toastMsg('背包已清空'); };
 function syncDevUI(){
   const l=document.getElementById('devLabel'), g=document.getElementById('devGroup');
@@ -2920,7 +2997,7 @@ document.getElementById('redeemOk').onclick=()=>{
   }
 };
 document.getElementById('devAll').onclick=()=>{
-  for(const id in ITEMS) bagItems.push(id);
+  for(const id in ITEMS) addItem(id,1);
   renderBag(); saveGame(); toastMsg('已加入全部物品');
 };
 document.getElementById('devClear').onclick=()=>{
@@ -3080,7 +3157,7 @@ function bindMulti(){
   const del=document.getElementById('bagDelSel');
   if(del) del.onclick=()=>{
     if(!multiSel.size){ toastMsg('没有选中物品'); return; }
-    askConfirm('删除选中的 '+multiSel.size+' 种物品？', ()=>{
+    askConfirm('删除选中的 '+multiSel.size+' 组物品？', ()=>{
       bagItems=bagItems.filter(x=>!multiSel.has(x));
       multiSel.clear(); renderBag(); saveGame();
       toastMsg('已删除');
@@ -3089,9 +3166,8 @@ function bindMulti(){
   const drop=document.getElementById('bagDropSel');
   if(drop) drop.onclick=()=>{
     if(!multiSel.size){ toastMsg('没有选中物品'); return; }
-    for(const id of [...multiSel]){
-      const n=bagItems.filter(x=>x===id).length;
-      for(let k=0;k<n;k++) drops.push({ id, x:player.x+(Math.random()*30-15), y:player.y+12 });
+    for(const ent of [...multiSel]){
+      for(let k=0;k<ent.n;k++) drops.push({ id:ent.id, x:player.x+(Math.random()*30-15), y:player.y+12 });
     }
     bagItems=bagItems.filter(x=>!multiSel.has(x));
     multiSel.clear(); renderBag(); saveGame();
@@ -3102,7 +3178,7 @@ function bindSort(){
   const b=document.getElementById('bagSort'); if(!b) return;
   b.onclick=()=>{
     const order={weapon:0,armor:1,acc:2};
-    bagItems.sort((a,c)=>(order[ITEMS[a].t]-order[ITEMS[c].t]) || a.localeCompare(c));
+    bagItems.sort((a,c)=>(order[ITEMS[a.id].t]-order[ITEMS[c.id].t]) || a.id.localeCompare(c.id));
     sfxBeep(); vibrate(2); renderBag();
   };
 }
@@ -3506,8 +3582,7 @@ function showNode(key){
       dlgDone=true;
       if(n.give && !dlgGiven[n.give]){
         dlgGiven[n.give]=true; spawnDrop(n.give);
-        for(let i=0;i<20;i++) bagItems.push('wood');
-        markSeen('wood'); toastMsg('获得 木头 ×20');
+        addItem('wood',20); toastMsg('获得 木头 ×20');
       }
       showChoices(n);
     }
@@ -3579,7 +3654,7 @@ function spawnDrop(id){
 }
 function pickupDrop(d){
   drops=drops.filter(x=>x!==d);
-  bagItems.push(d.id); markSeen(d.id);
+  addItem(d.id,1);
   sfxEquip(); vibrate(3);
   toastMsg('获得 '+ITEMS[d.id].n);
   updateInteract();
