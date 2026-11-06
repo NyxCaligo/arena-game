@@ -177,7 +177,7 @@
   .miniBtn.on { background:#4ade80; color:#052e16; border-color:#052e16; }
   .miniBtn { font-size:11px; padding:3px 9px; background:#4b5462; color:#cbd5e1;
              border:2px solid #0b0f1a; border-radius:0; box-shadow:none; flex:none; }
-  .del-btn { position:absolute; top:-1px; right:-1px; width:20px; height:20px; padding:0;
+  .del-btn { position:absolute; top:0; right:0; width:16px; height:16px; padding:0;
              background:#b91c1c; color:#fff; border:1px solid #0b0f1a; border-radius:0;
              display:flex; align-items:center; justify-content:center; line-height:0; }
   #saveToast { position:fixed; z-index:7; left:50%; transform:translateX(-50%);
@@ -405,13 +405,13 @@
     <button id="redeemCancel" class="sp-full sp-alt">取消</button>
   </div>
 </div>
-<div id="confirmWrap" class="modal hidden" style="z-index:15">
+<div id="confirmWrap" class="modal hidden" style="z-index:15; align-items:flex-start; padding-top:14vh;">
   <div class="modal-bg" id="confirmBg"></div>
-  <div class="modal-box" style="width:min(320px,84vw)">
-    <div class="eq-title" id="confirmMsg" style="font-size:16px"></div>
+  <div class="modal-box" style="width:min(260px,72vw); padding:14px; gap:10px">
+    <div class="eq-title" id="confirmMsg" style="font-size:15px; line-height:1.5"></div>
     <div style="display:flex; gap:8px; width:100%">
-      <button id="confirmNo" class="sp-full sp-alt" style="flex:1">取消</button>
-      <button id="confirmYes" class="sp-full" style="flex:1">删除</button>
+      <button id="confirmNo" class="sp-full sp-alt" style="flex:1; font-size:14px; padding:9px 0">取消</button>
+      <button id="confirmYes" class="sp-full" style="flex:1; font-size:14px; padding:9px 0">确定</button>
     </div>
   </div>
 </div>
@@ -2195,7 +2195,7 @@ function renderBag(){
       {
         const del=document.createElement('button');
         del.className='del-btn';
-        del.innerHTML='<svg width="10" height="10" viewBox="0 0 10 10"><rect x="1" y="4" width="8" height="2" fill="#ffffff"/><rect x="4" y="1" width="2" height="8" fill="#ffffff"/></svg>';
+        del.innerHTML='<svg width="9" height="9" viewBox="0 0 10 10"><rect x="4.2" y="0.4" width="1.6" height="9.2" fill="#ffffff" transform="rotate(45 5 5)"/><rect x="4.2" y="0.4" width="1.6" height="9.2" fill="#ffffff" transform="rotate(-45 5 5)"/></svg>';
         const act=(ev)=>{
           if(ev){ ev.stopPropagation(); if(ev.cancelable) ev.preventDefault(); }
           sfxBeep();
@@ -2648,7 +2648,7 @@ function askConfirm(msg, cb, yesLabel, noLabel){
   confirmCb=cb;
   document.getElementById('confirmMsg').textContent=msg;
   const y=document.getElementById('confirmYes'), n=document.getElementById('confirmNo');
-  if(y) y.textContent=yesLabel||'删除';
+  if(y) y.textContent=yesLabel||'确定';
   if(n) n.textContent=noLabel||'取消';
   document.getElementById('confirmWrap').classList.remove('hidden');
 }
@@ -2792,7 +2792,14 @@ function openBag(){
 document.getElementById('eqClose').onclick=()=>document.getElementById('equipWrap').classList.add('hidden');
 document.getElementById('equipBg').onclick=()=>{ if(performance.now()-equipOpenAt<450) return; document.getElementById('equipWrap').classList.add('hidden'); };
 document.getElementById('bagClose').onclick=()=>document.getElementById('bagWrap').classList.add('hidden');
-function closeBag(){ document.getElementById('bagWrap').classList.add('hidden'); }
+function closeBag(){
+  try{
+    multiMode=false; multiSel.clear();
+    const mb=document.getElementById('bagMultiBtn');
+    if(mb){ mb.classList.remove('on'); mb.textContent='多选'; }
+    const bar=document.getElementById('bagMultiBar');
+    if(bar) bar.classList.add('hidden');
+  }catch(e){} document.getElementById('bagWrap').classList.add('hidden'); }
 document.getElementById('bagBg').onclick=()=>{ if(performance.now()-bagOpenAt<450) return; closeBag(); };
 document.getElementById('bagWrap').addEventListener('click', (e)=>{
   if(e.target.id!=='bagWrap' && e.target.id!=='bagBg') return;
@@ -2956,12 +2963,12 @@ function updateInteract(){
   // 掉落物优先，范围 32，且需朝向
   for(const d of drops){
     const dist=Math.hypot(player.x-d.x, player.y-d.y);
-    if(dist<32 && facingTarget(d.x,d.y) && dist<bd){ bd=dist; best={k:'drop', d}; }
+    if(dist<22 && facingTarget(d.x,d.y) && dist<bd){ bd=dist; best={k:'drop', d}; }
   }
   // NPC 其次，范围 40
   if(!best){
     const dist=Math.hypot(player.x-NPC.x, player.y-NPC.y);
-    if(dist<40 && facingTarget(NPC.x,NPC.y)) best={k:'npc', d:dist};
+    if(dist<26 && facingTarget(NPC.x,NPC.y)) best={k:'npc', d:dist};
   }
   interactTarget=best;
   nearNpc=!!best;
