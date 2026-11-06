@@ -2892,18 +2892,18 @@ function drawCharPortrait(){
   g.fillStyle='#0b1626'; g.fillRect(0,0,128,128);
   if(portImg && portImg.complete && portImg.naturalWidth>0){
     const t=performance.now()/1000;
-    const bob=Math.sin(t*1.1)*0.9;
+    const bob=Math.round(Math.sin(t*1.1)*1.0);
     g.imageSmoothingEnabled=false;
     g.save();
     g.translate(64,64+bob);
     g.drawImage(portImg,-64,-64,128,128);
     g.restore();
-    // 眨眼
+    // 眨眼（眼睑线覆盖双眼位置）
     const bt=(performance.now()/1000)%4.4;
-    if(bt>4.22 && bt<4.34){
-      g.fillStyle='rgba(40,26,18,.85)';
-      g.fillRect(42,52,20,2);
-      g.fillRect(70,52,20,2);
+    if(bt>4.18 && bt<4.32){
+      g.fillStyle='rgba(44,30,20,.92)';
+      g.fillRect(38,59+bob,17,3);
+      g.fillRect(68,59+bob,17,3);
     }
   }
 }
