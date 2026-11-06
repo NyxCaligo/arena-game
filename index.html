@@ -192,6 +192,12 @@
                 right:calc(64px + env(safe-area-inset-right, 0px)); width:44px; height:44px; padding:0;
                 display:flex; align-items:center; justify-content:center; }
   #exitBtnHud.hidden { display:none; }
+  #devBtn { position:fixed; z-index:12; left:calc(10px + env(safe-area-inset-left, 0px));
+            bottom:calc(118px + env(safe-area-inset-bottom, 0px)); width:46px; height:46px; padding:0;
+            background:linear-gradient(180deg,#7a4a12,#4a2a08); border:2px solid #2a1604; border-radius:0;
+            box-shadow:0 3px 0 #2a1604; color:#ffe0a0; font-size:20px; font-weight:bold;
+            display:flex; align-items:center; justify-content:center; }
+  #devBtn.hidden { display:none; }
   #bagBtn, #colBtn { z-index:12 !important; }
   #bagBtn, #colBtn, #menuBtn, #exitBtnHud {
     background:linear-gradient(180deg,#2b4a72,#1c3350) !important;
@@ -376,6 +382,7 @@
     <rect x="6" y="9" width="2" height="2" fill="#6b4a2e"/>
   </svg>
 </button>
+<button id="devBtn" class="hidden">D</button>
 <button id="colBtn" class="hidden">
   <svg width="24" height="24" viewBox="0 0 12 12" shape-rendering="crispEdges">
     <rect x="2" y="1" width="8" height="10" fill="#e2e8f0"/>
@@ -414,6 +421,16 @@
     <input id="redeemInput" type="text" placeholder="输入兑换码" style="width:100%; padding:10px; background:#0a1018; border:2px solid #1e293b; color:#e2e8f0; font-family:inherit; font-size:14px; text-align:center;">
     <button id="redeemOk" class="sp-full">确认</button>
     <button id="redeemCancel" class="sp-full sp-alt">取消</button>
+  </div>
+</div>
+<div id="devWrap" class="modal hidden" style="z-index:17">
+  <div class="modal-bg" id="devBg"></div>
+  <div class="modal-box" style="width:min(300px,80vw)">
+    <div class="eq-title" style="font-size:20px">开发者选项</div>
+    <div id="devItems2" style="display:flex; flex-wrap:wrap; gap:6px; width:100%"></div>
+    <button id="devAll2" class="sp-full sp-alt">全部物品各 +1</button>
+    <button id="devClear2" class="sp-full sp-alt">清空背包</button>
+    <button id="devClose" class="sp-full">关闭</button>
   </div>
 </div>
 <div id="confirmWrap" class="modal hidden" style="z-index:15; align-items:flex-start; padding-top:9vh;">
@@ -2620,16 +2637,27 @@ document.querySelectorAll('#colSub button').forEach(b=>{
 const DEV_CODE='XINGCHEN';
 let devMode=false;
 function renderDevItems(){
-  const box=document.getElementById('devItems'); if(!box) return;
-  box.innerHTML='';
-  for(const id in ITEMS){
-    const b=document.createElement('button');
-    b.className='miniBtn';
-    b.textContent=ITEMS[id].n;
-    b.onclick=()=>{ bagItems.push(id); renderBag(); saveGame(); toastMsg('获得 '+ITEMS[id].n); sfxEquip(); };
-    box.appendChild(b);
+  for(const boxId of ['devItems','devItems2']){
+    const box=document.getElementById(boxId); if(!box) continue;
+    box.innerHTML='';
+    for(const id in ITEMS){
+      const b=document.createElement('button');
+      b.className='miniBtn';
+      b.textContent=ITEMS[id].n;
+      b.onclick=()=>{ bagItems.push(id); renderBag(); saveGame(); toastMsg('获得 '+ITEMS[id].n); sfxEquip(); };
+      box.appendChild(b);
+    }
   }
 }
+document.getElementById('devBtn').onclick=()=>{
+  renderDevItems();
+  document.getElementById('devWrap').classList.remove('hidden');
+  sfxBeep(); vibrate(2);
+};
+document.getElementById('devClose').onclick=()=>document.getElementById('devWrap').classList.add('hidden');
+document.getElementById('devBg').onclick=()=>document.getElementById('devWrap').classList.add('hidden');
+document.getElementById('devAll2').onclick=()=>{ for(const id in ITEMS) bagItems.push(id); renderBag(); saveGame(); toastMsg('已加入全部物品'); };
+document.getElementById('devClear2').onclick=()=>{ bagItems=[]; renderBag(); saveGame(); toastMsg('背包已清空'); };
 function syncDevUI(){
   const l=document.getElementById('devLabel'), g=document.getElementById('devGroup');
   if(l) l.style.display = devMode?'':'none';
@@ -3363,6 +3391,8 @@ function updateHudButtons(){
   const cb=document.getElementById('colBtn');
   if(bag) bag.style.display = hide ? 'none' : 'flex';
   if(cb) cb.classList.toggle('hidden', hide);
+  const db=document.getElementById('devBtn');
+  if(db) db.classList.toggle('hidden', hide || !devMode);
 
   const ab=document.getElementById('atkBtn');
   if(ab) ab.classList.toggle('hidden', hide || equipOpen || bagOpen || talking);
