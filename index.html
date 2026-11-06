@@ -2041,6 +2041,7 @@ function applySave(s){
   if(s.p){ p.x=s.p.x; p.y=s.p.y; p.hp=s.p.hp; p.maxHp=s.p.maxHp; p.speed=s.p.speed||80; }
   if(!isFinite(p.x)||!isFinite(p.y)||solidAt(p.x,p.y)){ p.x=680; p.y=448; }
   level=s.lv||0; xp=s.xp||0; xpNeed=s.need||100;
+  if(!(xpNeed>=100)) xpNeed=100;
   if(Array.isArray(s.bag)){
     bagItems=[];
     for(const it of s.bag){
