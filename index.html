@@ -174,6 +174,9 @@
   .col-slot .qmark { font-size:22px; color:#5b6472; font-weight:bold; }
   .col-slot .cname { position:absolute; left:0; right:0; bottom:1px; font-size:9px; text-align:center;
                      color:#cbd5e1; background:rgba(11,15,26,.6); overflow:hidden; white-space:nowrap; }
+  .stack-n { position:absolute; right:2px; bottom:2px; min-width:14px; height:14px; padding:0 2px;
+             background:rgba(11,15,26,.85); border:1px solid #64748b; color:#f8fafc;
+             font-size:9px; line-height:12px; text-align:center; }
   .mcheck { position:absolute; right:2px; bottom:2px; width:16px; height:16px; background:#0b0f1a;
             border:2px solid #64748b; color:#4ade80; font-size:11px; line-height:12px;
             text-align:center; }
@@ -297,6 +300,9 @@
                           display:flex; flex-direction:column; padding:14px; }
   #craftWrap .bag-scrollwrap { flex:1 1 auto; min-height:0; }
   #craftWrap .bag-view { flex:0 0 auto; min-height:120px; }
+  .col-slot.dim { opacity:.55; }
+  .recipe-row { display:flex; justify-content:space-between; width:100%; font-size:12px;
+                padding:5px 2px; border-bottom:1px dashed #2f5a8a; color:#cfe3f8; }
   .craft-row { display:flex; align-items:center; gap:8px; padding:6px; background:#12233c;
                border:1px solid #1e3a5f; margin-bottom:6px; }
   .craft-row canvas { width:34px; height:34px; image-rendering:pixelated; flex:none; }
@@ -446,6 +452,17 @@
     <button id="redeemCancel" class="sp-full sp-alt">取消</button>
   </div>
 </div>
+<div id="recipeWrap" class="modal hidden" style="z-index:14; align-items:flex-start; padding-top:10vh;">
+  <div class="modal-bg" id="recipeBg"></div>
+  <div class="modal-box" style="width:min(280px,78vw); padding:14px">
+    <div class="panel-head">
+      <span class="pixlabel" id="recipeTitle"></span>
+      <button class="xBtn" id="recipeClose">✕</button>
+    </div>
+    <div id="recipeBody" style="width:100%"></div>
+    <button id="recipeCraft" class="sp-full">合成</button>
+  </div>
+</div>
 <div id="craftWrap" class="modal hidden" style="z-index:11; align-items:flex-start; justify-content:flex-start; padding-top:8px;">
   <div class="modal-bg" id="craftBg"></div>
   <div class="modal-box">
@@ -454,7 +471,7 @@
       <button class="xBtn" id="craftClose">✕</button>
     </div>
     <div class="bag-scrollwrap">
-      <div class="bag-view" id="craftView"><div id="craftList"></div></div>
+      <div class="bag-view" id="craftView"><div id="craftList" class="col-grid"></div></div>
       <div class="bag-track" id="craftTrack"><div class="bag-thumb" id="craftThumb"></div></div>
     </div>
   </div>
@@ -1916,6 +1933,7 @@ function collectSave(){
     lv:level, xp:xp, need:xpNeed,
     bag:bagItems.slice(),
     story:{ talked: storyTalked },
+    seen:[...seenItems],
     eq:{ weapons:EQUIP.weapons.slice(), armors:EQUIP.armors.slice(), accessories:EQUIP.accessories.slice() } };
 }
 function applySave(s){
@@ -1926,6 +1944,7 @@ function applySave(s){
   level=s.lv||0; xp=s.xp||0; xpNeed=s.need||10;
   if(Array.isArray(s.bag)) bagItems=s.bag.filter(id=>ITEMS[id]);
   if(s.story) storyTalked=!!s.story.talked;
+  if(Array.isArray(s.seen)) seenItems=new Set(s.seen.filter(id=>ITEMS[id]));
   if(s.eq){
     const fix=(arr,n)=>{ const out=new Array(n).fill(null);
       if(Array.isArray(arr)) for(let i=0;i<n;i++){ const v=arr[i]; if(v && ITEMS[v]) out[i]=v; }
@@ -2253,11 +2272,21 @@ function updateBagCap(){
 let bagFilter='all', bagSel=-1, multiMode=false, manageMode=false, multiSel=new Set();
 let bagOpsAt=0;
 function bagDisplay(){
-  const idxs=bagItems.map((_,i)=>i);
-  if(bagFilter==='all') return {idxs, hl:new Set()};
-  const match=[], rest=[];
-  for(const i of idxs){ const it=ITEMS[bagItems[i]]; (it && it.t===bagFilter ? match : rest).push(i); }
-  return {idxs:match.concat(rest), hl:new Set(match)};
+  const map=new Map();
+  bagItems.forEach((id,i)=>{
+    if(!ITEMS[id]) return;
+    if(!map.has(id)) map.set(id,{id, idx:i, count:0});
+    map.get(id).count++;
+  });
+  let arr=[...map.values()];
+  const hl=new Set();
+  if(bagFilter!=='all'){
+    const match=arr.filter(e=>ITEMS[e.id].t===bagFilter);
+    const rest=arr.filter(e=>ITEMS[e.id].t!==bagFilter);
+    match.forEach(e=>hl.add(e.id));
+    arr=match.concat(rest);
+  }
+  return {list:arr, hl};
 }
 function renderBag(){
   const g=document.getElementById('bagGrid'); if(!g) return;
@@ -2265,11 +2294,19 @@ function renderBag(){
   const dis=bagDisplay();
   for(let i=0;i<100;i++){
     const d=document.createElement('div'); d.className='eq-slot';
-    const idx=dis.idxs[i];
-    const id=idx!==undefined ? bagItems[idx] : undefined;
+    const ent=dis.list[i];
+    const id=ent ? ent.id : undefined;
+    const idx=ent ? ent.idx : -1;
+    const cnt=ent ? ent.count : 0;
     if(id!==undefined){
-      if(dis.hl.has(idx)) d.classList.add('hl');
-      if(bagSel===idx) d.classList.add('sel');
+      if(dis.hl.has(id)) d.classList.add('hl');
+      if(bagSel===id) d.classList.add('sel');
+      if(cnt>1){
+        const cb=document.createElement('span');
+        cb.className='stack-n';
+        cb.textContent=(cnt>999?'999+':cnt);
+        d.appendChild(cb);
+      }
       if(manageMode){
         const del=document.createElement('button');
         del.className='del-btn';
@@ -2290,8 +2327,8 @@ function renderBag(){
       }
       if(multiMode){
         const ck=document.createElement('span');
-        ck.className='mcheck'+(multiSel.has(idx)?' on':'');
-        ck.textContent=multiSel.has(idx)?'✓':'';
+        ck.className='mcheck'+(multiSel.has(id)?' on':'');
+        ck.textContent=multiSel.has(id)?'✓':'';
         d.appendChild(ck);
       }
       const icv=itemCanvas(id,38); icv.style.imageRendering='pixelated';
@@ -2303,11 +2340,11 @@ function renderBag(){
       bindItemSlot(d,
         ()=>{
           if(multiMode){
-            if(multiSel.has(idx)) multiSel.delete(idx); else multiSel.add(idx);
+            if(multiSel.has(id)) multiSel.delete(id); else multiSel.add(id);
             renderBag(); sfxBeep();
             return;
           }
-          bagSel=idx;
+          bagSel=id;
           document.querySelectorAll('#bagGrid .eq-slot.sel').forEach(x=>x.classList.remove('sel'));
           d.classList.add('sel');
           showItemMenu(id, [
@@ -2708,37 +2745,75 @@ function bindCraftScroll(){
     if(e.cancelable) e.preventDefault(); },{passive:false});
 }
 function matCount(id){ return bagItems.filter(x=>x===id).length; }
-function renderCrafting(){
-  const list=document.getElementById('craftList'); if(!list) return;
-  list.innerHTML='';
-  for(const r of RECIPES){
-    const it=ITEMS[r.out];
-    const row=document.createElement('div'); row.className='craft-row';
-    const ic=itemCanvas(r.out, 34); row.appendChild(ic);
-    const info=document.createElement('div');
-    const nm=document.createElement('div'); nm.className='craft-name'; nm.textContent=it.n;
-    const need=document.createElement('div'); need.className='craft-need';
-    const matName=Object.keys(r.need).map(k=>ITEMS[k].n+' ×'+r.need[k]).join('  ');
-    need.textContent=matName;
-    info.appendChild(nm); info.appendChild(need);
-    row.appendChild(info);
-    const btn=document.createElement('button'); btn.className='craft-btn';
-    const can=Object.keys(r.need).every(k=>matCount(k)>=r.need[k]);
-    btn.textContent='合成';
-    btn.disabled=!can;
-    btn.onclick=(e)=>{
-      e.stopPropagation();
-      if(!can){ toastMsg('材料不足'); return; }
-      for(const k in r.need){ for(let n=0;n<r.need[k];n++){ const i2=bagItems.indexOf(k); if(i2>=0) bagItems.splice(i2,1); } }
-      bagItems.push(r.out);
-      sfxEquip(); vibrate(3);
-      toastMsg('合成成功：'+it.n);
-      renderCrafting(); renderBag(); saveGame();
-      setTimeout(updateCraftScroll, 0);
-    };
-    row.appendChild(btn);
-    list.appendChild(row);
+let seenItems=new Set();
+function markSeen(id){ if(ITEMS[id]) seenItems.add(id); }
+function recipeUnlocked(r){
+  return Object.keys(r.need).every(k=>seenItems.has(k));
+}
+let recipeCur=null, recipeAnchor=null;
+function openRecipe(r, anchor){
+  recipeCur=r; recipeAnchor=anchor;
+  const it=ITEMS[r.out];
+  document.getElementById('recipeTitle').textContent=it.n;
+  const body=document.getElementById('recipeBody');
+  body.innerHTML='';
+  const ic=itemCanvas(r.out,44); ic.style.cssText='width:44px;height:44px;image-rendering:pixelated;margin:0 auto';
+  body.appendChild(ic);
+  const d=document.createElement('div');
+  d.style.cssText='font-size:11px;color:#8fb3d9;text-align:center;margin:6px 0';
+  d.textContent=it.desc||'';
+  body.appendChild(d);
+  for(const k in r.need){
+    const have=matCount(k), need=r.need[k];
+    const row=document.createElement('div');
+    row.className='recipe-row';
+    row.innerHTML='<span>'+ITEMS[k].n+' ×'+need+'</span><b style="color:'+(have>=need?'#4ade80':'#f87171')+'">拥有 '+have+'</b>';
+    body.appendChild(row);
   }
+  const can=Object.keys(r.need).every(k=>matCount(k)>=r.need[k]);
+  const btn=document.getElementById('recipeCraft');
+  btn.disabled=!can;
+  btn.style.opacity=can?'1':'0.45';
+  document.getElementById('recipeWrap').classList.remove('hidden');
+}
+function closeRecipe(){ document.getElementById('recipeWrap').classList.add('hidden'); recipeCur=null; }
+document.getElementById('recipeClose').onclick=closeRecipe;
+document.getElementById('recipeBg').onclick=closeRecipe;
+document.getElementById('recipeCraft').onclick=(e)=>{
+  e.stopPropagation();
+  if(!recipeCur) return;
+  const r=recipeCur;
+  if(!Object.keys(r.need).every(k=>matCount(k)>=r.need[k])){ toastMsg('材料不足'); return; }
+  for(const k in r.need){ for(let n=0;n<r.need[k];n++){ const i2=bagItems.indexOf(k); if(i2>=0) bagItems.splice(i2,1); } }
+  bagItems.push(r.out); markSeen(r.out);
+  sfxEquip(); vibrate(3);
+  toastMsg('合成成功：'+ITEMS[r.out].n);
+  closeRecipe();
+  renderCrafting(); renderBag(); saveGame();
+};
+function renderCrafting(){
+  const g=document.getElementById('craftList'); if(!g) return;
+  g.innerHTML='';
+  for(const r of RECIPES){
+    const unlocked=recipeUnlocked(r);
+    const d=document.createElement('div'); d.className='col-slot'+(unlocked?'':' lock');
+    if(unlocked){
+      const cv=itemCanvas(r.out,34);
+      cv.style.cssText='width:34px;height:34px;image-rendering:pixelated;';
+      d.appendChild(cv);
+      const nm=document.createElement('span'); nm.className='cname'; nm.textContent=ITEMS[r.out].n;
+      d.appendChild(nm);
+      const can=Object.keys(r.need).every(k=>matCount(k)>=r.need[k]);
+      if(!can) d.classList.add('dim');
+      bindItemSlot(d, ()=>openRecipe(r,d), ()=>openRecipe(r,d));
+    } else {
+      const q=document.createElement('span'); q.className='qmark'; q.textContent='?';
+      d.appendChild(q);
+      bindItemSlot(d, ()=>{ toastMsg('还没有解锁这个配方'); }, ()=>{ toastMsg('还没有解锁这个配方'); });
+    }
+    g.appendChild(d);
+  }
+  fitSlots(g, '.col-slot', 6, 62);
   setTimeout(updateCraftScroll, 0);
 }
 function openCraft(){
@@ -2807,7 +2882,7 @@ function renderDevItems(){
       const b=document.createElement('button');
       b.className='miniBtn';
       b.textContent=ITEMS[id].n;
-      b.onclick=()=>{ bagItems.push(id); renderBag(); saveGame(); toastMsg('获得 '+ITEMS[id].n); sfxEquip(); };
+      b.onclick=()=>{ bagItems.push(id); markSeen(id); renderBag(); saveGame(); toastMsg('获得 '+ITEMS[id].n); sfxEquip(); };
       box.appendChild(b);
     }
   }
@@ -2819,7 +2894,7 @@ document.getElementById('devBtn').onclick=()=>{
 };
 document.getElementById('devClose').onclick=()=>document.getElementById('devWrap').classList.add('hidden');
 document.getElementById('devBg').onclick=()=>document.getElementById('devWrap').classList.add('hidden');
-document.getElementById('devAll2').onclick=()=>{ for(const id in ITEMS) bagItems.push(id); renderBag(); saveGame(); toastMsg('已加入全部物品'); };
+document.getElementById('devAll2').onclick=()=>{ for(const id in ITEMS){ bagItems.push(id); markSeen(id); } renderBag(); saveGame(); toastMsg('已加入全部物品'); };
 document.getElementById('devClear2').onclick=()=>{ bagItems=[]; renderBag(); saveGame(); toastMsg('背包已清空'); };
 function syncDevUI(){
   const l=document.getElementById('devLabel'), g=document.getElementById('devGroup');
@@ -3005,9 +3080,8 @@ function bindMulti(){
   const del=document.getElementById('bagDelSel');
   if(del) del.onclick=()=>{
     if(!multiSel.size){ toastMsg('没有选中物品'); return; }
-    askConfirm('删除选中的 '+multiSel.size+' 件物品？', ()=>{
-      const idxs=[...multiSel].sort((a,b)=>b-a);
-      for(const i of idxs) bagItems.splice(i,1);
+    askConfirm('删除选中的 '+multiSel.size+' 种物品？', ()=>{
+      bagItems=bagItems.filter(x=>!multiSel.has(x));
       multiSel.clear(); renderBag(); saveGame();
       toastMsg('已删除');
     }, '删除', '取消');
@@ -3015,12 +3089,11 @@ function bindMulti(){
   const drop=document.getElementById('bagDropSel');
   if(drop) drop.onclick=()=>{
     if(!multiSel.size){ toastMsg('没有选中物品'); return; }
-    const idxs=[...multiSel].sort((a,b)=>b-a);
-    for(const i of idxs){
-      const id=bagItems[i];
-      if(id) drops.push({ id, x:player.x+(Math.random()*30-15), y:player.y+12 });
-      bagItems.splice(i,1);
+    for(const id of [...multiSel]){
+      const n=bagItems.filter(x=>x===id).length;
+      for(let k=0;k<n;k++) drops.push({ id, x:player.x+(Math.random()*30-15), y:player.y+12 });
     }
+    bagItems=bagItems.filter(x=>!multiSel.has(x));
     multiSel.clear(); renderBag(); saveGame();
     toastMsg('已丢弃到地上');
   };
@@ -3431,7 +3504,11 @@ function showNode(key){
     if(dlgPos>=dlgFull.length){
       clearInterval(dlgTimer);
       dlgDone=true;
-      if(n.give && !dlgGiven[n.give]){ dlgGiven[n.give]=true; spawnDrop(n.give); }
+      if(n.give && !dlgGiven[n.give]){
+        dlgGiven[n.give]=true; spawnDrop(n.give);
+        for(let i=0;i<20;i++) bagItems.push('wood');
+        markSeen('wood'); toastMsg('获得 木头 ×20');
+      }
       showChoices(n);
     }
   }, 40);
@@ -3502,7 +3579,7 @@ function spawnDrop(id){
 }
 function pickupDrop(d){
   drops=drops.filter(x=>x!==d);
-  bagItems.push(d.id);
+  bagItems.push(d.id); markSeen(d.id);
   sfxEquip(); vibrate(3);
   toastMsg('获得 '+ITEMS[d.id].n);
   updateInteract();
