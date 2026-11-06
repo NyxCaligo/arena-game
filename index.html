@@ -945,6 +945,9 @@ function nextXpNeed(cur){ return Math.max(1, Math.round((cur||100)*1.07)); }
 function resetGame(){
   player = { x:680, y:448, hp:100, maxHp:100, r:6, speed:120, face:1 };
   level=0; xp=0; xpNeed=100; walkPhase=0; lastStep=-1;
+  EQUIP.weapons=['woodsword',null,null];
+  EQUIP.armors=['woodhelm','woodchest','woodlegs'];
+  try{ ['woodsword','woodhelm','woodchest','woodlegs'].forEach(markSeen); }catch(e){}
 
   camX=Math.max(0,Math.min(WORLD_W-VW, player.x-VW/2));
   camY=Math.max(0,Math.min(WORLD_H-VH, player.y-VH/2));
