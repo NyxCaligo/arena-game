@@ -129,8 +129,10 @@
   .col-tabs button { flex:1; padding:8px 0; font-size:13px; background:#4b5462; color:#cbd5e1;
                      border:2px solid #0b0f1a; border-radius:0; box-shadow:none; }
   .col-tabs button.on { background:#f5c542; color:#3b2a1c; border-color:#8a6a1a; }
-  .col-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:6px; width:100%; }
-  .col-slot { width:100%; aspect-ratio:1/1; background:#4b5462; border:2px solid #0b0f1a;
+  #colWrap .modal-bg { background:transparent; }
+  #colWrap .modal-box { width:min(320px,54vw); margin-left:30px; max-height:90vh; overflow:visible; }
+  .col-grid { display:flex; flex-wrap:wrap; gap:6px; width:100%; align-content:flex-start; }
+  .col-slot { width:62px; height:62px; flex:0 0 62px; background:#4b5462; border:2px solid #0b0f1a;
               display:flex; flex-direction:column; align-items:center; justify-content:center;
               gap:2px; position:relative; }
   .col-slot.lock { background:#2b3444; border-color:#1a2230; }
@@ -329,7 +331,7 @@
     <rect x="5" y="7" width="3" height="1" fill="#4b5462"/>
   </svg>
 </button>
-<div id="colWrap" class="modal hidden" style="z-index:13">
+<div id="colWrap" class="modal hidden" style="z-index:13; align-items:center; justify-content:flex-start;">
   <div class="modal-bg" id="colBg"></div>
   <div class="modal-box">
     <div class="panel-head">
@@ -345,7 +347,10 @@
       <button data-s="armor">防具</button>
       <button data-s="acc">饰品</button>
     </div>
-    <div class="col-grid" id="colGrid" style="margin-top:8px"></div>
+    <div class="bag-scrollwrap" style="margin-top:8px">
+      <div class="bag-view" id="colView" style="height:300px"><div class="col-grid" id="colGrid"></div></div>
+      <div class="bag-track" id="colTrack"><div class="bag-thumb" id="colThumb"></div></div>
+    </div>
   </div>
 </div>
 <div id="redeemWrap" class="modal hidden" style="z-index:16">
@@ -2323,8 +2328,8 @@ function renderCollection(){
     const d=document.createElement('div'); d.className='col-slot';
     const unlocked = e.id ? itemUnlocked(e.id) : false;
     if(unlocked){
-      const cv=itemCanvas(e.id, 40);
-      cv.style.cssText='width:40px;height:40px;image-rendering:pixelated;';
+      const cv=itemCanvas(e.id, 34);
+      cv.style.cssText='width:34px;height:34px;image-rendering:pixelated;';
       d.appendChild(cv);
       const nm=document.createElement('span'); nm.className='cname';
       nm.textContent=ITEMS[e.id].n;
@@ -2340,8 +2345,47 @@ function renderCollection(){
     g.appendChild(d);
   }
 }
+let colScroller=null;
+function makeScroller(viewId, trackId, thumbId){
+  const v=document.getElementById(viewId), tr=document.getElementById(trackId), th=document.getElementById(thumbId);
+  if(!v||!tr||!th) return null;
+  const upd=()=>{
+    const vh=v.clientHeight, sh=v.scrollHeight, mx=sh-vh;
+    if(mx<=2){ tr.style.display='none'; return; }
+    tr.style.display='block';
+    const t=tr.clientHeight||vh;
+    const h=Math.max(16, Math.min(t-8, Math.round(t*vh/sh)));
+    const travel=Math.max(1, t-h-3);
+    th.style.height=h+'px';
+    th.style.top=Math.max(0,Math.min(travel,Math.round(travel*(v.scrollTop/mx))))+'px';
+  };
+  const set=(y)=>{ const mx=Math.max(0, v.scrollHeight-v.clientHeight); v.scrollTop=Math.max(0,Math.min(mx,y)); upd(); };
+  v.addEventListener('scroll', upd, {passive:true});
+  let dv=null, dt=null;
+  v.addEventListener('touchstart',(e)=>{ dv={y:e.touches[0].clientY, s:v.scrollTop}; },{passive:true});
+  v.addEventListener('touchmove',(e)=>{ if(!dv) return; const dy=e.touches[0].clientY-dv.y; if(Math.abs(dy)>2){ set(dv.s-dy); if(e.cancelable) e.preventDefault(); } },{passive:false});
+  v.addEventListener('touchend',()=>{dv=null;});
+  v.addEventListener('touchcancel',()=>{dv=null;});
+  th.addEventListener('touchstart',(e)=>{ e.stopPropagation(); dv=null;
+    const t=tr.clientHeight||1, mx=Math.max(0,v.scrollHeight-v.clientHeight);
+    dt={y:e.touches[0].clientY, s:v.scrollTop, k:mx/Math.max(1,t-th.offsetHeight)};
+    if(e.cancelable) e.preventDefault();
+  },{passive:false});
+  th.addEventListener('touchmove',(e)=>{ if(!dt) return; e.stopPropagation();
+    set(dt.s+(e.touches[0].clientY-dt.y)*dt.k);
+    if(e.cancelable) e.preventDefault();
+  },{passive:false});
+  th.addEventListener('touchend',()=>{dt=null;});
+  th.addEventListener('touchcancel',()=>{dt=null;});
+  return {upd,set};
+}
 function openCollection(){
   document.getElementById('colWrap').classList.remove('hidden');
+  const cvh=Math.max(200, Math.min(420, Math.round(window.innerHeight*0.5)));
+  const cvEl=document.getElementById('colView');
+  if(cvEl) cvEl.style.height=cvh+'px';
+  if(!colScroller) colScroller=makeScroller('colView','colTrack','colThumb');
+  setTimeout(()=>{ if(colScroller) colScroller.upd(); }, 30);
   document.querySelectorAll('#colTop button').forEach(b=>b.classList.toggle('on', b.dataset.t===colTab));
   document.querySelectorAll('#colSub button').forEach(b=>b.classList.toggle('on', b.dataset.s===colSub));
   renderCollection();
@@ -2351,10 +2395,10 @@ document.getElementById('colBtn').onclick=()=>{ sfxBeep(); vibrate(2); openColle
 document.getElementById('colClose').onclick=()=>{ document.getElementById('colWrap').classList.add('hidden'); updateHudButtons(); };
 document.getElementById('colBg').onclick=()=>{ document.getElementById('colWrap').classList.add('hidden'); updateHudButtons(); };
 document.querySelectorAll('#colTop button').forEach(b=>{
-  b.onclick=()=>{ colTab=b.dataset.t; document.querySelectorAll('#colTop button').forEach(x=>x.classList.toggle('on',x===b)); renderCollection(); };
+  b.onclick=()=>{ colTab=b.dataset.t; document.querySelectorAll('#colTop button').forEach(x=>x.classList.toggle('on',x===b)); renderCollection(); setTimeout(()=>{ if(colScroller) colScroller.upd(); },0); };
 });
 document.querySelectorAll('#colSub button').forEach(b=>{
-  b.onclick=()=>{ colSub=b.dataset.s; document.querySelectorAll('#colSub button').forEach(x=>x.classList.toggle('on',x===b)); renderCollection(); };
+  b.onclick=()=>{ colSub=b.dataset.s; document.querySelectorAll('#colSub button').forEach(x=>x.classList.toggle('on',x===b)); renderCollection(); setTimeout(()=>{ if(colScroller) colScroller.upd(); },0); };
 });
 
 const DEV_CODE='XINGCHEN';
