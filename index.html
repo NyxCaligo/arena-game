@@ -161,7 +161,7 @@
                         border-color:#2f5a8a;
                         box-shadow:0 0 0 2px #0b2545, 0 0 22px rgba(37,99,235,.4); }
   #colWrap .bag-scrollwrap { flex:1 1 auto; min-height:0; }
-  #colWrap .bag-view { flex:1 1 auto; min-height:110px; max-height:46vh; height:auto !important; }
+  #colWrap .bag-view { flex:0 0 auto; min-height:96px; }
   .col-grid { display:flex; flex-wrap:wrap; gap:6px; width:100%; align-content:flex-start; }
   .col-slot { width:62px; height:62px; flex:0 0 62px; background:#4b5462; border:2px solid #0b0f1a;
               display:flex; flex-direction:column; align-items:center; justify-content:center;
@@ -2553,23 +2553,31 @@ function makeScroller(viewId, trackId, thumbId){
   },{passive:false});
   return {upd,set};
 }
+function fitCollection(){
+  const box=document.querySelector('#colWrap .modal-box');
+  const view=document.getElementById('colView');
+  if(!box||!view) return;
+  box.style.maxHeight='none';
+  view.style.maxHeight='none';
+  view.style.height='auto';
+  void box.offsetHeight;
+  const avail=Math.round(viewSize().H*0.86);
+  const chrome=Math.max(0, box.offsetHeight - view.offsetHeight);
+  const h=Math.max(96, avail - chrome - 4);
+  view.style.height=h+'px';
+  view.style.maxHeight=h+'px';
+  box.style.maxHeight=(h + chrome + 2)+'px';
+  updateColScroll();
+}
 function openCollection(){
   document.getElementById('colWrap').classList.remove('hidden');
-  const vs=viewSize();
-  const box=document.querySelector('#colWrap .modal-box');
-  const maxH=Math.round(vs.H*0.88);
-  if(box) box.style.maxHeight=maxH+'px';
-  const cvEl=document.getElementById('colView');
-  if(cvEl){
-    cvEl.style.height='';
-    cvEl.style.maxHeight=Math.max(110, Math.min(Math.round(vs.H*0.42), maxH-150))+'px';
-  }
   bindColScroll();
   setTimeout(updateColScroll, 20);
   setTimeout(updateColScroll, 120);
   document.querySelectorAll('#colTop button').forEach(b=>b.classList.toggle('on', b.dataset.t===colTab));
   document.querySelectorAll('#colSub button').forEach(b=>b.classList.toggle('on', b.dataset.s===colSub));
   renderCollection();
+  fitCollection();
   updateHudButtons();
 }
 document.getElementById('colBtn').onclick=()=>{
@@ -2585,10 +2593,10 @@ document.getElementById('colBtn').onclick=()=>{
 document.getElementById('colClose').onclick=()=>{ document.getElementById('colWrap').classList.add('hidden'); updateHudButtons(); };
 document.getElementById('colBg').onclick=()=>{ document.getElementById('colWrap').classList.add('hidden'); updateHudButtons(); };
 document.querySelectorAll('#colTop button').forEach(b=>{
-  b.onclick=()=>{ colTab=b.dataset.t; document.querySelectorAll('#colTop button').forEach(x=>x.classList.toggle('on',x===b)); renderCollection(); colSet(0); setTimeout(updateColScroll,40); };
+  b.onclick=()=>{ colTab=b.dataset.t; document.querySelectorAll('#colTop button').forEach(x=>x.classList.toggle('on',x===b)); renderCollection(); fitCollection(); colSet(0); };
 });
 document.querySelectorAll('#colSub button').forEach(b=>{
-  b.onclick=()=>{ colSub=b.dataset.s; document.querySelectorAll('#colSub button').forEach(x=>x.classList.toggle('on',x===b)); renderCollection(); colSet(0); setTimeout(updateColScroll,40); };
+  b.onclick=()=>{ colSub=b.dataset.s; document.querySelectorAll('#colSub button').forEach(x=>x.classList.toggle('on',x===b)); renderCollection(); fitCollection(); colSet(0); };
 });
 
 const DEV_CODE='XINGCHEN';
