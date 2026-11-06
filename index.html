@@ -1039,6 +1039,7 @@ function update(dt){
     lastStep = -1;
   }
   if(attacking>0) attacking=Math.max(0,attacking-dt);
+  if(player.maxMp) player.mp = Math.min(player.maxMp, (player.mp||0) + dt*0.25);
   if(solidAt(player.x,player.y)){
     let freed=false;
     for(const d of [[0,-4],[0,4],[-4,0],[4,0],[-4,-4],[4,-4],[-4,4],[4,4],[0,-8],[0,8],[-8,0],[8,0]]){
@@ -1544,11 +1545,18 @@ function drawHero(){
 
 function drawHUD(){
   drawIcon(IC.heart, 4, 4, '#f43f5e');
-  drawBar(11, 5, 64, 7, player.hp/player.maxHp, '#fb7185');
-  drawText(String(Math.max(0,Math.ceil(player.hp))), 11, 14, '#f8fafc');
-  drawText('LV', 4, 23, '#a5b4fc');
-  drawText(String(level), 13, 23, '#f8fafc');
-  drawBar(26, 24, 49, 4, xp/xpNeed, '#38bdf8');
+  drawBar(11, 4, 64, 7, player.hp/player.maxHp, '#fb7185');
+  drawText(String(Math.max(0,Math.ceil(player.hp))), 11, 13, '#f8fafc');
+  px(5, 14, 1, 1, '#60a5fa');
+  px(4, 15, 3, 1, '#60a5fa');
+  px(3, 16, 5, 2, '#3b82f6');
+  px(4, 18, 3, 2, '#3b82f6');
+  px(4, 20, 2, 1, '#2563eb');
+  drawBar(11, 16, 64, 7, (player.mp||0)/(player.maxMp||1), '#3b82f6');
+  drawText(String(Math.floor(player.mp||0)), 78, 17, '#bfdbfe');
+  drawText('LV', 4, 27, '#a5b4fc');
+  drawText(String(level), 13, 27, '#f8fafc');
+  drawBar(26, 28, 49, 4, xp/xpNeed, '#38bdf8');
 }
 
 function drawJoystick(){
@@ -2028,7 +2036,7 @@ let hasSave=false;
 
 function collectSave(){
   return { sig:SAVE_SIG, ver:SAVE_VER, at:Date.now(),
-    p:{ x:player.x, y:player.y, hp:player.hp, maxHp:player.maxHp, speed:player.speed },
+    p:{ x:player.x, y:player.y, hp:player.hp, maxHp:player.maxHp, mp:player.mp, maxMp:player.maxMp, speed:120 },
     lv:level, xp:xp, need:xpNeed,
     bag:bagItems.map(e=>[e.id,e.n]),
     story:{ talked: storyTalked },
@@ -2038,7 +2046,9 @@ function collectSave(){
 function applySave(s){
   if(!s || s.sig!==SAVE_SIG) return false;
   const p=player;
-  if(s.p){ p.x=s.p.x; p.y=s.p.y; p.hp=s.p.hp; p.maxHp=s.p.maxHp; p.speed=s.p.speed||80; }
+  if(s.p){ p.x=s.p.x; p.y=s.p.y; p.hp=s.p.hp; p.maxHp=s.p.maxHp;
+           p.mp=(s.p.mp!=null?s.p.mp:(p.maxMp||30)); p.maxMp=(s.p.maxMp||30); }
+  p.speed=120;
   if(!isFinite(p.x)||!isFinite(p.y)||solidAt(p.x,p.y)){ p.x=680; p.y=448; }
   level=s.lv||0; xp=s.xp||0; xpNeed=s.need||100;
   if(!(xpNeed>=100)) xpNeed=100;
@@ -2844,6 +2854,8 @@ function renderChar(){
     ['等级', 'Lv '+level],
     ['经验', xp+' / '+xpNeed+'（还需 '+(xpNeed-xp>0?xpNeed-xp:0)+' 点升级）'],
     ['移动速度', String(Math.round(player.speed))],
+    ['法力值', Math.floor(player.mp||0)+' / '+(player.maxMp||30)],
+    ['回蓝速度', '0.25 / 秒（每 4 秒 1 点）'],
     ['护甲值', sb.armor+(sb.bonus?' + '+sb.bonus+'（套装）':'')+' = '+sb.total],
   ];
   for(const [k,v] of rows){
@@ -2875,9 +2887,18 @@ function setQuad(open){
   }
 }
 document.getElementById('quadBtn').onclick=()=>{
+  const wasOpen=quadOpen;
   setQuad(!quadOpen);
   sfxBeep(); vibrate(2);
-  if(quadOpen && typeof updateHudButtons==='function') updateHudButtons();
+  if(wasOpen){
+    try{
+      closeBag();
+      document.getElementById('craftWrap').classList.add('hidden');
+      document.getElementById('colWrap').classList.add('hidden');
+      closeChar();
+    }catch(e){}
+  }
+  if(typeof updateHudButtons==='function') updateHudButtons();
 };
 document.querySelectorAll('#quadItems button').forEach(b=>{
   b.onclick=(e)=>{
