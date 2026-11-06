@@ -174,6 +174,8 @@
   .col-slot .qmark { font-size:22px; color:#5b6472; font-weight:bold; }
   .col-slot .cname { position:absolute; left:0; right:0; bottom:1px; font-size:9px; text-align:center;
                      color:#cbd5e1; background:rgba(11,15,26,.6); overflow:hidden; white-space:nowrap; }
+  .eq-tag { position:absolute; left:0; right:0; top:0; font-size:8px; text-align:center;
+            color:#052e16; background:#f5c542; line-height:11px; }
   .stack-n { position:absolute; right:2px; bottom:2px; min-width:14px; height:14px; padding:0 2px;
              background:rgba(11,15,26,.85); border:1px solid #64748b; color:#f8fafc;
              font-size:9px; line-height:12px; text-align:center; }
@@ -1565,12 +1567,15 @@ function chunkAlive(ch){
     return d[3] > 0;
   }catch(e){ return true; }
 }
+let chunkCheckIdx=0;
 function validateChunks(cx0,cx1,cy0,cy1){
-  for(let cy=cy0; cy<=cy1; cy++) for(let cx=cx0; cx<=cx1; cx++){
-    const key=cx*1000+cy;
-    const ch=chunkCache.get(key);
-    if(ch && !chunkAlive(ch)) chunkCache.delete(key);
-  }
+  const keys=[];
+  for(let cy=cy0; cy<=cy1; cy++) for(let cx=cx0; cx<=cx1; cx++) keys.push(cx*1000+cy);
+  if(!keys.length) return;
+  chunkCheckIdx=(chunkCheckIdx+1)%keys.length;
+  const key=keys[chunkCheckIdx];
+  const ch=chunkCache.get(key);
+  if(ch && !chunkAlive(ch)) chunkCache.delete(key);
 }
 function buildChunk(cx,cy){
   const key=cx*1000+cy;
@@ -1607,7 +1612,7 @@ function render(){
     const cx0=Math.floor(camX/CHUNK), cx1=Math.floor((camX+VW-0.01)/CHUNK);
     const cy0=Math.floor(camY/CHUNK), cy1=Math.floor((camY+VH-0.01)/CHUNK);
     chunkCheckTick++;
-    if(chunkCheckTick%45===0) validateChunks(cx0,cx1,cy0,cy1);
+    if(chunkCheckTick%420===0) validateChunks(cx0,cx1,cy0,cy1);
     for(let cy=cy0; cy<=cy1; cy++) for(let cx=cx0; cx<=cx1; cx++){
       const ch=buildChunk(cx,cy);
       if(ch){
@@ -2197,9 +2202,9 @@ const ITEMS={
   woodsword:{n:'木剑', t:'weapon', ic:'woodsword', sub:'近战武器',
              desc:'基础的武器。', dmg:5, rate:1.8, crit:4, critMult:CRIT_MULT},
   wood:{n:'木头', t:'mat', ic:'wood', desc:'最基础的材料。'},
-  woodhelm:{n:'木头盔', t:'armor', ic:'helm', sub:'防具', desc:'基础的防具。', armor:1, set:'wood'},
-  woodchest:{n:'木胸甲', t:'armor', ic:'chest', sub:'防具', desc:'基础的防具。', armor:1, set:'wood'},
-  woodlegs:{n:'木护膝', t:'armor', ic:'greaves', sub:'防具', desc:'基础的防具。', armor:1, set:'wood'}
+  woodhelm:{n:'木头盔', t:'armor', ic:'helm', sub:'防具', slot:'helm', desc:'基础的防具。', armor:1, set:'wood'},
+  woodchest:{n:'木胸甲', t:'armor', ic:'chest', sub:'防具', slot:'chest', desc:'基础的防具。', armor:1, set:'wood'},
+  woodlegs:{n:'木护膝', t:'armor', ic:'greaves', sub:'防具', slot:'legs', desc:'基础的防具。', armor:1, set:'wood'}
 };
 const SETS={ wood:{n:'木制套装', parts:3, bonus:2} };
 const RECIPES=[
@@ -2283,11 +2288,25 @@ function removeItem(id,n){
   return true;
 }
 function matCount(id){ return bagItems.filter(e=>e.id===id).reduce((a,e)=>a+e.n,0); }
+const ARMOR_SLOTS=['helm','chest','legs'];
+function isEquipped(id){
+  return EQUIP.weapons.includes(id)||EQUIP.armors.includes(id)||EQUIP.accessories.includes(id);
+}
 function equipItem(id){
   const it=ITEMS[id]; if(!it) return false;
-  const t=it.t, arr=equipArr(t);
+  if(isEquipped(id)){ toastMsg('已经装备了'); return false; }
+  if(it.t==='armor'){
+    const idx=ARMOR_SLOTS.indexOf(it.slot);
+    if(idx<0){ toastMsg('该防具没有可用的装备位'); return false; }
+    const cur=EQUIP.armors[idx];
+    if(cur && ITEMS[cur]) addItem(cur,1);
+    EQUIP.armors[idx]=id;
+    removeItem(id,1);
+    return true;
+  }
+  const arr=equipArr(it.t);
   const i=arr.indexOf(null);
-  if(i<0) return false;
+  if(i<0){ toastMsg('装备位已满'); return false; }
   arr[i]=id;
   removeItem(id,1);
   return true;
@@ -2349,6 +2368,11 @@ function renderBag(){
     if(id!==undefined){
       if(dis.hl.has(ent)) d.classList.add('hl');
       if(bagSel===ent) d.classList.add('sel');
+      if(isEquipped(id)){
+        const tg=document.createElement('span');
+        tg.className='eq-tag'; tg.textContent='已装备';
+        d.appendChild(tg);
+      }
       if(cnt>1){
         const cb=document.createElement('span');
         cb.className='stack-n';
