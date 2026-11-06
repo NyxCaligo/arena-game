@@ -293,17 +293,7 @@
 <body>
 <canvas id="cv"></canvas>
 <button id="menuBtn">⚙</button>
-<button id="exitBtnHud">
-  <svg width="22" height="22" viewBox="0 0 10 10" shape-rendering="crispEdges">
-    <rect x="5" y="1" width="1" height="4" fill="#dbeafe"/>
-    <rect x="3" y="2" width="1" height="1" fill="#dbeafe"/>
-    <rect x="7" y="2" width="1" height="1" fill="#dbeafe"/>
-    <rect x="2" y="3" width="1" height="3" fill="#dbeafe"/>
-    <rect x="8" y="3" width="1" height="3" fill="#dbeafe"/>
-    <rect x="3" y="6" width="5" height="1" fill="#dbeafe"/>
-    <rect x="4" y="7" width="3" height="1" fill="#dbeafe"/>
-  </svg>
-</button>
+
 <div id="menuWrap" class="hidden">
   <div class="modal-bg" id="menuWrapBg"></div>
   <div class="menu-box">
@@ -331,6 +321,12 @@
         <rect x="2" y="1" width="1" height="6" fill="#e2e8f0"/>
         <rect x="5" y="1" width="1" height="6" fill="#e2e8f0"/>
       </svg><span>暂停</span>
+    </button>
+    <button class="menu-sq" id="exitBtn">
+      <svg width="26" height="26" viewBox="0 0 8 8" shape-rendering="crispEdges">
+        <rect x="4" y="1" width="1" height="6" fill="#e2e8f0"/>
+        <rect x="1" y="3" width="3" height="2" fill="#e2e8f0"/>
+      </svg><span>退出</span>
     </button>
   </div>
 </div>
@@ -554,6 +550,7 @@
   <div class="deco"></div>
   <button id="startBtn">开始游戏</button>
   <button id="titleLoadBtn" style="background:#4b5462;color:#e2e8f0;border-color:#0b0f1a;box-shadow:0 3px 0 #0b0f1a;font-size:14px;padding:9px 20px">导入存档 / 存档码</button>
+  <button id="titleExitBtn" style="background:linear-gradient(180deg,#2b4a72,#1c3350);color:#dbeafe;border-color:#0b2545;box-shadow:0 3px 0 #0b2545;font-size:13px;padding:8px 18px">退出游戏</button>
   <div id="menuNotice">⚠ 清除浏览器缓存会导致存档丢失，建议在「设置 → 存档」里导出备份或保存存档码</div>
 </div>
 <div id="subtitle" class="ov hidden">
@@ -781,7 +778,7 @@ cv.addEventListener('touchstart', e=>{
   if(anyModalOpen()) return;
   const t=e.touches[0]; const [vx,vy]=toV(t.clientX,t.clientY);
   const L=equipLayout(), H=L.hudBox;
-  if(vx>=L.swx&&vx<=L.swx+L.swordS&&vy>=L.swy&&vy<=L.swy+L.swordS){ openEquip(); return; }
+  if(vx>=L.swx&&vx<=L.swx+L.swordW&&vy>=L.swy&&vy<=L.swy+L.swordH){ openEquip(); return; }
   if(equipHudOn){
     const El=equipLayout();
     for(let i=0;i<3;i++){
@@ -805,7 +802,7 @@ cv.addEventListener('touchcancel', ()=>{ joy.active=false; joy.dx=joy.dy=0; }, {
 cv.addEventListener('mousedown', e=>{
   if(state!=='city')return; const [vx,vy]=toV(e.clientX,e.clientY);
   const L=equipLayout(), H=L.hudBox;
-  if(vx>=L.swx&&vx<=L.swx+L.swordS&&vy>=L.swy&&vy<=L.swy+L.swordS){ openEquip(); return; }
+  if(vx>=L.swx&&vx<=L.swx+L.swordW&&vy>=L.swy&&vy<=L.swy+L.swordH){ openEquip(); return; }
   if(equipHudOn && vx>=H.x0&&vx<=H.x1&&vy>=H.y0&&vy<=H.y1){ openEquip(); return; }
   if(vx<VW*0.5 && vy>VH*0.5){ joy.active=true; joyMove(vx,vy); vibrate(1); }
 });
@@ -1925,22 +1922,22 @@ document.getElementById('saveClear').onclick=()=>{
 const EQUIP={weapons:[null,null,null], armors:[null,null,null], accessories:[null,null,null,null,null,null]};
 
 function equipLayout(){
-  const pad=3, labelH=7, gap=6, swordS=18;
+  const pad=3, labelH=7, gap=6, swordW=30, swordH=18;
   const WS=22, Wgap=4, weaponW=3*WS+2*Wgap;
   const GW=weaponW+pad*2, GH=labelH+WS+pad*2;
   const AS=12, Agap=3, armorW=3*AS+2*Agap;
   const GA=armorW+pad*2, GAH=labelH+AS+pad*2;
   const SS=10, Sgap=2, accW=3*SS+2*Sgap, accH=2*SS+Sgap;
   const GS=accW+pad*2, GSH=labelH+accH+pad*2;
-  const totalW=GA+gap+GW+gap+GS+gap+swordS;
+  const totalW=GA+gap+GW+gap+GS+gap+swordW;
   const x0=Math.round(VW/2-totalW/2), bottom=VH-5;
   const hudBox={x0:x0-4, y0:Math.min(bottom-GAH,bottom-GH,bottom-GSH)-4, x1:x0+totalW+4, y1:bottom+4};
   return {
-    pad,labelH,gap,swordS,WS,AS,SS,GW,GH,GA,GAH,GS,GSH,
+    pad,labelH,gap,swordW,swordH,WS,AS,SS,GW,GH,GA,GAH,GS,GSH,
     ax:x0, ay:bottom-GAH,
     wx:x0+GA+gap, wy:bottom-GH,
     sx:x0+GA+gap+GW+gap, sy:bottom-GSH,
-    swx:x0+GA+gap+GW+gap+GS+gap, swy:bottom-swordS, hudBox
+    swx:x0+GA+gap+GW+gap+GS+gap, swy:bottom-swordH, hudBox
   };
 }
 function eqSlot(x,y,sz){
@@ -2021,12 +2018,24 @@ function drawEquipHUD(){
     if(EQUIP.accessories[xi]) drawItemIcon(ITEMS[EQUIP.accessories[xi]].ic, x, y, L.SS/16);
     xi++; }
   // 剑
-  const bx=L.swx, by=L.swy, bs=L.swordS;
-  octx.fillStyle='#0b0f1a'; octx.fillRect(bx-1,by-1,bs+2,bs+2);
-  octx.fillStyle='#4b5462'; octx.fillRect(bx,by,bs,bs);
-  octx.fillStyle='#9aa3ae'; octx.fillRect(bx+bs/2-1,by+2,2,bs-8);
-  octx.fillStyle='#6b7280'; octx.fillRect(bx+bs/2-4,by+bs-6,8,2);
-  octx.fillStyle='#8a6440'; octx.fillRect(bx+bs/2-1,by+bs-4,2,3);
+  const bx=L.swx, by=L.swy, bw=L.swordW, bh=L.swordH;
+  octx.fillStyle='#0b2545'; octx.fillRect(bx-1,by-1,bw+2,bh+2);
+  for(let i=0;i<bh;i++){
+    const t=i/Math.max(1,bh-1);
+    const r=Math.round(37+(28-37)*t), g=Math.round(64+(50-64)*t), b=Math.round(110+(84-110)*t);
+    octx.fillStyle='rgb('+r+','+g+','+b+')'; octx.fillRect(bx,by+i,bw,1);
+  }
+  octx.fillStyle='#93c5fd'; octx.fillRect(bx,by,bw,1);
+  const ix=bx+9, iy=by+3;
+  octx.fillStyle='#cbd5e1';
+  octx.fillRect(ix+3,iy+1,6,2);
+  octx.fillRect(ix+1,iy+3,3,4);
+  octx.fillRect(ix+8,iy+3,3,4);
+  octx.fillRect(ix+2,iy+4,8,7);
+  octx.fillStyle='#64748b';
+  octx.fillRect(ix+3,iy+9,6,1);
+  octx.fillStyle='#d4b24a';
+  octx.fillRect(ix+5,iy+6,2,2);
 }
 function fillSlots(el,n,labels){
   if(el.childElementCount) return;
@@ -2364,11 +2373,12 @@ function bindCatBtns(){
     };
   });
 }
+function ph(n){ const a=[]; for(let i=0;i<n;i++) a.push({n:''}); return a; }
 const COLLECTION={
-  mob:[{n:'史莱姆'},{n:'野狼'},{n:'蝙蝠'},{n:'哥布林'},{n:'石像鬼'}],
-  weapon:[{id:'woodsword'},{n:'铁剑'},{n:'战斧'},{n:'长枪'},{n:'法杖'}],
-  armor:[{n:'布衣'},{n:'皮甲'},{n:'铁盔'},{n:'锁子甲'},{n:'板甲'}],
-  acc:[{n:'木戒'},{n:'护符'},{n:'项链'},{n:'手环'},{n:'徽章'}]
+  mob:[{n:''}].concat(ph(19)),
+  weapon:[{id:'woodsword'}].concat(ph(19)),
+  armor:ph(20),
+  acc:ph(20)
 };
 let colTab='mob', colSub='weapon';
 function itemUnlocked(id){
@@ -2458,7 +2468,11 @@ function openCollection(){
   renderCollection();
   updateHudButtons();
 }
-document.getElementById('colBtn').onclick=()=>{ sfxBeep(); vibrate(2); openCollection(); };
+document.getElementById('colBtn').onclick=()=>{
+  closeBag();
+  document.getElementById('equipWrap').classList.add('hidden');
+  sfxBeep(); vibrate(2); openCollection();
+};
 document.getElementById('colClose').onclick=()=>{ document.getElementById('colWrap').classList.add('hidden'); updateHudButtons(); };
 document.getElementById('colBg').onclick=()=>{ document.getElementById('colWrap').classList.add('hidden'); updateHudButtons(); };
 document.querySelectorAll('#colTop button').forEach(b=>{
@@ -2721,12 +2735,15 @@ document.getElementById('muteAll').onclick=()=>{
 
 // ---------- 暂停 / 折叠 / 存档提示 / 小地图 / 环境 ----------
 let paused=false, equipHudOn=true, gtime=0, saveMsgT=-99, showFps=false, showMini=false;
-document.getElementById('exitBtnHud').onclick=()=>{
+function doExit(){
   askConfirm('确定要退出游戏网页吗？', ()=>{
     try{ window.close(); }catch(e){}
-    setTimeout(()=>{ try{ document.body.innerHTML=''; }catch(e){} }, 80);
+    setTimeout(()=>{ try{ document.body.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100vh;color:#93c5fd;font-size:18px">已退出，可关闭页面</div>'; }catch(e){} }, 80);
   }, '是', '否');
-};
+}
+document.getElementById('exitBtn').onclick=()=>{ document.getElementById('menuWrap').classList.add('hidden'); doExit(); };
+const teb=document.getElementById('titleExitBtn');
+if(teb) teb.onclick=doExit;
 document.getElementById('pauseBtn').onclick=()=>{
   paused=!paused;
   pausedAutoMenu=false;
@@ -2844,7 +2861,7 @@ document.getElementById('interactBtn').onclick=()=>{
   else if(interactTarget.k==='drop'){ pickupDrop(interactTarget.d); }
 };
 function drawMini(){
-  const S=46, mx=VW-54, my=50;
+  const S=46, mx=6, my=56;
   // 外发光
   px(mx-4,my-4,S+8,S+8,'rgba(59,130,246,.18)');
   px(mx-3,my-3,S+6,S+6,'rgba(96,165,250,.30)');
@@ -3155,9 +3172,8 @@ function updateHudButtons(){
   const colOpen=!document.getElementById('colWrap').classList.contains('hidden');
   const cb=document.getElementById('colBtn');
   if(bag) bag.style.display = (hide || colOpen) ? 'none' : 'flex';
-  if(cb) cb.classList.toggle('hidden', hide || bagOpen || equipOpen);
-  const ex=document.getElementById('exitBtnHud');
-  if(ex) ex.classList.toggle('hidden', hide);
+  if(cb) cb.classList.toggle('hidden', hide || colOpen);
+
   const ab=document.getElementById('atkBtn');
   if(ab) ab.classList.toggle('hidden', hide || equipOpen || bagOpen || talking);
   const ib=document.getElementById('interactBtn');
