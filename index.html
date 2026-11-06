@@ -282,6 +282,11 @@
   #bagWrap .modal-bg { background:transparent; }
   #bagWrap .modal-box { width:min(330px,56vw); margin-left:96px; max-height:90vh; overflow:visible; }
   .bag-scrollwrap { position:relative; width:100%; margin-bottom:4px; }
+  #bagOpsMenu { position:fixed; z-index:21; display:flex; flex-direction:column; gap:4px;
+                background:linear-gradient(180deg,#12233c,#0b1626); border:2px solid #1e3a5f;
+                padding:6px; box-shadow:0 4px 0 rgba(0,0,0,.4); }
+  #bagOpsMenu button { width:92px; height:34px; padding:0; border:2px solid #0b2545; border-radius:0;
+                       background:linear-gradient(180deg,#2b4a72,#1c3350); color:#dbeafe; font-size:13px; }
   #bagMultiBar { position:absolute; right:18px; bottom:8px; z-index:6; display:flex;
                  border:2px solid #0b2545; box-shadow:0 3px 0 rgba(0,0,0,.4); }
   #bagMultiBar button { width:64px; height:32px; padding:0; border:0; border-radius:0;
@@ -493,7 +498,7 @@
     <div class="panel-head">
       <span class="pixlabel" id="bagTitle"></span>
       <span class="pixlabel" id="bagCap"></span>
-      <button id="bagMultiBtn" class="miniBtn">多选</button>
+      <button id="bagMultiBtn" class="miniBtn">操作</button>
       <button id="bagSort" class="miniBtn">整理</button>
       <button class="xBtn" id="bagClose">✕</button>
     </div>
@@ -502,6 +507,10 @@
       <button class="catBtn" data-f="weapon">武器</button>
       <button class="catBtn" data-f="armor">防具</button>
       <button class="catBtn" data-f="acc">饰品</button>
+    </div>
+    <div id="bagOpsMenu" class="hidden">
+      <button data-op="multi">多选</button>
+      <button data-op="manage">管理</button>
     </div>
     <div class="bag-scrollwrap" id="bagScrollWrap">
       <div class="bag-view" id="bagView">
@@ -2174,7 +2183,8 @@ function updateBagCap(){
   el.innerHTML='';
   el.appendChild(makePixLabel(bagItems.length+'|100 容量', 14, '#94a3b8'));
 }
-let bagFilter='all', bagSel=-1, multiMode=false, multiSel=new Set();
+let bagFilter='all', bagSel=-1, multiMode=false, manageMode=false, multiSel=new Set();
+let bagOpsAt=0;
 function bagDisplay(){
   const idxs=bagItems.map((_,i)=>i);
   if(bagFilter==='all') return {idxs, hl:new Set()};
@@ -2193,13 +2203,7 @@ function renderBag(){
     if(id!==undefined){
       if(dis.hl.has(idx)) d.classList.add('hl');
       if(bagSel===idx) d.classList.add('sel');
-      if(multiMode){
-        const ck=document.createElement('span');
-        ck.className='mcheck'+(multiSel.has(idx)?' on':'');
-        ck.textContent=multiSel.has(idx)?'✓':'';
-        d.appendChild(ck);
-      }
-      {
+      if(manageMode){
         const del=document.createElement('button');
         del.className='del-btn';
         del.innerHTML='<svg width="9" height="9" viewBox="0 0 10 10"><rect x="4.2" y="0.4" width="1.6" height="9.2" fill="#ffffff" transform="rotate(45 5 5)"/><rect x="4.2" y="0.4" width="1.6" height="9.2" fill="#ffffff" transform="rotate(-45 5 5)"/></svg>';
@@ -2216,6 +2220,12 @@ function renderBag(){
         del.addEventListener('touchstart', act, {passive:false});
         del.addEventListener('click', act);
         d.appendChild(del);
+      }
+      if(multiMode){
+        const ck=document.createElement('span');
+        ck.className='mcheck'+(multiSel.has(idx)?' on':'');
+        ck.textContent=multiSel.has(idx)?'✓':'';
+        d.appendChild(ck);
       }
       const icv=itemCanvas(id,38); icv.style.imageRendering='pixelated';
       d.appendChild(icv);
@@ -2757,14 +2767,50 @@ function bindScrollbar(){
     if(e.cancelable) e.preventDefault();
   }, {passive:false});
 }
+function setBagMode(m){
+  multiMode=(m==='multi'); manageMode=(m==='manage');
+  multiSel.clear();
+  const btn=document.getElementById('bagMultiBtn');
+  if(btn){
+    btn.textContent = m==='multi' ? '多选中' : (m==='manage' ? '管理中' : '操作');
+    btn.classList.toggle('on', !!m);
+  }
+  renderBag(); sfxBeep();
+}
+function showBagOps(){
+  const btn=document.getElementById('bagMultiBtn');
+  const menu=document.getElementById('bagOpsMenu');
+  if(!btn||!menu) return;
+  menu.classList.remove('hidden');
+  const r=btn.getBoundingClientRect();
+  const mr=menu.getBoundingClientRect();
+  let x=r.left, y=r.bottom+6;
+  if(x+mr.width>innerWidth-8) x=Math.max(8, innerWidth-8-mr.width);
+  if(y+mr.height>innerHeight-8) y=Math.max(8, r.top-mr.height-6);
+  menu.style.left=x+'px'; menu.style.top=y+'px';
+  bagOpsAt=performance.now();
+}
 function bindMulti(){
   const btn=document.getElementById('bagMultiBtn');
   if(btn) btn.onclick=()=>{
-    multiMode=!multiMode; multiSel.clear();
-    btn.classList.toggle('on', multiMode);
-    btn.textContent = multiMode ? '完成' : '多选';
-    renderBag(); sfxBeep();
+    if(multiMode||manageMode){ setBagMode(''); return; }
+    showBagOps();
   };
+  const menu=document.getElementById('bagOpsMenu');
+  if(menu){
+    menu.querySelectorAll('button').forEach(b=>{
+      b.onclick=(e)=>{ e.stopPropagation(); menu.classList.add('hidden'); setBagMode(b.dataset.op); };
+    });
+    menu.addEventListener('click', e=>e.stopPropagation());
+  }
+  addEventListener('touchstart', (e)=>{
+    const m=document.getElementById('bagOpsMenu');
+    if(!m || m.classList.contains('hidden')) return;
+    if(performance.now()-bagOpsAt<250) return;
+    if(e.target.closest && e.target.closest('#bagOpsMenu')) return;
+    if(e.target.closest && e.target.closest('#bagMultiBtn')) return;
+    m.classList.add('hidden');
+  }, {passive:true});
   const del=document.getElementById('bagDelSel');
   if(del) del.onclick=()=>{
     if(!multiSel.size){ toastMsg('没有选中物品'); return; }
@@ -2815,9 +2861,11 @@ document.getElementById('equipBg').onclick=()=>{ if(performance.now()-equipOpenA
 document.getElementById('bagClose').onclick=()=>document.getElementById('bagWrap').classList.add('hidden');
 function closeBag(){
   try{
-    multiMode=false; multiSel.clear();
+    multiMode=false; manageMode=false; multiSel.clear();
     const mb=document.getElementById('bagMultiBtn');
-    if(mb){ mb.classList.remove('on'); mb.textContent='多选'; }
+    if(mb){ mb.classList.remove('on'); mb.textContent='操作'; }
+    const om=document.getElementById('bagOpsMenu');
+    if(om) om.classList.add('hidden');
     const bar=document.getElementById('bagMultiBar');
     if(bar) bar.classList.add('hidden');
   }catch(e){} document.getElementById('bagWrap').classList.add('hidden'); }
