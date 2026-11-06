@@ -155,8 +155,11 @@
                      border:2px solid #0b0f1a; border-radius:0; box-shadow:none; }
   .col-tabs button.on { background:#f5c542; color:#3b2a1c; border-color:#8a6a1a; }
   #colWrap .modal-bg { background:transparent; }
-  #colWrap .modal-box { width:min(320px,54vw); margin-left:96px; max-height:88vh; overflow:hidden;
-                        display:flex; flex-direction:column; }
+  #colWrap { padding:10px 0; }
+  #colWrap .modal-box { width:min(320px,54vw); margin-left:96px; max-height:84vh; overflow:hidden;
+                        display:flex; flex-direction:column; padding:14px;
+                        border-color:#2f5a8a;
+                        box-shadow:0 0 0 2px #0b2545, 0 0 22px rgba(37,99,235,.4); }
   .col-grid { display:flex; flex-wrap:wrap; gap:6px; width:100%; align-content:flex-start; }
   .col-slot { width:62px; height:62px; flex:0 0 62px; background:#4b5462; border:2px solid #0b0f1a;
               display:flex; flex-direction:column; align-items:center; justify-content:center;
@@ -276,7 +279,8 @@
   .eq-box .eq-slot { width:52px; height:52px; }
   #bagWrap .modal-bg { background:transparent; }
   #bagWrap .modal-box { width:min(330px,56vw); margin-left:96px; max-height:90vh; overflow:visible; }
-  .bag-scrollwrap { position:relative; width:100%; }
+  .bag-scrollwrap { position:relative; width:100%; margin-bottom:4px; }
+  #colWrap .bag-view { border-color:#2f5a8a; }
   .bag-view { width:100%; height:280px; overflow-y:auto; overflow-x:hidden;
               background:#0a1018; border:1px solid #1e293b; touch-action:none;
               padding-right:24px; }
@@ -2549,7 +2553,7 @@ function makeScroller(viewId, trackId, thumbId){
 }
 function openCollection(){
   document.getElementById('colWrap').classList.remove('hidden');
-  const rest=Math.round(window.innerHeight*0.86)-160;
+  const rest=Math.round(window.innerHeight*0.82)-175;
   const cvh=Math.max(130, Math.min(380, rest));
   const cvEl=document.getElementById('colView');
   if(cvEl){ cvEl.style.height=cvh+'px'; cvEl.style.flex='0 0 '+cvh+'px'; }
