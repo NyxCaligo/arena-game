@@ -374,7 +374,7 @@
     <rect x="5" y="7" width="3" height="1" fill="#4b5462"/>
   </svg>
 </button>
-<div id="colWrap" class="modal hidden" style="z-index:11; align-items:center; justify-content:flex-start;">
+<div id="colWrap" class="modal hidden" style="z-index:11; align-items:flex-start; justify-content:flex-start; padding-top:8px;">
   <div class="modal-bg" id="colBg"></div>
   <div class="modal-box">
     <div class="panel-head">
@@ -481,7 +481,7 @@
     <div id="detailRows"></div>
   </div>
 </div>
-<div id="bagWrap" class="modal hidden" style="z-index:10; align-items:center; justify-content:flex-start;">
+<div id="bagWrap" class="modal hidden" style="z-index:10; align-items:flex-start; justify-content:flex-start; padding-top:8px;">
   <div class="modal-bg" id="bagBg"></div>
   <div class="modal-box">
     <div class="panel-head">
@@ -2555,8 +2555,15 @@ function makeScroller(viewId, trackId, thumbId){
 }
 function openCollection(){
   document.getElementById('colWrap').classList.remove('hidden');
+  const vs=viewSize();
+  const box=document.querySelector('#colWrap .modal-box');
+  const maxH=Math.round(vs.H*0.88);
+  if(box) box.style.maxHeight=maxH+'px';
   const cvEl=document.getElementById('colView');
-  if(cvEl){ cvEl.style.height=''; }
+  if(cvEl){
+    cvEl.style.height='';
+    cvEl.style.maxHeight=Math.max(110, Math.min(Math.round(vs.H*0.42), maxH-150))+'px';
+  }
   bindColScroll();
   setTimeout(updateColScroll, 20);
   setTimeout(updateColScroll, 120);
@@ -2566,6 +2573,11 @@ function openCollection(){
   updateHudButtons();
 }
 document.getElementById('colBtn').onclick=()=>{
+  const cw=document.getElementById('colWrap');
+  if(!cw.classList.contains('hidden')){
+    cw.classList.add('hidden'); updateHudButtons(); sfxBeep();
+    return;
+  }
   closeBag();
   document.getElementById('equipWrap').classList.add('hidden');
   sfxBeep(); vibrate(2); openCollection();
@@ -2758,7 +2770,10 @@ function bindSort(){
 function openBag(){
   bagOpenAt=performance.now();
   document.getElementById('bagWrap').classList.remove('hidden');
-  const vh=Math.max(170, Math.min(460, Math.round(window.innerHeight*0.52)));
+  const vsb=viewSize();
+  const bbox=document.querySelector('#bagWrap .modal-box');
+  if(bbox) bbox.style.maxHeight=Math.round(vsb.H*0.9)+'px';
+  const vh=Math.max(150, Math.min(Math.round(vsb.H*0.5), Math.round(vsb.H*0.9)-140));
   const bv=document.getElementById('bagView');
   bv.style.height=vh+'px';
   bv.scrollTop=0;
