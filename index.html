@@ -160,6 +160,8 @@
                         display:flex; flex-direction:column; padding:14px;
                         border-color:#2f5a8a;
                         box-shadow:0 0 0 2px #0b2545, 0 0 22px rgba(37,99,235,.4); }
+  #colWrap .bag-scrollwrap { flex:1 1 auto; min-height:0; }
+  #colWrap .bag-view { flex:1 1 auto; min-height:110px; height:auto !important; }
   .col-grid { display:flex; flex-wrap:wrap; gap:6px; width:100%; align-content:flex-start; }
   .col-slot { width:62px; height:62px; flex:0 0 62px; background:#4b5462; border:2px solid #0b0f1a;
               display:flex; flex-direction:column; align-items:center; justify-content:center;
@@ -2553,10 +2555,8 @@ function makeScroller(viewId, trackId, thumbId){
 }
 function openCollection(){
   document.getElementById('colWrap').classList.remove('hidden');
-  const rest=Math.round(window.innerHeight*0.82)-175;
-  const cvh=Math.max(130, Math.min(380, rest));
   const cvEl=document.getElementById('colView');
-  if(cvEl){ cvEl.style.height=cvh+'px'; cvEl.style.flex='0 0 '+cvh+'px'; }
+  if(cvEl){ cvEl.style.height=''; }
   bindColScroll();
   setTimeout(updateColScroll, 20);
   setTimeout(updateColScroll, 120);
@@ -2573,10 +2573,10 @@ document.getElementById('colBtn').onclick=()=>{
 document.getElementById('colClose').onclick=()=>{ document.getElementById('colWrap').classList.add('hidden'); updateHudButtons(); };
 document.getElementById('colBg').onclick=()=>{ document.getElementById('colWrap').classList.add('hidden'); updateHudButtons(); };
 document.querySelectorAll('#colTop button').forEach(b=>{
-  b.onclick=()=>{ colTab=b.dataset.t; document.querySelectorAll('#colTop button').forEach(x=>x.classList.toggle('on',x===b)); renderCollection(); colSet(0); };
+  b.onclick=()=>{ colTab=b.dataset.t; document.querySelectorAll('#colTop button').forEach(x=>x.classList.toggle('on',x===b)); renderCollection(); colSet(0); setTimeout(updateColScroll,40); };
 });
 document.querySelectorAll('#colSub button').forEach(b=>{
-  b.onclick=()=>{ colSub=b.dataset.s; document.querySelectorAll('#colSub button').forEach(x=>x.classList.toggle('on',x===b)); renderCollection(); setTimeout(()=>{ if(colScroller) colScroller.upd(); },0); };
+  b.onclick=()=>{ colSub=b.dataset.s; document.querySelectorAll('#colSub button').forEach(x=>x.classList.toggle('on',x===b)); renderCollection(); colSet(0); setTimeout(updateColScroll,40); };
 });
 
 const DEV_CODE='XINGCHEN';
