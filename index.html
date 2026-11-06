@@ -208,12 +208,16 @@
             display:flex; align-items:center; justify-content:center; }
   #devBtn.hidden { display:none; }
   #bagBtn, #colBtn { z-index:12 !important; }
-  #bagBtn, #colBtn, #craftBtn, #menuBtn, #exitBtnHud {
+  #bagBtn, #colBtn, #craftBtn, #charBtn, #menuBtn, #exitBtnHud {
     background:linear-gradient(180deg,#2b4a72,#1c3350) !important;
     border:2px solid #0b2545 !important;
     box-shadow:0 3px 0 #0b2545, 0 0 10px rgba(59,130,246,.35) !important;
     color:#dbeafe !important;
   }
+  #charBtn { position:fixed; z-index:12; left:calc(10px + env(safe-area-inset-left, 0px));
+             bottom:calc(172px + env(safe-area-inset-bottom, 0px)); width:46px; height:46px; padding:0;
+             display:flex; align-items:center; justify-content:center; }
+  #charBtn.hidden { display:none; }
   #bagBtn { position:fixed; z-index:12; left:calc(10px + env(safe-area-inset-left, 0px));
             bottom:calc(118px + env(safe-area-inset-bottom, 0px)); width:46px; height:46px; padding:0;
             background:#4b5462; border:2px solid #0b0f1a; border-radius:0;
@@ -303,6 +307,9 @@
   #craftWrap .bag-scrollwrap { flex:1 1 auto; min-height:0; }
   #craftWrap .bag-view { flex:0 0 auto; min-height:120px; }
   .col-slot.dim { opacity:.55; }
+  .char-row { display:flex; justify-content:space-between; width:100%; font-size:12px;
+              padding:7px 2px; border-bottom:1px dashed #2f5a8a; color:#cfe3f8; }
+  .char-row b { color:#f5c542; font-weight:normal; text-align:right; margin-left:8px; }
   .recipe-row { display:flex; justify-content:space-between; width:100%; font-size:12px;
                 padding:5px 2px; border-bottom:1px dashed #2f5a8a; color:#cfe3f8; }
   .craft-row { display:flex; align-items:center; gap:8px; padding:6px; background:#12233c;
@@ -465,6 +472,16 @@
     <button id="recipeCraft" class="sp-full">合成</button>
   </div>
 </div>
+<div id="charWrap" class="modal hidden" style="z-index:11; align-items:flex-start; justify-content:flex-start; padding-top:8px;">
+  <div class="modal-bg" id="charBg"></div>
+  <div class="modal-box" style="width:min(300px,56vw); margin-left:96px; padding:14px">
+    <div class="panel-head">
+      <span class="pixlabel" id="charTitle"></span>
+      <button class="xBtn" id="charClose">✕</button>
+    </div>
+    <div id="charBody" style="width:100%"></div>
+  </div>
+</div>
 <div id="craftWrap" class="modal hidden" style="z-index:11; align-items:flex-start; justify-content:flex-start; padding-top:8px;">
   <div class="modal-bg" id="craftBg"></div>
   <div class="modal-box">
@@ -524,6 +541,14 @@
   <h2>已暂停</h2>
   <button id="resumeBtn" class="sp-full" style="width:auto;padding:12px 30px">继续游戏</button>
 </div>
+<button id="charBtn">
+  <svg width="24" height="24" viewBox="0 0 12 12" shape-rendering="crispEdges">
+    <rect x="4" y="1" width="4" height="4" fill="#dbeafe"/>
+    <rect x="3" y="5" width="6" height="2" fill="#dbeafe"/>
+    <rect x="2" y="7" width="8" height="4" fill="#dbeafe"/>
+    <rect x="5" y="8" width="2" height="3" fill="#4b5462"/>
+  </svg>
+</button>
 <button id="bagBtn">
   <svg width="26" height="26" viewBox="0 0 12 12" shape-rendering="crispEdges">
     <rect x="4" y="1" width="4" height="1" fill="#1e293b"/>
@@ -2756,6 +2781,59 @@ function makeScroller(viewId, trackId, thumbId){
   },{passive:false});
   return {upd,set};
 }
+function setBonusInfo(){
+  let armor=0;
+  for(const id of EQUIP.armors){ if(id && ITEMS[id]) armor += (ITEMS[id].armor||0); }
+  let bonus=0;
+  const setIds=Object.keys(SETS);
+  for(const sk of setIds){
+    const st=SETS[sk];
+    const partIds=Object.keys(ITEMS).filter(k=>ITEMS[k].set===sk && ITEMS[k].t==='armor');
+    const worn=partIds.filter(k=>EQUIP.armors.includes(k)).length;
+    if(worn>=st.parts) bonus+=st.bonus;
+  }
+  return {armor, bonus, total:armor+bonus};
+}
+function renderChar(){
+  const body=document.getElementById('charBody');
+  if(!body) return;
+  body.innerHTML='';
+  document.getElementById('charTitle').textContent='角色信息';
+  const sb=setBonusInfo();
+  const wid=EQUIP.weapons[heldSlot];
+  const atk=wid&&ITEMS[wid]?(ITEMS[wid].dmg||0):0;
+  const rows=[
+    ['生命值', player.hp+' / '+player.maxHp],
+    ['等级', 'Lv '+level],
+    ['经验', xp+' / '+xpNeed+'（还需 '+(xpNeed-xp>0?xpNeed-xp:0)+' 点升级）'],
+    ['移动速度', String(Math.round(player.speed))],
+    ['护甲值', sb.armor+(sb.bonus?' + '+sb.bonus+'（套装）':'')+' = '+sb.total],
+    ['攻击力', String(atk)],
+    ['暴击率', wid&&ITEMS[wid]?(ITEMS[wid].crit||0)+'%':'0%'],
+    ['暴击伤害', (CRIT_MULT*100).toFixed(0)+'%'],
+  ];
+  for(const [k,v] of rows){
+    const r=document.createElement('div');
+    r.className='char-row';
+    r.innerHTML='<span>'+k+'</span><b>'+v+'</b>';
+    body.appendChild(r);
+  }
+}
+function openChar(){
+  document.getElementById('charWrap').classList.remove('hidden');
+  renderChar(); updateHudButtons(); sfxBeep();
+}
+document.getElementById('charBtn').onclick=()=>{
+  const cw=document.getElementById('charWrap');
+  if(!cw.classList.contains('hidden')){ cw.classList.add('hidden'); updateHudButtons(); return; }
+  closeBag();
+  document.getElementById('equipWrap').classList.add('hidden');
+  document.getElementById('colWrap').classList.add('hidden');
+  document.getElementById('craftWrap').classList.add('hidden');
+  openChar();
+};
+document.getElementById('charClose').onclick=()=>{ document.getElementById('charWrap').classList.add('hidden'); updateHudButtons(); };
+document.getElementById('charBg').onclick=()=>{ document.getElementById('charWrap').classList.add('hidden'); updateHudButtons(); };
 function fitCollection(){
   const box=document.querySelector('#colWrap .modal-box');
   const view=document.getElementById('colView');
@@ -3734,6 +3812,12 @@ function updateHudButtons(){
   const crb=document.getElementById('craftBtn');
   const craftOpen=!document.getElementById('craftWrap').classList.contains('hidden');
   if(crb) crb.classList.toggle('hidden', hide);
+  const chb=document.getElementById('charBtn');
+  if(chb) chb.classList.toggle('hidden', hide ||
+      !document.getElementById('bagWrap').classList.contains('hidden') ||
+      !document.getElementById('equipWrap').classList.contains('hidden') ||
+      !document.getElementById('colWrap').classList.contains('hidden') ||
+      !document.getElementById('craftWrap').classList.contains('hidden'));
   const db=document.getElementById('devBtn');
   if(db) db.classList.toggle('hidden', hide || !devMode);
 
