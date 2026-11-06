@@ -2,6 +2,9 @@
 <html lang="zh">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>星辰回响</title>
 <style>
@@ -36,6 +39,22 @@
     text-shadow:0 0 10px rgba(147,197,253,.95), 0 0 28px rgba(59,130,246,.65), 3px 4px 0 #0a1e3a; }
   #menu .sub { position:relative; color:#7dd3fc; letter-spacing:9px; font-size:12px; margin-top:-10px;
     text-shadow:0 0 8px rgba(56,189,248,.6); }
+  @keyframes twinkle { 0%,100%{ opacity:.35 } 50%{ opacity:1 } }
+  @keyframes drift { 0%{ transform:translateY(0) } 100%{ transform:translateY(-6px) } }
+  #menu::before { animation:twinkle 3.4s ease-in-out infinite; }
+  #menu::after {
+    content:''; position:absolute; inset:-10px; pointer-events:none; opacity:.75;
+    background-image:
+      radial-gradient(1px 1px at 8% 55%, #ffffff, transparent),
+      radial-gradient(1px 1px at 22% 32%, #dbeafe, transparent),
+      radial-gradient(1.5px 1.5px at 38% 78%, #ffffff, transparent),
+      radial-gradient(1px 1px at 56% 44%, #bfdbfe, transparent),
+      radial-gradient(1px 1px at 68% 88%, #ffffff, transparent),
+      radial-gradient(1.5px 1.5px at 82% 22%, #dbeafe, transparent),
+      radial-gradient(1px 1px at 92% 58%, #ffffff, transparent),
+      radial-gradient(1px 1px at 48% 8%, #bfdbfe, transparent);
+    animation:twinkle 5.6s ease-in-out infinite reverse, drift 9s ease-in-out infinite alternate;
+  }
   #menu .deco { width:190px; height:2px; margin:2px 0 4px;
     background:linear-gradient(90deg, transparent, #60a5fa, #bae6fd, #60a5fa, transparent);
     box-shadow:0 0 10px rgba(96,165,250,.7); }
@@ -130,7 +149,7 @@
                      border:2px solid #0b0f1a; border-radius:0; box-shadow:none; }
   .col-tabs button.on { background:#f5c542; color:#3b2a1c; border-color:#8a6a1a; }
   #colWrap .modal-bg { background:transparent; }
-  #colWrap .modal-box { width:min(320px,54vw); margin-left:30px; max-height:90vh; overflow:visible; }
+  #colWrap .modal-box { width:min(320px,54vw); margin-left:96px; max-height:90vh; overflow:visible; }
   .col-grid { display:flex; flex-wrap:wrap; gap:6px; width:100%; align-content:flex-start; }
   .col-slot { width:62px; height:62px; flex:0 0 62px; background:#4b5462; border:2px solid #0b0f1a;
               display:flex; flex-direction:column; align-items:center; justify-content:center;
@@ -157,7 +176,11 @@
               align-items:center; justify-content:center; gap:18px; background:rgba(5,7,13,.92); }
   .pause-ov.hidden { display:none; }
   .pause-ov h2 { font-size:26px; color:#f8fafc; letter-spacing:6px; }
-  #bagBtn, #colBtn, #menuBtn {
+  #exitBtnHud { position:fixed; z-index:7; top:calc(10px + env(safe-area-inset-top, 0px));
+                right:calc(64px + env(safe-area-inset-right, 0px)); width:44px; height:44px; padding:0;
+                display:flex; align-items:center; justify-content:center; }
+  #exitBtnHud.hidden { display:none; }
+  #bagBtn, #colBtn, #menuBtn, #exitBtnHud {
     background:linear-gradient(180deg,#2b4a72,#1c3350) !important;
     border:2px solid #0b2545 !important;
     box-shadow:0 3px 0 #0b2545, 0 0 10px rgba(59,130,246,.35) !important;
@@ -242,7 +265,7 @@
   .eq-row { display:flex; gap:8px; }
   .eq-box .eq-slot { width:52px; height:52px; }
   #bagWrap .modal-bg { background:transparent; }
-  #bagWrap .modal-box { width:min(330px,56vw); margin-left:30px; max-height:90vh; overflow:visible; }
+  #bagWrap .modal-box { width:min(330px,56vw); margin-left:96px; max-height:90vh; overflow:visible; }
   .bag-scrollwrap { position:relative; width:100%; }
   .bag-view { width:100%; height:280px; overflow-y:auto; overflow-x:hidden;
               background:#0a1018; border:1px solid #1e293b; touch-action:none;
@@ -270,6 +293,17 @@
 <body>
 <canvas id="cv"></canvas>
 <button id="menuBtn">⚙</button>
+<button id="exitBtnHud">
+  <svg width="22" height="22" viewBox="0 0 10 10" shape-rendering="crispEdges">
+    <rect x="5" y="1" width="1" height="4" fill="#dbeafe"/>
+    <rect x="3" y="2" width="1" height="1" fill="#dbeafe"/>
+    <rect x="7" y="2" width="1" height="1" fill="#dbeafe"/>
+    <rect x="2" y="3" width="1" height="3" fill="#dbeafe"/>
+    <rect x="8" y="3" width="1" height="3" fill="#dbeafe"/>
+    <rect x="3" y="6" width="5" height="1" fill="#dbeafe"/>
+    <rect x="4" y="7" width="3" height="1" fill="#dbeafe"/>
+  </svg>
+</button>
 <div id="menuWrap" class="hidden">
   <div class="modal-bg" id="menuWrapBg"></div>
   <div class="menu-box">
@@ -297,12 +331,6 @@
         <rect x="2" y="1" width="1" height="6" fill="#e2e8f0"/>
         <rect x="5" y="1" width="1" height="6" fill="#e2e8f0"/>
       </svg><span>暂停</span>
-    </button>
-    <button class="menu-sq" id="exitBtn">
-      <svg width="26" height="26" viewBox="0 0 8 8" shape-rendering="crispEdges">
-        <rect x="4" y="1" width="1" height="6" fill="#e2e8f0"/>
-        <rect x="1" y="3" width="3" height="2" fill="#e2e8f0"/>
-      </svg><span>退出</span>
     </button>
   </div>
 </div>
@@ -1531,6 +1559,17 @@ let actx=null, master=null, noteBus=null, sfxGain=null, musicOn=true, sfxOn=true
 let musicVol=0.6, sfxVol=0.7, noiseBuf=null, lastStep=-1;
 let nextTime=0, beatIndex=0;
 const BPM=72, BEAT=60/BPM;
+const BEAT_TOWN=60/104;
+const TOWN_BARS=[
+  {chord:[293.66,369.99,440.00,587.33], bass:146.83},
+  {chord:[329.63,415.30,493.88,659.25], bass:164.81},
+  {chord:[261.63,329.63,392.00,523.25], bass:130.81},
+  {chord:[349.23,440.00,523.25,698.46], bass:174.61},
+];
+const TOWN_PENTA=[587.33,659.25,739.99,880.00,987.77,1174.66];
+let musicMood='title';
+function curBeat(){ return musicMood==='town'?BEAT_TOWN:BEAT; }
+function setMusicMood(m){ musicMood=m; beatIndex=0; if(actx) nextTime=actx.currentTime+0.1; }
 
 function initAudio(){
   if(actx) return;
@@ -1570,18 +1609,23 @@ const BARS=[
 ];
 const PENTA=[523.25,587.33,659.25,783.99,880.00];
 function scheduleBeat(bi, t){
-  const bar=Math.floor(bi/4)%BARS.length, b=bi%4;
+  const town=musicMood==='town';
+  const bars=town?TOWN_BARS:BARS, penta=town?TOWN_PENTA:PENTA, beat=curBeat();
+  const bar=Math.floor(bi/4)%bars.length, b=bi%4;
   if(b===0){
-    for(const f of BARS[bar].chord) note(f, t, BEAT*4*0.9, 'sine', 0.05, 0.8, 1.4);
-    note(BARS[bar].bass, t, BEAT*4*0.85, 'sine', 0.09, 0.5, 1.2);
+    for(const f of bars[bar].chord) note(f, t, beat*4*0.9, 'sine', 0.05, 0.8, 1.4);
+    note(bars[bar].bass, t, beat*4*0.85, 'sine', 0.09, 0.5, 1.2);
   }
-  if((b===2 && Math.random()<0.55) || (b===3 && Math.random()<0.22)){
-    note(PENTA[Math.floor(Math.random()*PENTA.length)], t, BEAT*1.1, 'triangle', 0.03, 0.15, 0.9);
+  if((b===2 && Math.random()<(town?0.8:0.55)) || (b===3 && Math.random()<(town?0.55:0.22))){
+    note(penta[Math.floor(Math.random()*penta.length)], t, beat*1.1, 'triangle', 0.03, 0.15, 0.9);
+  }
+  if(town && b===1 && Math.random()<0.5){
+    note(penta[Math.floor(Math.random()*penta.length)]*2, t, beat*0.8, 'square', 0.012, 0.1, 0.8);
   }
 }
 function scheduler(){
   if(!actx) return;
-  while(nextTime < actx.currentTime + 0.4){ scheduleBeat(beatIndex, nextTime); nextTime+=BEAT; beatIndex++; }
+  while(nextTime < actx.currentTime + 0.4){ scheduleBeat(beatIndex, nextTime); nextTime+=curBeat(); beatIndex++; }
 }
 function startMusic(){
   if(!actx) return;
@@ -1669,6 +1713,7 @@ function goTitle(){
   document.getElementById('itemMenu').classList.add('hidden');
   paused=false; pausedAutoMenu=false;
   state='menu';
+  try{ setMusicMood('title'); }catch(e){}
   document.getElementById('menu').classList.remove('hidden');
   updateHudButtons(); sfxBeep(); vibrate(2);
 }
@@ -1930,11 +1975,24 @@ function armorIcon(x,y,sz,i){
   }
 }
 function eqGroup(x,y,w,h,label){
-  octx.fillStyle='#0b0f1a'; octx.fillRect(x-1,y-1,w+2,h+2);
-  octx.fillStyle='#4b5462'; octx.fillRect(x,y,w,h);
-  octx.fillStyle='#2f3743'; octx.fillRect(x+1,y+1,w-2,h-2);
+  // 外部微光
+  octx.fillStyle='rgba(59,130,246,.22)'; octx.fillRect(x-2,y-2,w+4,h+4);
+  // 深蓝描边
+  octx.fillStyle='#0b2545'; octx.fillRect(x-1,y-1,w+2,h+2);
+  // 渐变底（上浅下深，用横向条带模拟）
+  for(let i=0;i<h;i++){
+    const t=i/Math.max(1,h-1);
+    const r=Math.round(37+(28-37)*t), g=Math.round(64+(50-64)*t), b=Math.round(110+(84-110)*t);
+    octx.fillStyle='rgb('+r+','+g+','+b+')';
+    octx.fillRect(x,y+i,w,1);
+  }
+  // 顶部高光 + 内侧描边
+  octx.fillStyle='#93c5fd'; octx.fillRect(x,y,w,1);
+  octx.fillStyle='rgba(147,197,253,.45)'; octx.fillRect(x,y+1,w,1);
+  octx.strokeStyle='rgba(30,58,95,.9)'; octx.lineWidth=1;
+  octx.strokeRect(x+0.5,y+0.5,w-1,h-1);
   octx.font='6px Zpix, monospace'; octx.textBaseline='top';
-  octx.fillStyle='#cbd5e1';
+  octx.fillStyle='#e0f2fe';
   octx.fillText(label, x+4, y+1);
 }
 function drawEquipHUD(){
@@ -2377,6 +2435,15 @@ function makeScroller(viewId, trackId, thumbId){
   },{passive:false});
   th.addEventListener('touchend',()=>{dt=null;});
   th.addEventListener('touchcancel',()=>{dt=null;});
+  tr.addEventListener('touchstart',(e)=>{
+    e.stopPropagation(); dv=null;
+    const r=tr.getBoundingClientRect();
+    const t=tr.clientHeight||1, mx=Math.max(0,v.scrollHeight-v.clientHeight);
+    const th2=th.offsetHeight||24, travel=Math.max(1,t-th2);
+    const rel=Math.max(0,Math.min(travel, e.touches[0].clientY-r.top-th2/2));
+    set(rel/travel*mx);
+    if(e.cancelable) e.preventDefault();
+  },{passive:false});
   return {upd,set};
 }
 function openCollection(){
@@ -2654,11 +2721,10 @@ document.getElementById('muteAll').onclick=()=>{
 
 // ---------- 暂停 / 折叠 / 存档提示 / 小地图 / 环境 ----------
 let paused=false, equipHudOn=true, gtime=0, saveMsgT=-99, showFps=false, showMini=false;
-document.getElementById('exitBtn').onclick=()=>{
-  document.getElementById('menuWrap').classList.add('hidden');
+document.getElementById('exitBtnHud').onclick=()=>{
   askConfirm('确定要退出游戏网页吗？', ()=>{
     try{ window.close(); }catch(e){}
-    setTimeout(()=>{ try{ location.href='about:blank'; }catch(e){} }, 150);
+    setTimeout(()=>{ try{ document.body.innerHTML=''; }catch(e){} }, 80);
   }, '是', '否');
 };
 document.getElementById('pauseBtn').onclick=()=>{
@@ -2779,13 +2845,24 @@ document.getElementById('interactBtn').onclick=()=>{
 };
 function drawMini(){
   const S=46, mx=VW-54, my=50;
-  px(mx-2,my-2,S+4,S+4,'#0b0f1a');
-  px(mx-1,my-1,S+2,S+2,'#3a4250');
+  // 外发光
+  px(mx-4,my-4,S+8,S+8,'rgba(59,130,246,.18)');
+  px(mx-3,my-3,S+6,S+6,'rgba(96,165,250,.30)');
+  // 蓝色边框
+  px(mx-2,my-2,S+4,S+4,'#0b2545');
+  px(mx-1,my-1,S+2,S+2,'#2563eb');
+  // 地图底
+  px(mx,my,S,S,'#0a1424');
   const sc=Math.min(S/WCOLS, S/WROWS);
   const dw=WCOLS*sc, dh=WROWS*sc;
   const ox=mx+(S-dw)/2, oy=my+(S-dh)/2;
   octx.drawImage(miniCanvas, ox, oy, dw, dh);
+  // 顶部高光 + 四角
+  px(mx-1,my-1,S+2,1,'#93c5fd');
+  px(mx-1,my-1,1,S+2,'rgba(147,197,253,.75)');
+  px(mx+S-1,my-2,2,2,'#bfdbfe'); px(mx-2,my+S-2,2,2,'#bfdbfe');
   const pxp=ox+(player.x/TILE)*sc, pyp=oy+(player.y/TILE)*sc;
+  px(pxp-2,pyp-2,5,5,'rgba(245,197,66,.35)');
   px(pxp-1,pyp-1,3,3,'#f5c542');
 }
 
@@ -3077,9 +3154,10 @@ function updateHudButtons(){
   if(eq) eq.style.display = (hide || equipOpen || bagOpen) ? 'none' : 'flex';
   const colOpen=!document.getElementById('colWrap').classList.contains('hidden');
   const cb=document.getElementById('colBtn');
-  const anyPanel=(settingsOpen||pauseOpen||menuOpen||equipOpen||bagOpen||colOpen||detailOpen||menuPanelOpen);
-  if(cb) cb.classList.toggle('hidden', hide || anyPanel);
-  if(bag) bag.style.display = (hide || anyPanel) ? 'none' : 'flex';
+  if(bag) bag.style.display = (hide || colOpen) ? 'none' : 'flex';
+  if(cb) cb.classList.toggle('hidden', hide || bagOpen || equipOpen);
+  const ex=document.getElementById('exitBtnHud');
+  if(ex) ex.classList.toggle('hidden', hide);
   const ab=document.getElementById('atkBtn');
   if(ab) ab.classList.toggle('hidden', hide || equipOpen || bagOpen || talking);
   const ib=document.getElementById('interactBtn');
@@ -3105,7 +3183,7 @@ document.getElementById('startBtn').onclick=()=>{
   if(screen.orientation && screen.orientation.lock){
     try { const p=screen.orientation.lock('landscape'); if(p&&p.catch) p.catch(()=>{}); } catch(e){}
   }
-  state='arrive'; resize(); syncBagBtn();
+  state='arrive'; resize(); syncBagBtn(); try{ setMusicMood('town'); }catch(e){}
   const sub=document.getElementById('subtitle');
   sub.classList.remove('hidden');
   setTimeout(()=>{ sub.classList.add('hidden'); state='city'; resize(); syncBagBtn(); }, 1600);
