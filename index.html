@@ -4654,16 +4654,19 @@ function setQuad(open, anim){
   const it=document.getElementById('quadItems');
   if(it){
     it.classList.toggle('open', quadOpen);
-    if(quadOpen){
-      if(anim===true){                 // 玩家主动点开：整组依次入场
-        it.classList.remove('pop');
-        void it.offsetWidth;
-        it.classList.add('pop');
-      } else if(!wasOpen){
-        it.classList.remove('pop');    // 程序性展开（背包等）：直接显示，不动画
-      }
-    } else {
-      it.classList.remove('pop');
+    const kids=[...it.children];
+    if(quadOpen && anim===true){
+      // 玩家主动点开：逐个用内联动画播放，不受后续 CSS/类名改动影响
+      kids.forEach((btn,i)=>{
+        btn.style.animation='none';
+        void btn.offsetWidth;
+        btn.style.animation='quadPop .26s cubic-bezier(.16,1.25,.35,1) both';
+        btn.style.animationDelay=(i*45)+'ms';
+      });
+    } else if(!quadOpen){
+      kids.forEach(btn=>{ btn.style.animation=''; btn.style.animationDelay=''; });
+    } else if(!wasOpen){
+      kids.forEach(btn=>{ btn.style.animation='none'; btn.style.animationDelay=''; });
     }
   }
   const qb1=document.getElementById('quadBtn');
@@ -4775,9 +4778,10 @@ document.querySelectorAll('#quadItems button').forEach(b=>{
     e.stopPropagation();
     quadBurst(b);
     // 只让被点的这一个回弹，其他按钮保持不动
-    const qwrap=document.getElementById('quadItems');
-    if(qwrap) qwrap.classList.remove('pop');       // 去掉整组动画，避免覆盖单个回弹
-    b.classList.remove('hop'); void b.offsetWidth; b.classList.add('hop');
+    // 只给被点的这一个播回弹（内联动画，优先级最高）
+    b.style.animation='none'; void b.offsetWidth;
+    b.style.animation='quadHop .26s cubic-bezier(.2,1.3,.4,1) both';
+    b.style.animationDelay='0ms';
     setQuad(true);                      // 保持展开，并重新计时 3.8 秒后自动收起
     const t=document.getElementById(b.dataset.p+'Btn');
     if(t && typeof t.onclick==='function') t.onclick();
