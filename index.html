@@ -4686,13 +4686,13 @@ function setQuad(open, anim){
 document.getElementById('quadBtn').onclick=()=>{
   const wantOpen=!quadOpen;                 // 先记住目标状态（关闭面板会改 quadOpen）
   sfxBeep(); vibrate(2);
-  // 无论展开还是收起，都先关掉所有面板（收起时不能把背包/图鉴挂在那里）
   try{
     closeBag();
     document.getElementById('craftWrap').classList.add('hidden');
     document.getElementById('colWrap').classList.add('hidden');
     closeChar();
-    document.getElementById('equipWrap').classList.add('hidden');
+    // 收起时保留装备面板（叠加打开背包的那种场景）；展开时一并关掉
+    if(wantOpen) document.getElementById('equipWrap').classList.add('hidden');
   }catch(e){}
   setQuad(wantOpen, wantOpen);
   if(typeof updateHudButtons==='function') updateHudButtons();
