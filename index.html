@@ -348,7 +348,7 @@
   .eq-slot { width:46px; height:46px; background:#4b5462; border:2px solid #0b0f1a;
              display:flex; align-items:center; justify-content:center; color:#2b3444;
              font-size:12px; font-weight:bold; }
-  #itemMenu { position:fixed; inset:0; z-index:12; background:transparent; }
+  #itemMenu { position:fixed; inset:0; z-index:40; background:transparent; }
   #itemMenu.hidden { display:none; }
   #dlg { position:fixed; z-index:12; left:50%; transform:translateX(-50%);
          bottom:calc(16px + env(safe-area-inset-bottom, 0px)); width:min(560px,94vw);
@@ -373,7 +373,7 @@
   .item-menu button { width:100%; background:#5a412c; color:#f3e3cc; border:2px solid #241810;
                       box-shadow:0 2px 0 #241810; font-size:14px; padding:9px 12px; }
   .item-menu button:active { transform:translateY(2px); box-shadow:0 0 0 #241810; }
-  #itemDetail { position:fixed; inset:0; z-index:14; }
+  #itemDetail { position:fixed; inset:0; z-index:42; }
   .detail-box { position:absolute; left:0; top:0; background:#3b2a1c; border:2px solid #241810; padding:12px;
                 width:min(290px, 78vw); max-height:72vh; overflow-y:auto; color:#f3e3cc;
                 display:flex; flex-direction:column; gap:8px; box-shadow:0 4px 0 rgba(0,0,0,.4);
