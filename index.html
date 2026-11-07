@@ -854,7 +854,7 @@
     </div>
     <div class="detail-sec">描述</div>
     <div class="detail-desc" id="detailDesc">（描述待补全）</div>
-    <div class="detail-sec">属性</div>
+    <div class="detail-sec" id="detailSecAttr">属性</div>
     <div id="detailRows"></div>
     <button id="detailUse" class="sp-full hidden" style="margin-top:8px">使用</button>
   </div>
@@ -4241,11 +4241,16 @@ function openItemDetail(id, anchor, fromCollection){
   }
   const rows=document.getElementById('detailRows');
   rows.innerHTML='';
-  for(const r of detailRows(id)){
+  const list=detailRows(id);
+  for(const r of list){
     const d=document.createElement('div'); d.className='detail-row';
     d.innerHTML='<span>'+r[0]+'</span><b>'+r[1]+'</b>';
     rows.appendChild(d);
   }
+  // 没有属性行（材料等）就整块隐藏，不要留一个空标题
+  const sec=document.getElementById('detailSecAttr');
+  if(sec) sec.classList.toggle('hidden', list.length===0);
+  rows.classList.toggle('hidden', list.length===0);
   const useBtn=document.getElementById('detailUse');
   if(useBtn){
     const canUse = it.t==='cons' && !fromCollection;
