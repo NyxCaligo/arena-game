@@ -4117,7 +4117,8 @@ function renderEquipPanel(){
       bindItemSlot(d, ()=>{}, ()=>openItemDetail(cur));   // 单击静默，长按直接查看数值
     }
     else {
-      d.onclick=()=>{ sfxBeep(); };          // 空槽：静默
+      // 空槽：点击直接打开背包（并切到对应分类）
+      d.onclick=()=>{ sfxBeep(); vibrate(2); bagFilter=t; openBag(); };
     }
     return d;
   };
