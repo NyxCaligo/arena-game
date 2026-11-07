@@ -5811,7 +5811,7 @@ document.getElementById('interactBtn').onclick=(ev)=>{
   if(t.k==='drop'){ pickupDrop(t.d); return; }
   if(t.k==='door'){ sfxBeep(); toastMsg('商店'); setTimeout(()=>{ enterShop(); }, 260); return; }
   if(t.k==='prop'){ sfxBeep(); toastMsg(PROP_TEXT[t.p.type]||'……'); return; }
-  if(t.k==='shrine'){ sfxBeep(); toastMsg('难道这就是我的家吗？'); return; }
+  if(t.k==='shrine'){ sfxBeep(); toastMsg('重生点'); return; }
   if(t.k==='exitForest'){ sfxBeep(); leaveForest(); return; }
   if(t.k==='gate'){
     sfxBeep();
@@ -5821,7 +5821,7 @@ document.getElementById('interactBtn').onclick=(ev)=>{
     }, '进入森林', '再等等', null, 'forest');
     return;
   }
-  if(t.k==='dummy'){ sfxBeep(); toastMsg('这东西会不会活过来。'); return; }
+  if(t.k==='dummy'){ sfxBeep(); toastMsg('它承受了太多'); return; }
   if(t.k==='exitDoor'){ sfxBeep(); exitShop(); return; }
   if(t.k==='counter'){ sfxBeep(); openShop(); return; }
   if(t.k==='npc'){
