@@ -4672,20 +4672,23 @@ function setQuad(open){
   }
 }
 document.getElementById('quadBtn').onclick=()=>{
+  const wantOpen=!quadOpen;                 // 先记住目标状态（关闭面板会改 quadOpen）
   const bagOn=!document.getElementById('bagWrap').classList.contains('hidden');
-  setQuad(!quadOpen);
   sfxBeep(); vibrate(2);
-  if(bagOn){                      // 背包开着：只切换四方格，不关背包
-    if(quadOpen) clearTimeout(quadTimer);
+  if(bagOn){                                // 背包开着：只切换四方格，不关背包
+    setQuad(wantOpen);
+    if(wantOpen) clearTimeout(quadTimer);
     return;
   }
   try{
-    closeBag();
+    closeBag();                             // closeBag 会收起四方格，所以放在后面再设状态
     document.getElementById('craftWrap').classList.add('hidden');
     document.getElementById('colWrap').classList.add('hidden');
     closeChar();
     document.getElementById('equipWrap').classList.add('hidden');
   }catch(e){}
+  setQuad(wantOpen);
+  if(wantOpen) clearTimeout(quadTimer);
   if(typeof updateHudButtons==='function') updateHudButtons();
 };
 const BURST_BLUE=['#7cc0ff','#a9d6ff','#ffffff','#5b9ee6'];
