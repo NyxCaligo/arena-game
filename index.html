@@ -6163,7 +6163,7 @@ function newSlime(x,y,kind){
           hp:m.hp, maxHp:m.hp, dmg:m.dmg||0, r:(m.static?11:10), vx:0, vy:0,
           iframe:0, atkCd:1, hitFlash:0, atkAnim:0, wob:Math.random()*6, face:1,
           armor:m.armor||0, resist:0,
-          side:Math.random()<0.5?1:-1, stuck:0,
+          side:Math.random()<0.5?1:-1, stuck:0, stun:0,
           speed:m.speed||52, static:!!m.static, neutral:!!m.neutral,
           alert:false, angry:false, detectR:m.detect||220,
           wanderT:0, wanderX:0, wanderY:0};
@@ -6729,7 +6729,7 @@ function updateSlime(dt){
     s.x+=s.vx*dt; s.y+=s.vy*dt;
     s.vx*=Math.pow(0.001,dt); s.vy*=Math.pow(0.001,dt);
     const speed = s.angry ? 45 : (s.speed || 52);
-    if(dist>14 && s.stun<=0){                // 硬直中不主动移动，只吃击退惯性
+    if(dist>14 && (s.stun||0)<=0){           // 硬直中不主动移动，只吃击退惯性
       s.face = dx>=0?1:-1;
       const dxn=dx/dist, dyn=dy/dist;
       const step=speed*dt;
@@ -6743,14 +6743,18 @@ function updateSlime(dt){
           vx=ndx/nd; vy=ndy/nd;
         }
       }
-      const nx=s.x+vx*step, ny=s.y+vy*step;
-      if(!solidAt(nx,ny)){ s.x=nx; s.y=ny; s.stuck=0; }
-      else {
-        const ax=s.x+dxn*step, ay=s.y+dyn*step;
-        if(!solidAt(ax,ay)){ s.x=ax; s.y=ay; }
-        else if(!solidAt(s.x+vx*step, s.y)) s.x+=vx*step;
-        else if(!solidAt(s.x, s.y+vy*step)) s.y+=vy*step;
-        else { s.stuck+=dt; if(s.stuck>0.3){ s.side=-s.side; s.stuck=0; } }
+      // 绕障碍：以"朝玩家方向"为基准，左右偏转找一条能走的路
+      const baseAng=Math.atan2(vy, vx);
+      const offs=[0, 0.5, -0.5, 1.0, -1.0, 1.5, -1.5, 2.1, -2.1];
+      let moved=false;
+      for(const off of offs){
+        const a2=baseAng+off;
+        const mx2=s.x+Math.cos(a2)*step, my2=s.y+Math.sin(a2)*step;
+        if(!solidAt(mx2,my2)){ s.x=mx2; s.y=my2; moved=true; s.stuck=0; break; }
+      }
+      if(!moved){
+        s.stuck+=dt;
+        if(s.stuck>0.4){ s.side=-s.side; s.stuck=0; }
       }
     }
     if(s.atkCd>0) s.atkCd=Math.max(0,s.atkCd-dt);
