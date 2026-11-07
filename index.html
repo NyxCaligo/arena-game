@@ -5494,11 +5494,12 @@ function closeMenuIfOpen(){
     try{ syncPauseIcon(); }catch(e){}
   }
 }
-function closeAllPanels(exceptId){
+function closeAllPanels(exceptId, keepIds){
   try{ closeMenuIfOpen(); }catch(e){}
   panelGuardAt=performance.now();
+  const keep=keepIds||[];
   for(const id of PANEL_IDS){
-    if(id===exceptId) continue;
+    if(id===exceptId || keep.indexOf(id)>=0) continue;
     const el=document.getElementById(id);
     if(el && !el.classList.contains('hidden')) el.classList.add('hidden');
   }
@@ -5517,7 +5518,7 @@ function closeAllPanels(exceptId){
 }
 function openBag(stack){
   bagOpenAt=performance.now();
-  if(!stack) closeAllPanels('bagWrap');
+  if(!stack) closeAllPanels('bagWrap', ['equipWrap']);   // 只与其他面板互斥，装备面板保留（可叠加）
   try{ setQuad(true); }catch(e){}     // 背包打开时展开四方格（3.8 秒没操作自动收起）
   try{ if(typeof updateHudButtons==='function') updateHudButtons(); }catch(e){}
   document.getElementById('bagWrap').classList.remove('hidden');
