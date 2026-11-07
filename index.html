@@ -106,6 +106,12 @@
   .chk.on { background:#4ade80; border-color:#052e16; }
   .sp-group { border-left:2px solid #1e293b; padding-left:8px; }
   .sp-row { display:flex; align-items:center; gap:10px; }
+  .sp-grid2 { display:grid; grid-template-columns:1fr 1fr; gap:6px; width:100%; }
+  .sp-grid2 .sp-full { padding:8px 6px; font-size:12px; }
+  .sp-grid3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; width:100%; }
+  .sp-grid3 .sp-full { padding:8px 4px; font-size:11px; }
+  .sp-grid2 .wide { grid-column:1 / -1; }
+  .sp-label { margin-top:2px; }
   .sp-toggle { width:50px; padding:7px 0; font-size:13px; background:#475569; color:#e2e8f0;
                border:2px solid #1e293b; box-shadow:0 2px 0 #1e293b; }
   .sp-toggle.on { background:#4ade80; color:#052e16; border-color:#052e16; }
@@ -886,14 +892,15 @@
 <div id="settingsPanel" class="hidden">
   <div class="sp-title">设置<button id="settingsClose" class="sp-close">×</button></div>
   <div id="spMain" class="sp-page">
-    <div class="sp-label">公告</div>
-    <div class="sp-group">
-      <button id="openNotice" class="sp-full">📢 内测公告 / 反馈群</button>
+    <div class="sp-group" style="margin-top:2px">
+      <button id="openNotice" class="sp-full" style="padding:7px 10px;font-size:12px">📢 内测公告 / 反馈群</button>
     </div>
     <div class="sp-label" id="gameLabel">游戏</div>
     <div class="sp-group" id="gameGroup">
-      <button id="pauseGameBtn" class="sp-full sp-alt">暂停游戏</button>
-      <button id="titleBtn" class="sp-full sp-alt">回到标题界面</button>
+      <div class="sp-grid2">
+        <button id="pauseGameBtn" class="sp-full sp-alt">暂停游戏</button>
+        <button id="titleBtn" class="sp-full sp-alt">回到标题</button>
+      </div>
     </div>
     <div class="sp-label">音频</div>
     <div class="sp-group">
@@ -903,16 +910,21 @@
     </div>
     <div class="sp-label">显示</div>
     <div class="sp-group">
-      <button id="fullscreenBtn" class="sp-full">全屏</button>
-      <div class="sp-row"><span class="sp-cap">帧率</span><button class="chk" id="chkFps"></button></div>
-      <div class="sp-row"><span class="sp-cap">小地图</span><button class="chk" id="chkMini"></button></div>
+      <div class="sp-grid3">
+        <button id="fullscreenBtn" class="sp-full">全屏</button>
+        <button class="sp-full sp-alt" id="chkFpsBtn">帧率 <b id="chkFpsTxt">关</b></button>
+        <button class="sp-full sp-alt" id="chkMiniBtn">小地图 <b id="chkMiniTxt">关</b></button>
+      </div>
+      <div class="sp-row" style="display:none"><button class="chk" id="chkFps"></button><button class="chk" id="chkMini"></button></div>
     </div>
     <div class="sp-label">操作</div>
     <div class="sp-group">
-      <button id="vibToggle" class="sp-full sp-alt">振动：开</button>
-      <div class="sp-row"><span class="sp-cap">强度</span><input type="range" id="vibPower" min="0" max="100" value="100"></div>
-      <button id="autoPauseToggle" class="sp-full sp-alt">打开菜单自动暂停：关</button>
-      <button id="hudTapToggle" class="sp-full sp-alt">点击状态栏查看角色：开</button>
+      <div class="sp-grid2">
+        <button id="vibToggle" class="sp-full sp-alt">振动：开</button>
+        <button id="autoPauseToggle" class="sp-full sp-alt">菜单自动暂停：关</button>
+        <button id="hudTapToggle" class="sp-full sp-alt wide">点状态栏看角色：开</button>
+      </div>
+      <div class="sp-row"><span class="sp-cap">振动强度</span><input type="range" id="vibPower" min="0" max="100" value="100"></div>
     </div>
     <div class="sp-label" id="devLabel" style="display:none">开发者</div>
     <div class="sp-group" id="devGroup" style="display:none">
@@ -923,11 +935,12 @@
     </div>
     <div class="sp-label">数据</div>
     <div class="sp-group">
-      <button id="openRedeem" class="sp-full sp-alt">兑换码</button>
-      <button id="openStats" class="sp-full sp-alt">游玩统计</button>
-      <button id="openSave" class="sp-full sp-alt">存档</button>
-      <div id="buildTag" style="font-size:10px;color:#5b7089;text-align:center;padding:4px 0"></div>
-      <div id="buildTag" style="font-size:10px;color:#5b7089;text-align:center;padding:4px 0"></div>
+      <div class="sp-grid3">
+        <button id="openRedeem" class="sp-full sp-alt">兑换码</button>
+        <button id="openStats" class="sp-full sp-alt" style="display:none">统计</button>
+        <button id="openSave" class="sp-full sp-alt">存档</button>
+      </div>
+      <div id="buildTag" style="font-size:10px;color:#5b7089;text-align:center;padding:2px 0"></div>
     </div>
   </div>
   <div id="spSave" class="sp-page hidden">
@@ -3141,6 +3154,8 @@ function syncSettingsUI(){
   if(mu){ mu.textContent='一键静音：'+(mutedAll?'开':'关'); mu.classList.toggle('on', mutedAll); }
   const f=document.getElementById('chkFps'); if(f) f.classList.toggle('on', showFps);
   const m=document.getElementById('chkMini'); if(m) m.classList.toggle('on', showMini);
+  const ft=document.getElementById('chkFpsTxt'); if(ft) ft.textContent = showFps?'开':'关';
+  const mt=document.getElementById('chkMiniTxt'); if(mt) mt.textContent = showMini?'开':'关';
   applyMusic(); applySfx();
 }
 function loadCfg(){
@@ -4783,6 +4798,12 @@ function syncDevUI(){
 // ---------- 游玩统计 ----------
 const STAT_NS='nyxcaligo-stellar-echo';
 const STAT_KEY='xingchen_stats_v1';
+let statsUnlocked=false;
+try{ statsUnlocked = localStorage.getItem('xchen_stats_unlock')==='1'; }catch(e){}
+function applyStatsLock(){
+  const b=document.getElementById('openStats');
+  if(b) b.style.display = statsUnlocked ? '' : 'none';
+}
 let stats={sessions:0, totalSec:0, firstAt:0};
 let statsFlushAt=0, statRemote={visits:null, playtime:null, ok:false}, statPlayAcc=0, statHitAcc=0;
 function loadStats(){
@@ -4834,6 +4855,7 @@ function renderStats(){
 }
 try{ document.getElementById('shopTitle').textContent='商店'; }catch(e){}
 document.getElementById('openStats').onclick=()=>{
+  if(!statsUnlocked) return;
   document.getElementById('statsTitle').textContent='游玩统计';
   document.getElementById('statsWrap').classList.remove('hidden');
   renderStats();
@@ -4879,6 +4901,11 @@ document.getElementById('redeemOk').onclick=()=>{
   if(v===DEV_CODE){
     devMode=true; saveCfg(); syncDevUI();
     toastMsg('开发者模式已开启'); sfxEquip(); vibrate(3);
+  } else if(v==='STATS-ECHO-9F3K'){
+    statsUnlocked=true;
+    try{ localStorage.setItem('xchen_stats_unlock','1'); }catch(e){}
+    applyStatsLock();
+    toastMsg('统计面板已解锁（仅本机）'); sfxEquip(); vibrate(3);
   } else {
     toastMsg('兑换码无效');
   }
@@ -5169,6 +5196,12 @@ document.getElementById('bagBtn').onclick=()=>{
   document.getElementById('craftWrap').classList.add('hidden');
   openBag();
 };
+{
+  const b1=document.getElementById('chkFpsBtn');
+  if(b1) b1.onclick=()=>document.getElementById('chkFps').onclick();
+  const b2=document.getElementById('chkMiniBtn');
+  if(b2) b2.onclick=()=>document.getElementById('chkMini').onclick();
+}
 document.getElementById('chkFps').onclick=()=>{
   showFps=!showFps;
   document.getElementById('chkFps').classList.toggle('on', showFps);
@@ -7343,6 +7376,7 @@ try{
   enableInstantTap(['menuBtn','eqToggle','devBtn','bagBtn','colBtn','craftBtn','charBtn','quadBtn',
                     'atkBtn','interactBtn']);
 }catch(e){}
+try{ applyStatsLock(); }catch(e){}
 try{ checkOrientation(); }catch(e){}
 try{ updateHudButtons(); }catch(e){}
 try{ buildMini(); }catch(e){}
