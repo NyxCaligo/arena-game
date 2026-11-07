@@ -4100,6 +4100,7 @@ function renderEquipPanel(){
   }catch(e){}
   const mk=(t,i,empty)=>{
     const d=document.createElement('div'); d.className='eq-slot';
+    const fresh=()=> (performance.now()-equipOpenAt) < 350;   // 刚弹出时忽略这一下
     d.style.position='relative';
     const cur=equipArr(t)[i];
     if(cur){
@@ -4115,11 +4116,11 @@ function renderEquipPanel(){
         {label:'查看', fn:()=>openItemDetail(cur)},
         {label:'卸下', fn:()=>{ vibrate(3); sfxEquip(); unequip(t,i); renderEquipPanel(); renderBag(); saveGame(); }}
       ], d);
-      bindItemSlot(d, ()=>{}, ()=>openItemDetail(cur));   // 单击静默，长按直接查看数值
+      bindItemSlot(d, ()=>{}, ()=>{ if(fresh()) return; openItemDetail(cur); });   // 单击静默，长按看数值
     }
     else {
       // 空槽：点击直接打开背包（并切到对应分类）
-      d.onclick=()=>{ sfxBeep(); vibrate(2); bagFilter=t; openBag(true); };
+      d.onclick=()=>{ if(fresh()) return; sfxBeep(); vibrate(2); bagFilter=t; openBag(true); };
     }
     return d;
   };
