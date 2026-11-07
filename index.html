@@ -4688,8 +4688,7 @@ document.getElementById('quadBtn').onclick=()=>{
   const bagOn=!document.getElementById('bagWrap').classList.contains('hidden');
   sfxBeep(); vibrate(2);
   if(bagOn){                                // 背包开着：只切换四方格，不关背包
-    setQuad(wantOpen, wantOpen);
-    if(wantOpen) clearTimeout(quadTimer);
+    setQuad(wantOpen, wantOpen);            // setQuad 内部会重新计时 3.8 秒
     return;
   }
   try{
@@ -4700,7 +4699,6 @@ document.getElementById('quadBtn').onclick=()=>{
     document.getElementById('equipWrap').classList.add('hidden');
   }catch(e){}
   setQuad(wantOpen, wantOpen);
-  if(wantOpen) clearTimeout(quadTimer);
   if(typeof updateHudButtons==='function') updateHudButtons();
 };
 const BURST_BLUE=['#7cc0ff','#a9d6ff','#ffffff','#5b9ee6'];
@@ -4784,8 +4782,7 @@ document.querySelectorAll('#quadItems button').forEach(b=>{
     const qwrap=document.getElementById('quadItems');
     if(qwrap) qwrap.classList.remove('pop');       // 去掉整组动画，避免覆盖单个回弹
     b.classList.remove('hop'); void b.offsetWidth; b.classList.add('hop');
-    clearTimeout(quadTimer);
-    setQuad(true);                      // 程序性保持展开（无整组动画）
+    setQuad(true);                      // 保持展开，并重新计时 3.8 秒后自动收起
     const t=document.getElementById(b.dataset.p+'Btn');
     if(t && typeof t.onclick==='function') t.onclick();
     setQuad(true);
@@ -5521,7 +5518,7 @@ function closeAllPanels(exceptId){
 function openBag(stack){
   bagOpenAt=performance.now();
   if(!stack) closeAllPanels('bagWrap');
-  try{ setQuad(true); clearTimeout(quadTimer); }catch(e){}   // 背包打开时四方格常驻展开（不做整组动画）
+  try{ setQuad(true); }catch(e){}     // 背包打开时展开四方格（3.8 秒没操作自动收起）
   try{ if(typeof updateHudButtons==='function') updateHudButtons(); }catch(e){}
   document.getElementById('bagWrap').classList.remove('hidden');
   const vsb=viewSize();
