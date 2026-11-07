@@ -4685,14 +4685,10 @@ function setQuad(open, anim){
 }
 document.getElementById('quadBtn').onclick=()=>{
   const wantOpen=!quadOpen;                 // 先记住目标状态（关闭面板会改 quadOpen）
-  const bagOn=!document.getElementById('bagWrap').classList.contains('hidden');
   sfxBeep(); vibrate(2);
-  if(bagOn){                                // 背包开着：只切换四方格，不关背包
-    setQuad(wantOpen, wantOpen);            // setQuad 内部会重新计时 3.8 秒
-    return;
-  }
+  // 无论展开还是收起，都先关掉所有面板（收起时不能把背包/图鉴挂在那里）
   try{
-    closeBag();                             // closeBag 会收起四方格，所以放在后面再设状态
+    closeBag();
     document.getElementById('craftWrap').classList.add('hidden');
     document.getElementById('colWrap').classList.add('hidden');
     closeChar();
