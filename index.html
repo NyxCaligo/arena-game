@@ -261,6 +261,13 @@
              box-shadow:inset 0 2px 0 #4a7ab5, 0 3px 0 #0b2545, 0 0 14px rgba(59,130,246,.4); }
   #quadItems { position:absolute; left:5px; bottom:64px; display:flex; flex-direction:column-reverse; gap:6px;
                transform-origin:50% calc(100% + 34px); }
+  #quadItems > button.hop { animation:quadHop .26s cubic-bezier(.2,1.3,.4,1) both; }
+  @keyframes quadHop {
+    0%   { transform:scale(1) }
+    35%  { transform:scale(.86) }
+    70%  { transform:scale(1.08) }
+    100% { transform:scale(1) }
+  }
   #quadItems.pop > button { animation:quadPop .26s cubic-bezier(.16,1.25,.35,1) both; }
   #quadItems.pop > button:nth-child(1){ animation-delay:0ms }
   #quadItems.pop > button:nth-child(2){ animation-delay:45ms }
@@ -271,6 +278,7 @@
     60%  { opacity:1; transform:translateY(-2px) scale(1.06); }
     100% { opacity:1; transform:translateY(0) scale(1); }
   }
+  #quadItems.pop > button.hop, #quadItems > button.hop { animation:quadHop .26s cubic-bezier(.2,1.3,.4,1) both; }
   #quadBtn.pop { animation:quadBtnPop .3s cubic-bezier(.2,1.15,.35,1); }
   @keyframes quadBtnPop {
     0%   { transform:scale(1) }
@@ -4640,17 +4648,19 @@ function openChar(){
   renderChar(); updateHudButtons(); sfxBeep();
 }
 let quadOpen=false, quadTimer=null;
-function setQuad(open){
+function setQuad(open, anim){
   const wasOpen=quadOpen;
   quadOpen=!!open;
   const it=document.getElementById('quadItems');
   if(it){
     it.classList.toggle('open', quadOpen);
     if(quadOpen){
-      if(!wasOpen){                    // 只有真正展开时才播放入场动画，避免切换面板时跳动
+      if(!wasOpen && anim===true){     // 只有用户主动点开时才整组入场
         it.classList.remove('pop');
         void it.offsetWidth;
         it.classList.add('pop');
+      } else if(!wasOpen){
+        it.classList.remove('pop');    // 程序性展开：直接显示，不动画
       }
     } else {
       it.classList.remove('pop');
@@ -4678,7 +4688,7 @@ document.getElementById('quadBtn').onclick=()=>{
   const bagOn=!document.getElementById('bagWrap').classList.contains('hidden');
   sfxBeep(); vibrate(2);
   if(bagOn){                                // 背包开着：只切换四方格，不关背包
-    setQuad(wantOpen);
+    setQuad(wantOpen, wantOpen);
     if(wantOpen) clearTimeout(quadTimer);
     return;
   }
@@ -4689,7 +4699,7 @@ document.getElementById('quadBtn').onclick=()=>{
     closeChar();
     document.getElementById('equipWrap').classList.add('hidden');
   }catch(e){}
-  setQuad(wantOpen);
+  setQuad(wantOpen, wantOpen);
   if(wantOpen) clearTimeout(quadTimer);
   if(typeof updateHudButtons==='function') updateHudButtons();
 };
@@ -4770,12 +4780,15 @@ document.querySelectorAll('#quadItems button').forEach(b=>{
   b.onclick=(e)=>{
     e.stopPropagation();
     quadBurst(b);
-    // 保持四方格展开：切换面板时不收起、也不重新播放动画
+    // 只让被点的这一个回弹，其他按钮保持不动
+    const qwrap=document.getElementById('quadItems');
+    if(qwrap) qwrap.classList.remove('pop');       // 去掉整组动画，避免覆盖单个回弹
+    b.classList.remove('hop'); void b.offsetWidth; b.classList.add('hop');
     clearTimeout(quadTimer);
-    setQuad(true);
+    setQuad(true);                      // 程序性保持展开（无整组动画）
     const t=document.getElementById(b.dataset.p+'Btn');
     if(t && typeof t.onclick==='function') t.onclick();
-    setQuad(true);                      // 面板打开可能改了状态，这里再确保展开（已展开则无动画）
+    setQuad(true);
     sfxBeep();
   };
   b.addEventListener('touchstart', (e)=>{ e.stopPropagation(); clearTimeout(quadTimer); quadTimer=setTimeout(()=>setQuad(false),3800); }, {passive:true});
@@ -5508,7 +5521,7 @@ function closeAllPanels(exceptId){
 function openBag(stack){
   bagOpenAt=performance.now();
   if(!stack) closeAllPanels('bagWrap');
-  try{ setQuad(true); clearTimeout(quadTimer); }catch(e){}   // 背包打开时四方格常驻展开
+  try{ setQuad(true); clearTimeout(quadTimer); }catch(e){}   // 背包打开时四方格常驻展开（不做整组动画）
   try{ if(typeof updateHudButtons==='function') updateHudButtons(); }catch(e){}
   document.getElementById('bagWrap').classList.remove('hidden');
   const vsb=viewSize();
