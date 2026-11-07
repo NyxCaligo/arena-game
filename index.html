@@ -320,6 +320,7 @@
   #wepTip .wt-r{color:#93c5fd}
   #wepTip .wt-d{color:#94a3b8;margin-top:4px;display:block;font-size:10px}
   #wepTip .wt-h{color:#64748b;font-size:9px;margin-top:3px;display:block}
+  #equipWrap .modal-bg { background:transparent; }
   #equipWrap:not(.hidden) .eq-box { animation:equipBurst .34s cubic-bezier(.16,1.4,.34,1); transform-origin:50% 100%; }
   @keyframes equipBurst {
     0%   { transform:translateY(26px) scale(.72); opacity:0; filter:brightness(1.6); }
@@ -858,7 +859,7 @@
     <button id="detailUse" class="sp-full hidden" style="margin-top:8px">使用</button>
   </div>
 </div>
-<div id="bagWrap" class="modal hidden" style="z-index:10; align-items:flex-start; justify-content:flex-start; padding-top:8px;">
+<div id="bagWrap" class="modal hidden" style="z-index:16; align-items:flex-start; justify-content:flex-start; padding-top:8px;">
   <div class="modal-bg" id="bagBg"></div>
   <div class="modal-box">
     <div class="panel-head">
@@ -4118,7 +4119,7 @@ function renderEquipPanel(){
     }
     else {
       // 空槽：点击直接打开背包（并切到对应分类）
-      d.onclick=()=>{ sfxBeep(); vibrate(2); bagFilter=t; openBag(); };
+      d.onclick=()=>{ sfxBeep(); vibrate(2); bagFilter=t; openBag(true); };
     }
     return d;
   };
@@ -5485,9 +5486,9 @@ function closeAllPanels(exceptId){
   }
   try{ updateHudButtons(); }catch(e){}
 }
-function openBag(){
+function openBag(stack){
   bagOpenAt=performance.now();
-  closeAllPanels('bagWrap');
+  if(!stack) closeAllPanels('bagWrap');
   document.getElementById('bagWrap').classList.remove('hidden');
   const vsb=viewSize();
   const bbox=document.querySelector('#bagWrap .modal-box');
@@ -5512,7 +5513,10 @@ function closeBag(){
     if(om) om.classList.add('hidden');
     const bar=document.getElementById('bagMultiBar');
     if(bar) bar.classList.add('hidden');
-  }catch(e){} document.getElementById('bagWrap').classList.add('hidden'); }
+  }catch(e){}
+  document.getElementById('bagWrap').classList.add('hidden');
+  try{ if(!document.getElementById('equipWrap').classList.contains('hidden')) renderEquipPanel(); }catch(e){}
+}
 document.getElementById('bagBg').onclick=()=>{ if(performance.now()-bagOpenAt<450 || !panelGuardOk()) return; closeBag(); };
 document.getElementById('bagWrap').addEventListener('click', (e)=>{
   if(e.target.id!=='bagWrap' && e.target.id!=='bagBg') return;
