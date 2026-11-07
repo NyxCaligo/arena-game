@@ -4116,7 +4116,9 @@ function renderEquipPanel(){
         {label:'查看', fn:()=>openItemDetail(cur)},
         {label:'卸下', fn:()=>{ vibrate(3); sfxEquip(); unequip(t,i); renderEquipPanel(); renderBag(); saveGame(); }}
       ], d);
-      bindItemSlot(d, ()=>{}, ()=>{ if(fresh()) return; openItemDetail(cur); });   // 单击静默，长按看数值
+      bindItemSlot(d,
+        ()=>{ if(fresh()) return; sfxBeep(); vibrate(2); bagFilter=t; openBag(true); },
+        ()=>{ if(fresh()) return; openItemDetail(cur); });
     }
     else {
       // 空槽：点击直接打开背包（并切到对应分类）
@@ -4665,8 +4667,13 @@ function setQuad(open){
   }
 }
 document.getElementById('quadBtn').onclick=()=>{
+  const bagOn=!document.getElementById('bagWrap').classList.contains('hidden');
   setQuad(!quadOpen);
   sfxBeep(); vibrate(2);
+  if(bagOn){                      // 背包开着：只切换四方格，不关背包
+    if(quadOpen) clearTimeout(quadTimer);
+    return;
+  }
   try{
     closeBag();
     document.getElementById('craftWrap').classList.add('hidden');
@@ -5490,6 +5497,7 @@ function closeAllPanels(exceptId){
 function openBag(stack){
   bagOpenAt=performance.now();
   if(!stack) closeAllPanels('bagWrap');
+  try{ setQuad(true); clearTimeout(quadTimer); }catch(e){}   // 背包打开时四方格常驻展开
   document.getElementById('bagWrap').classList.remove('hidden');
   const vsb=viewSize();
   const bbox=document.querySelector('#bagWrap .modal-box');
@@ -5517,6 +5525,7 @@ function closeBag(){
   }catch(e){}
   document.getElementById('bagWrap').classList.add('hidden');
   try{ if(!document.getElementById('equipWrap').classList.contains('hidden')) renderEquipPanel(); }catch(e){}
+  try{ setQuad(false); }catch(e){}
 }
 document.getElementById('bagBg').onclick=()=>{ if(performance.now()-bagOpenAt<450 || !panelGuardOk()) return; closeBag(); };
 document.getElementById('bagWrap').addEventListener('click', (e)=>{
