@@ -4654,7 +4654,7 @@ function setQuad(open, anim){
   const it=document.getElementById('quadItems');
   if(it){
     it.classList.toggle('open', quadOpen);
-    const kids=[...it.children];
+    const kids=it.children ? [...it.children] : [];
     if(quadOpen && anim===true){
       // 玩家主动点开：逐个用内联动画播放，不受后续 CSS/类名改动影响
       kids.forEach((btn,i)=>{
