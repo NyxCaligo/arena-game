@@ -3205,6 +3205,7 @@ function openSettings(open){
     if(gg) gg.style.display = inGame ? '' : 'none';
     if(autoPause && state==='city'){ pausedAuto=true; paused=true; }
     try{ syncDevUI(); }catch(e){}
+    try{ syncSettingsUI(); }catch(e){}
   }
   else if(pausedAuto){ paused=false; pausedAuto=false; }
   updateHudButtons();
@@ -5606,11 +5607,15 @@ document.getElementById('bagBtn').onclick=()=>{
 document.getElementById('chkFps').onclick=()=>{
   showFps=!showFps;
   document.getElementById('chkFps').classList.toggle('on', showFps);
+  const t=document.getElementById('chkFpsTxt'); if(t) t.textContent = showFps?'开':'关';
+  const b=document.getElementById('chkFpsBtn'); if(b) b.classList.toggle('on', showFps);
   sfxBeep(); vibrate(2); saveCfg();
 };
 document.getElementById('chkMini').onclick=()=>{
   showMini=!showMini;
   document.getElementById('chkMini').classList.toggle('on', showMini);
+  const t=document.getElementById('chkMiniTxt'); if(t) t.textContent = showMini?'开':'关';
+  const b=document.getElementById('chkMiniBtn'); if(b) b.classList.toggle('on', showMini);
   sfxBeep(); vibrate(2); saveCfg();
 };
 ['startBtn','settingsBtn','bagBtn','fullscreenBtn','openSave','saveExport','saveImportBtn','saveCodeGen','saveCodeLoad','saveClear','muteAll','musicToggle','sfxToggle','vibToggle','saveImportBtn'].forEach(id=>{
