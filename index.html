@@ -4655,12 +4655,12 @@ function setQuad(open, anim){
   if(it){
     it.classList.toggle('open', quadOpen);
     if(quadOpen){
-      if(!wasOpen && anim===true){     // 只有用户主动点开时才整组入场
+      if(anim===true){                 // 玩家主动点开：整组依次入场
         it.classList.remove('pop');
         void it.offsetWidth;
         it.classList.add('pop');
       } else if(!wasOpen){
-        it.classList.remove('pop');    // 程序性展开：直接显示，不动画
+        it.classList.remove('pop');    // 程序性展开（背包等）：直接显示，不动画
       }
     } else {
       it.classList.remove('pop');
@@ -4668,8 +4668,8 @@ function setQuad(open, anim){
   }
   const qb1=document.getElementById('quadBtn');
   if(qb1){
-    qb1.classList.remove('pop'); void qb1.offsetWidth;
-    if(quadOpen) qb1.classList.add('pop');
+    qb1.classList.remove('pop');
+    if(quadOpen && anim===true){ void qb1.offsetWidth; qb1.classList.add('pop'); }   // 只在玩家点开时跳
   }
   clearTimeout(quadTimer);
   if(quadOpen){
@@ -5523,6 +5523,9 @@ function openBag(stack){
   document.getElementById('bagWrap').classList.remove('hidden');
   const vsb=viewSize();
   const bbox=document.querySelector('#bagWrap .modal-box');
+  if(bbox && stack){                       // 叠加打开：明确重播一次入场动画
+    bbox.style.animation='none'; void bbox.offsetWidth; bbox.style.animation='';
+  }
   if(bbox) bbox.style.maxHeight=Math.round(vsb.H*0.9)+'px';
   const vh=Math.max(150, Math.min(Math.round(vsb.H*0.5), Math.round(vsb.H*0.9)-140));
   const bv=document.getElementById('bagView');
