@@ -252,7 +252,7 @@
     color:#dbeafe !important;
   }
   #bagBtn, #craftBtn, #colBtn, #charBtn { display:none !important; }
-  #quadWrap { position:fixed; z-index:12; left:calc(10px + env(safe-area-inset-left, 0px));
+  #quadWrap { position:fixed; z-index:18; left:calc(10px + env(safe-area-inset-left, 0px));
               bottom:calc(10px + env(safe-area-inset-bottom, 0px)); width:56px; height:56px; }
   #quadWrap.hidden { display:none; }
   #quadBtn { position:absolute; left:0; bottom:0; width:56px; height:56px; padding:0;
@@ -5503,6 +5503,7 @@ function openBag(stack){
   bagOpenAt=performance.now();
   if(!stack) closeAllPanels('bagWrap');
   try{ setQuad(true); clearTimeout(quadTimer); }catch(e){}   // 背包打开时四方格常驻展开
+  try{ if(typeof updateHudButtons==='function') updateHudButtons(); }catch(e){}
   document.getElementById('bagWrap').classList.remove('hidden');
   const vsb=viewSize();
   const bbox=document.querySelector('#bagWrap .modal-box');
@@ -5531,6 +5532,7 @@ function closeBag(){
   document.getElementById('bagWrap').classList.add('hidden');
   try{ if(!document.getElementById('equipWrap').classList.contains('hidden')) renderEquipPanel(); }catch(e){}
   try{ setQuad(false); }catch(e){}
+  try{ if(typeof updateHudButtons==='function') updateHudButtons(); }catch(e){}
 }
 document.getElementById('bagBg').onclick=()=>{ if(performance.now()-bagOpenAt<450 || !panelGuardOk()) return; closeBag(); };
 document.getElementById('bagWrap').addEventListener('click', (e)=>{
