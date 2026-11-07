@@ -261,24 +261,21 @@
              box-shadow:inset 0 2px 0 #4a7ab5, 0 3px 0 #0b2545, 0 0 14px rgba(59,130,246,.4); }
   #quadItems { position:absolute; left:5px; bottom:64px; display:flex; flex-direction:column-reverse; gap:6px;
                transform-origin:50% calc(100% + 34px); }
-  #quadItems > button.hop { animation:quadHop .26s cubic-bezier(.2,1.3,.4,1) both; }
-  @keyframes quadHop {
-    0%   { transform:scale(1) }
-    35%  { transform:scale(.86) }
-    70%  { transform:scale(1.08) }
-    100% { transform:scale(1) }
-  }
-  #quadItems.pop > button { animation:quadPop .26s cubic-bezier(.16,1.25,.35,1) both; }
-  #quadItems.pop > button:nth-child(1){ animation-delay:0ms }
-  #quadItems.pop > button:nth-child(2){ animation-delay:45ms }
-  #quadItems.pop > button:nth-child(3){ animation-delay:90ms }
-  #quadItems.pop > button:nth-child(4){ animation-delay:135ms }
+  #quadItems.qpop > button { animation:quadPop .26s cubic-bezier(.16,1.25,.35,1) both; }
+  #quadItems.qpop > button:nth-child(1){ animation-delay:0ms }
+  #quadItems.qpop > button:nth-child(2){ animation-delay:45ms }
+  #quadItems.qpop > button:nth-child(3){ animation-delay:90ms }
+  #quadItems.qpop > button:nth-child(4){ animation-delay:135ms }
+  #quadItems > button.qhop { animation:quadHop .26s cubic-bezier(.2,1.3,.4,1) both; }
   @keyframes quadPop {
     0%   { opacity:0; transform:translateY(18px) scale(.55); }
     60%  { opacity:1; transform:translateY(-2px) scale(1.06); }
     100% { opacity:1; transform:translateY(0) scale(1); }
   }
-  #quadItems.pop > button.hop, #quadItems > button.hop { animation:quadHop .26s cubic-bezier(.2,1.3,.4,1) both; }
+  @keyframes quadHop {
+    0%   { transform:scale(1) } 35% { transform:scale(.86) }
+    70%  { transform:scale(1.08) } 100% { transform:scale(1) }
+  }
   #quadBtn.pop { animation:quadBtnPop .3s cubic-bezier(.2,1.15,.35,1); }
   @keyframes quadBtnPop {
     0%   { transform:scale(1) }
@@ -4648,31 +4645,68 @@ function openChar(){
   renderChar(); updateHudButtons(); sfxBeep();
 }
 let quadOpen=false, quadTimer=null;
+/* ---------- 四方格动画（Web Animations API，独立于 CSS 类，不会被任何清理逻辑影响） ---------- */
+const QUAD_ANIMS=new WeakMap();
+function quadChildren(){
+  const it=document.getElementById('quadItems');
+  return it && it.children ? [...it.children] : [];
+}
+function quadCancelAll(){
+  const it=document.getElementById('quadItems');
+  if(it) it.classList.remove('qpop');
+  for(const btn of quadChildren()){
+    btn.classList.remove('qhop');
+    const a=QUAD_ANIMS.get(btn);
+    if(a){ try{ a.cancel(); }catch(e){} QUAD_ANIMS.delete(btn); }
+    btn.style.opacity=''; btn.style.transform=''; btn.style.animation=''; btn.style.animationDelay='';
+  }
+}
+function quadAnimAll(){
+  if(typeof Element==='undefined' || !Element.prototype.animate){
+    const it=document.getElementById('quadItems');       // 兜底：老浏览器用 class
+    if(it){ it.classList.remove('qpop'); void it.offsetWidth; it.classList.add('qpop'); }
+    return;
+  }
+  quadChildren().forEach((btn,i)=>{
+    const prev=QUAD_ANIMS.get(btn); if(prev){ try{ prev.cancel(); }catch(e){} }
+    const a=btn.animate([
+      {opacity:0, transform:'translateY(18px) scale(.55)'},
+      {opacity:1, transform:'translateY(-2px) scale(1.06)', offset:.6},
+      {opacity:1, transform:'translateY(0) scale(1)'}
+    ], {duration:260, delay:i*45, easing:'cubic-bezier(.16,1.25,.35,1)', fill:'both'});
+    QUAD_ANIMS.set(btn,a);
+    a.onfinish=()=>{ try{ a.cancel(); }catch(e){} QUAD_ANIMS.delete(btn); };
+  });
+}
+function quadAnimOne(btn){
+  if(!btn) return;
+  if(typeof Element==='undefined' || !Element.prototype.animate){
+    btn.classList.remove('qhop'); void btn.offsetWidth; btn.classList.add('qhop');   // 兜底
+    return;
+  }
+  const prev=QUAD_ANIMS.get(btn); if(prev){ try{ prev.cancel(); }catch(e){} }
+  const a=btn.animate([
+    {transform:'scale(1)'},
+    {transform:'scale(.86)', offset:.35},
+    {transform:'scale(1.08)', offset:.7},
+    {transform:'scale(1)'}
+  ], {duration:260, easing:'cubic-bezier(.2,1.3,.4,1)'});
+  QUAD_ANIMS.set(btn,a);
+  a.onfinish=()=>{ try{ a.cancel(); }catch(e){} QUAD_ANIMS.delete(btn); };
+}
 function setQuad(open, anim){
-  const wasOpen=quadOpen;
   quadOpen=!!open;
   const it=document.getElementById('quadItems');
-  if(it){
-    it.classList.toggle('open', quadOpen);
-    const kids=it.children ? [...it.children] : [];
-    if(quadOpen && anim===true){
-      // 玩家主动点开：逐个用内联动画播放，不受后续 CSS/类名改动影响
-      kids.forEach((btn,i)=>{
-        btn.style.animation='none';
-        void btn.offsetWidth;
-        btn.style.animation='quadPop .26s cubic-bezier(.16,1.25,.35,1) both';
-        btn.style.animationDelay=(i*45)+'ms';
-      });
-    } else if(!quadOpen){
-      kids.forEach(btn=>{ btn.style.animation=''; btn.style.animationDelay=''; });
-    } else if(!wasOpen){
-      kids.forEach(btn=>{ btn.style.animation='none'; btn.style.animationDelay=''; });
-    }
+  if(it) it.classList.toggle('open', quadOpen);
+  if(quadOpen){
+    if(anim===true) quadAnimAll();      // 只有玩家点开四方格时，四颗一起入场
+  } else {
+    quadCancelAll();                    // 收起时清干净
   }
   const qb1=document.getElementById('quadBtn');
   if(qb1){
     qb1.classList.remove('pop');
-    if(quadOpen && anim===true){ void qb1.offsetWidth; qb1.classList.add('pop'); }   // 只在玩家点开时跳
+    if(quadOpen && anim===true){ void qb1.offsetWidth; qb1.classList.add('pop'); }   // 主按钮只在玩家点的时候跳
   }
   clearTimeout(quadTimer);
   if(quadOpen){
@@ -4781,10 +4815,8 @@ document.querySelectorAll('#quadItems button').forEach(b=>{
     const t=document.getElementById(b.dataset.p+'Btn');
     if(t && typeof t.onclick==='function') t.onclick();
     setQuad(true);
-    // 面板操作（可能触发 closeBag → setQuad(false) 清空动画）结束后，再给被点的这一颗回弹
-    b.style.animation='none'; void b.offsetWidth;
-    b.style.animation='quadHop .26s cubic-bezier(.2,1.3,.4,1) both';
-    b.style.animationDelay='0ms';
+    // 面板操作（可能触发 closeBag → setQuad(false)）结束后，再让被点的这一颗回弹
+    quadAnimOne(b);
     sfxBeep();
   };
   b.addEventListener('touchstart', (e)=>{ e.stopPropagation(); clearTimeout(quadTimer); quadTimer=setTimeout(()=>setQuad(false),3800); }, {passive:true});
