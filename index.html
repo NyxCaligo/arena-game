@@ -4777,15 +4777,14 @@ document.querySelectorAll('#quadItems button').forEach(b=>{
   b.onclick=(e)=>{
     e.stopPropagation();
     quadBurst(b);
-    // 只让被点的这一个回弹，其他按钮保持不动
-    // 只给被点的这一个播回弹（内联动画，优先级最高）
-    b.style.animation='none'; void b.offsetWidth;
-    b.style.animation='quadHop .26s cubic-bezier(.2,1.3,.4,1) both';
-    b.style.animationDelay='0ms';
     setQuad(true);                      // 保持展开，并重新计时 3.8 秒后自动收起
     const t=document.getElementById(b.dataset.p+'Btn');
     if(t && typeof t.onclick==='function') t.onclick();
     setQuad(true);
+    // 面板操作（可能触发 closeBag → setQuad(false) 清空动画）结束后，再给被点的这一颗回弹
+    b.style.animation='none'; void b.offsetWidth;
+    b.style.animation='quadHop .26s cubic-bezier(.2,1.3,.4,1) both';
+    b.style.animationDelay='0ms';
     sfxBeep();
   };
   b.addEventListener('touchstart', (e)=>{ e.stopPropagation(); clearTimeout(quadTimer); quadTimer=setTimeout(()=>setQuad(false),3800); }, {passive:true});
